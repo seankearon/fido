@@ -1,0 +1,11 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+.idea/
+*.DotSettings.user
+
+# Test output (TUnit/MTP reports and captured UI screenshots)
+/artifacts/
+TestResults/

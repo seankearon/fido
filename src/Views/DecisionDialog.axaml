@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Fido.ViewModels"
+        xmlns:sys="using:System"
+        x:Class="Fido.Views.DecisionDialog"
+        x:DataType="vm:DecisionDialogViewModel"
+        Title="Branch not checked out"
+        SizeToContent="Height" Width="580"
+        MinWidth="480" MaxWidth="780"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/fido-icon-256.png"
+        FontFamily="{DynamicResource FidoMono}"
+        Background="{DynamicResource FidoWindowBg}">
+
+    <StackPanel Margin="22,20" Spacing="14">
+
+        <TextBlock Text="This branch isn't checked out anywhere yet — choose where to put it."
+                   FontFamily="{DynamicResource FidoMono}" FontSize="15" FontWeight="SemiBold"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoTextPrimary}" />
+
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+              ColumnSpacing="14" RowSpacing="5">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Repository" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding RepoDisplay}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource FidoTextBody}" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Branch" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Branch}" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FidoAccentText}" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="On remote" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RemoteText}" Foreground="{DynamicResource FidoTextBody}" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Start point" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding StartPointDescription}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource FidoTextBody}" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Main tree on" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding CurrentBranch}" Foreground="{DynamicResource FidoTextBody}" />
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="Worktree path" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding ProposedWorktreePath}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource FidoTextSecondary}" FontSize="12.5" />
+        </Grid>
+
+        <TextBlock Text="{Binding OutstandingSummary}" Foreground="{DynamicResource FidoTextBody}" />
+
+        <Border IsVisible="{Binding HasOutstandingChanges}"
+                BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
+                Background="{DynamicResource FidoLogBg}">
+            <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding OutstandingChanges}" Margin="12,10">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="sys:String">
+                            <TextBlock Text="{Binding}" FontFamily="{DynamicResource FidoMono}"
+                                       FontSize="12" Foreground="{DynamicResource FidoTextMuted}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Text="{Binding SwitchWarning}" IsVisible="{Binding ShowSwitchWarning}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoNoGoText}" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+            <Button x:Name="MainButton" Classes="secondary" Content="Checkout in _main" Click="OnMainClick" />
+            <Button x:Name="WorktreeButton" Classes="primary" Content="Create _worktree" Click="OnWorktreeClick" IsDefault="True"
+                    FontSize="13" Padding="24,9" />
+            <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+        </StackPanel>
+
+        <TextBlock Text="Shortcuts: M / 1 = main · W / 2 = worktree · Enter = worktree · Esc = cancel"
+                   Foreground="{DynamicResource FidoTextDim}" FontSize="11" TextWrapping="Wrap" />
+
+    </StackPanel>
+</Window>

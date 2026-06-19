@@ -1,0 +1,127 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Design tokens from the Fido mission-control handoff. Dark is primary. -->
+    <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ============================ DARK ============================ -->
+        <ResourceDictionary x:Key="Dark">
+            <!-- surfaces -->
+            <SolidColorBrush x:Key="FidoWindowBg" Color="#0c0d10" />
+            <SolidColorBrush x:Key="FidoTitlebarBg" Color="#15161b" />
+            <SolidColorBrush x:Key="FidoInputBg" Color="#101116" />
+            <SolidColorBrush x:Key="FidoSegmentTrackBg" Color="#101116" />
+            <SolidColorBrush x:Key="FidoLogBg" Color="#08090c" />
+            <!-- borders -->
+            <SolidColorBrush x:Key="FidoWindowBorder" Color="#26272e" />
+            <SolidColorBrush x:Key="FidoTitlebarDivider" Color="#23242b" />
+            <SolidColorBrush x:Key="FidoInputBorder" Color="#2a2b33" />
+            <SolidColorBrush x:Key="FidoSegmentTrackBorder" Color="#2a2b33" />
+            <SolidColorBrush x:Key="FidoLogBorder" Color="#1c1d24" />
+            <SolidColorBrush x:Key="FidoCardBorder" Color="#23242b" />
+            <SolidColorBrush x:Key="FidoCardDashedBorder" Color="#2f3038" />
+            <SolidColorBrush x:Key="FidoDisclosureBorder" Color="#26272e" />
+            <SolidColorBrush x:Key="FidoLogRule" Color="#1f2027" />
+            <SolidColorBrush x:Key="FidoSettingsDivider" Color="#202128" />
+            <SolidColorBrush x:Key="FidoDialogFooterBorder" Color="#1f2027" />
+            <!-- text -->
+            <SolidColorBrush x:Key="FidoTextPrimary" Color="#f2f1ec" />
+            <SolidColorBrush x:Key="FidoTextBody" Color="#e9e7e1" />
+            <SolidColorBrush x:Key="FidoTextSecondary" Color="#c9cbd2" />
+            <SolidColorBrush x:Key="FidoTextMuted" Color="#9a9ca6" />
+            <SolidColorBrush x:Key="FidoTextLabel" Color="#6e7079" />
+            <SolidColorBrush x:Key="FidoTextDim" Color="#4f5159" />
+            <SolidColorBrush x:Key="FidoPlaceholder" Color="#5b5d66" />
+            <SolidColorBrush x:Key="FidoTagline" Color="#7d7f88" />
+            <SolidColorBrush x:Key="FidoTitlebarText" Color="#c9cbd2" />
+            <SolidColorBrush x:Key="FidoWinCtrl" Color="#9a9ca6" />
+            <SolidColorBrush x:Key="FidoWinCtrlClose" Color="#c9cbd2" />
+            <SolidColorBrush x:Key="FidoDisclosureText" Color="#a9abb4" />
+            <SolidColorBrush x:Key="FidoDialogPrompt" Color="#b8bac2" />
+            <SolidColorBrush x:Key="FidoSecondaryBtnText" Color="#a9abb4" />
+            <!-- accent -->
+            <SolidColorBrush x:Key="FidoAccent" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentGlyph" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentText" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentStrong" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoButtonText" Color="#1c1400" />
+            <SolidColorBrush x:Key="FidoAccentTintSeg" Color="#29FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentTintCard" Color="#1FFFB02E" />
+            <SolidColorBrush x:Key="FidoAccentTintBtn" Color="#1AFFB02E" />
+            <SolidColorBrush x:Key="FidoAccentCardBorder" Color="#80FFB02E" />
+            <SolidColorBrush x:Key="FidoFocusBorder" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoFocusRing" Color="#21FFB02E" />
+            <!-- status -->
+            <SolidColorBrush x:Key="FidoNoGo" Color="#ff5a52" />
+            <SolidColorBrush x:Key="FidoNoGoText" Color="#ff7a73" />
+            <SolidColorBrush x:Key="FidoNoGoBg" Color="#17ff5a52" />
+            <SolidColorBrush x:Key="FidoGo" Color="#36E27E" />
+            <SolidColorBrush x:Key="FidoGoBg" Color="#1736E27E" />
+            <SolidColorBrush x:Key="FidoStale" Color="#5b5d66" />
+        </ResourceDictionary>
+
+        <!-- ============================ LIGHT ============================ -->
+        <ResourceDictionary x:Key="Light">
+            <!-- surfaces -->
+            <SolidColorBrush x:Key="FidoWindowBg" Color="#ffffff" />
+            <SolidColorBrush x:Key="FidoTitlebarBg" Color="#f3f1ea" />
+            <SolidColorBrush x:Key="FidoInputBg" Color="#ffffff" />
+            <SolidColorBrush x:Key="FidoSegmentTrackBg" Color="#f1efe9" />
+            <SolidColorBrush x:Key="FidoLogBg" Color="#f6f5f2" />
+            <!-- borders -->
+            <SolidColorBrush x:Key="FidoWindowBorder" Color="#e0ded7" />
+            <SolidColorBrush x:Key="FidoTitlebarDivider" Color="#e6e3db" />
+            <SolidColorBrush x:Key="FidoInputBorder" Color="#d8d5cc" />
+            <SolidColorBrush x:Key="FidoSegmentTrackBorder" Color="#ddd9d0" />
+            <SolidColorBrush x:Key="FidoLogBorder" Color="#e6e3db" />
+            <SolidColorBrush x:Key="FidoCardBorder" Color="#e6e3db" />
+            <SolidColorBrush x:Key="FidoCardDashedBorder" Color="#ccc8bd" />
+            <SolidColorBrush x:Key="FidoDisclosureBorder" Color="#e0ded7" />
+            <SolidColorBrush x:Key="FidoLogRule" Color="#e3e1da" />
+            <SolidColorBrush x:Key="FidoSettingsDivider" Color="#ece9e2" />
+            <SolidColorBrush x:Key="FidoDialogFooterBorder" Color="#ece9e2" />
+            <!-- text -->
+            <SolidColorBrush x:Key="FidoTextPrimary" Color="#1a1916" />
+            <SolidColorBrush x:Key="FidoTextBody" Color="#2a2823" />
+            <SolidColorBrush x:Key="FidoTextSecondary" Color="#2a2823" />
+            <SolidColorBrush x:Key="FidoTextMuted" Color="#8a877f" />
+            <SolidColorBrush x:Key="FidoTextLabel" Color="#94917f" />
+            <SolidColorBrush x:Key="FidoTextDim" Color="#b8b5ab" />
+            <SolidColorBrush x:Key="FidoPlaceholder" Color="#a8a59d" />
+            <SolidColorBrush x:Key="FidoTagline" Color="#8a877f" />
+            <SolidColorBrush x:Key="FidoTitlebarText" Color="#3a3833" />
+            <SolidColorBrush x:Key="FidoWinCtrl" Color="#6e6b63" />
+            <SolidColorBrush x:Key="FidoWinCtrlClose" Color="#3a3833" />
+            <SolidColorBrush x:Key="FidoDisclosureText" Color="#6e6b63" />
+            <SolidColorBrush x:Key="FidoDialogPrompt" Color="#5a574f" />
+            <SolidColorBrush x:Key="FidoSecondaryBtnText" Color="#6e6b63" />
+            <!-- accent -->
+            <SolidColorBrush x:Key="FidoAccent" Color="#FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentGlyph" Color="#D98A00" />
+            <SolidColorBrush x:Key="FidoAccentText" Color="#C77A00" />
+            <SolidColorBrush x:Key="FidoAccentStrong" Color="#9a6800" />
+            <SolidColorBrush x:Key="FidoButtonText" Color="#1c1400" />
+            <SolidColorBrush x:Key="FidoAccentTintSeg" Color="#38FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentTintCard" Color="#29FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentTintBtn" Color="#24FFB02E" />
+            <SolidColorBrush x:Key="FidoAccentCardBorder" Color="#E0A53A" />
+            <SolidColorBrush x:Key="FidoFocusBorder" Color="#E0A53A" />
+            <SolidColorBrush x:Key="FidoFocusRing" Color="#38FFB02E" />
+            <!-- status -->
+            <SolidColorBrush x:Key="FidoNoGo" Color="#d6453d" />
+            <SolidColorBrush x:Key="FidoNoGoText" Color="#c2362f" />
+            <SolidColorBrush x:Key="FidoNoGoBg" Color="#17d6453d" />
+            <SolidColorBrush x:Key="FidoGo" Color="#2EA866" />
+            <SolidColorBrush x:Key="FidoGoBg" Color="#172EA866" />
+            <SolidColorBrush x:Key="FidoStale" Color="#b3b0a8" />
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- Shared (theme-independent) -->
+    <FontFamily x:Key="FidoMono">JetBrains Mono, Cascadia Code, Consolas, monospace</FontFamily>
+
+    <!-- The ascent-curve glyph (mark only), drawn so it picks up the accent brush. -->
+    <StreamGeometry x:Key="FidoGlyphCurve">M34 86 C 48 84, 58 74, 68 54 S 82 30, 88 27</StreamGeometry>
+
+</ResourceDictionary>

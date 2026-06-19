@@ -1,0 +1,161 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Fido.ViewModels"
+        xmlns:sys="using:System"
+        x:Class="Fido.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="600" Height="680"
+        MinWidth="520" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/fido-icon-256.png"
+        Title="Fido"
+        FontFamily="{DynamicResource FidoMono}"
+        Background="{DynamicResource FidoWindowBg}">
+
+    <DockPanel Margin="26,24,26,26" LastChildFill="True">
+
+        <StackPanel DockPanel.Dock="Top">
+
+            <!-- header: brand left, settings cog right -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="13">
+                    <Image Source="/Assets/fido-icon-256.png" Width="38" Height="38" VerticalAlignment="Center" />
+                    <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="fido" FontFamily="{DynamicResource FidoMono}" FontSize="22"
+                                   FontWeight="ExtraBold" Foreground="{DynamicResource FidoTextPrimary}" />
+                        <TextBlock Text="Flight Dynamics Officer — guiding Rider to a safe landing"
+                                   FontSize="11.5" Foreground="{DynamicResource FidoTagline}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="iconbtn" Click="OnSettingsClick" VerticalAlignment="Top"
+                        ToolTip.Tip="Settings">
+                    <Path Width="18" Height="18" Stretch="Uniform" Fill="{DynamicResource FidoTextMuted}"
+                          Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                </Button>
+            </Grid>
+
+            <!-- branch (with MRU suggestions) -->
+            <StackPanel Spacing="9" Margin="0,0,0,18" IsEnabled="{Binding NotBusy}">
+                <TextBlock Classes="label" Text="Branch name" />
+                <AutoCompleteBox x:Name="BranchBox" Classes="fido"
+                                 Text="{Binding BranchName, Mode=TwoWay}"
+                                 ItemsSource="{Binding RecentBranches}"
+                                 FilterMode="Contains" MinimumPrefixLength="0"
+                                 GotFocus="OnMruGotFocus">
+                    <AutoCompleteBox.ItemTemplate>
+                        <DataTemplate x:DataType="sys:String">
+                            <Grid ColumnDefinitions="*,Auto" Background="Transparent">
+                                <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1" Classes="mrudel" Tag="branch" Focusable="False"
+                                        Click="OnRemoveMruItem" ToolTip.Tip="Forget this branch name">
+                                    <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
+                                          StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </AutoCompleteBox.ItemTemplate>
+                </AutoCompleteBox>
+            </StackPanel>
+
+            <!-- solution (with MRU suggestions) -->
+            <StackPanel Spacing="9" Margin="0,0,0,20" IsEnabled="{Binding NotBusy}">
+                <TextBlock Classes="label">
+                    <Run Text="Solution name " /><Run Text="· optional" Foreground="{DynamicResource FidoTextDim}" />
+                </TextBlock>
+                <AutoCompleteBox x:Name="SolutionBox" Classes="fido"
+                                 Text="{Binding SolutionName, Mode=TwoWay}"
+                                 ItemsSource="{Binding RecentSolutions}"
+                                 FilterMode="Contains" MinimumPrefixLength="0"
+                                 GotFocus="OnMruGotFocus"
+                                 PlaceholderText="blank → find the branch's folder and list its solutions">
+                    <AutoCompleteBox.ItemTemplate>
+                        <DataTemplate x:DataType="sys:String">
+                            <Grid ColumnDefinitions="*,Auto" Background="Transparent">
+                                <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1" Classes="mrudel" Tag="solution" Focusable="False"
+                                        Click="OnRemoveMruItem" ToolTip.Tip="Forget this solution name">
+                                    <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
+                                          StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </AutoCompleteBox.ItemTemplate>
+                </AutoCompleteBox>
+            </StackPanel>
+
+            <!-- open as -->
+            <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,22" IsEnabled="{Binding NotBusy}">
+                <TextBlock Classes="label" Text="Open as" VerticalAlignment="Center" />
+                <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
+                        BorderThickness="1" CornerRadius="8" Padding="3" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Classes="segment" GroupName="OpenAs" Content="Solution"
+                                     IsChecked="{Binding IsSolutionMode, Mode=TwoWay}" />
+                        <RadioButton Classes="segment" GroupName="OpenAs" Content="Folder"
+                                     IsChecked="{Binding IsFolderMode, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- primary -->
+            <Button x:Name="OpenButton" Classes="primary" Click="OnOpenClick" IsDefault="True" IsEnabled="{Binding NotBusy}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Path Data="M3,2 L12,7 L3,12 Z" Fill="{DynamicResource FidoButtonText}"
+                          Width="14" Height="14" VerticalAlignment="Center" />
+                    <TextBlock Text="Open in Rider" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+
+            <!-- status: NO-GO -->
+            <Border IsVisible="{Binding IsStatusNoGo}" Background="{DynamicResource FidoNoGoBg}"
+                    BorderBrush="{DynamicResource FidoNoGo}" BorderThickness="2,0,0,0"
+                    CornerRadius="0,5,5,0" Padding="14,11" Margin="0,20,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+                    <Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource FidoNoGo}" VerticalAlignment="Center" />
+                    <TextBlock FontFamily="{DynamicResource FidoMono}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run Text="NO-GO" FontWeight="Bold" Foreground="{DynamicResource FidoNoGoText}" /><Run Text=" · " Foreground="{DynamicResource FidoTextSecondary}" /><Run Text="{Binding StatusText}" Foreground="{DynamicResource FidoTextSecondary}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <!-- status: GO -->
+            <Border IsVisible="{Binding IsStatusGo}" Background="{DynamicResource FidoGoBg}"
+                    BorderBrush="{DynamicResource FidoGo}" BorderThickness="2,0,0,0"
+                    CornerRadius="0,5,5,0" Padding="14,11" Margin="0,20,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+                    <Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource FidoGo}" VerticalAlignment="Center" />
+                    <TextBlock FontFamily="{DynamicResource FidoMono}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run Text="GO" FontWeight="Bold" Foreground="{DynamicResource FidoGo}" /><Run Text=" · " Foreground="{DynamicResource FidoTextSecondary}" /><Run Text="{Binding StatusText}" Foreground="{DynamicResource FidoTextSecondary}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+
+        <!-- flight log fills the remainder -->
+        <Grid RowDefinitions="Auto,*" Margin="0,20,0,0">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,9">
+                <TextBlock Grid.Column="0" Classes="label" Text="Flight log" VerticalAlignment="Center" />
+                <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoLogRule}"
+                        VerticalAlignment="Center" Margin="8,0,0,0" />
+            </Grid>
+            <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
+                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="110">
+                <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Log}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:LogLine">
+                                <TextBlock Classes="logline" Text="{Binding Text}"
+                                           Classes.accent="{Binding IsAccent}"
+                                           Classes.secondary="{Binding IsSecondary}"
+                                           Classes.error="{Binding IsError}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+    </DockPanel>
+</Window>

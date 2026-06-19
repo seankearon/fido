@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Fido.csproj" />
+  <Project Path="tests/Fido.Tests/Fido.Tests.csproj" />
+</Solution>

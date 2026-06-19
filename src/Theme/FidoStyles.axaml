@@ -1,0 +1,294 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Uppercase section label -->
+    <Style Selector="TextBlock.label">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="LetterSpacing" Value="1.8" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextLabel}" />
+    </Style>
+
+    <!-- Mono text input -->
+    <Style Selector="TextBox.fido">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="13,11" />
+        <Setter Property="CaretBrush" Value="{DynamicResource FidoAccentText}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource FidoAccentTintSeg}" />
+        <Setter Property="PlaceholderForeground" Value="{DynamicResource FidoPlaceholder}" />
+    </Style>
+    <Style Selector="TextBox.fido /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+    </Style>
+    <Style Selector="TextBox.fido:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+    </Style>
+    <Style Selector="TextBox.fido:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoFocusBorder}" />
+    </Style>
+    <Style Selector="TextBox.fido:focus-within /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoFocusBorder}" />
+    </Style>
+
+    <!-- Mono autocomplete input (branch / solution MRU) — mirrors TextBox.fido on the inner text box -->
+    <Style Selector="AutoCompleteBox.fido">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido /template/ TextBox#PART_TextBox">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="13,11" />
+        <Setter Property="CaretBrush" Value="{DynamicResource FidoAccentText}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource FidoAccentTintSeg}" />
+        <Setter Property="PlaceholderForeground" Value="{DynamicResource FidoPlaceholder}" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido /template/ TextBox#PART_TextBox /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido /template/ TextBox#PART_TextBox:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido /template/ TextBox#PART_TextBox:focus-within /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoFocusBorder}" />
+    </Style>
+
+    <!-- Autocomplete dropdown surface + items -->
+    <Style Selector="AutoCompleteBox.fido /template/ ListBox#PART_SelectingItemsControl">
+        <Setter Property="Background" Value="{DynamicResource FidoInputBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="4" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido ListBoxItem">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="CornerRadius" Value="5" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+    <Style Selector="AutoCompleteBox.fido ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
+    </Style>
+
+    <!-- Inline "forget this entry" (✕) affordance inside the autocomplete dropdown items -->
+    <Style Selector="Button.mrudel">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+    <Style Selector="Button.mrudel Path">
+        <Setter Property="Stroke" Value="{DynamicResource FidoTextMuted}" />
+    </Style>
+    <Style Selector="Button.mrudel /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.mrudel:pointerover">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.mrudel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGoBg}" />
+    </Style>
+    <Style Selector="Button.mrudel:pointerover Path">
+        <Setter Property="Stroke" Value="{DynamicResource FidoNoGo}" />
+    </Style>
+
+    <!-- Primary (amber) button -->
+    <Style Selector="Button.primary">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="14.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoButtonText}" />
+        <Setter Property="Background" Value="{DynamicResource FidoAccent}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccent}" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccent}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentStrong}" />
+    </Style>
+
+    <!-- Secondary / ghost button (dialog Cancel) -->
+    <Style Selector="Button.secondary">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoSecondaryBtnText}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoInputBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="20,9" />
+    </Style>
+    <Style Selector="Button.secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
+    <!-- "Save settings" — amber outline + faint tint -->
+    <Style Selector="Button.save">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoAccent}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="20,10" />
+    </Style>
+    <Style Selector="Button.save /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
+    <!-- Segmented control option (RadioButton rendered as a pill segment) -->
+    <Style Selector="RadioButton.segment">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextMuted}" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="seg" Background="Transparent" CornerRadius="6" Padding="18,7">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.segment:checked">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="RadioButton.segment:checked /template/ Border#seg">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
+    </Style>
+
+    <!-- Flight-log lines (level-coded via conditional classes; muted is the default) -->
+    <Style Selector="TextBlock.logline">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="21" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextMuted}" />
+    </Style>
+    <Style Selector="TextBlock.logline.accent">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentText}" />
+    </Style>
+    <Style Selector="TextBlock.logline.secondary">
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.logline.error">
+        <Setter Property="Foreground" Value="{DynamicResource FidoNoGoText}" />
+    </Style>
+
+    <!-- Header icon button (cog) -->
+    <Style Selector="Button.iconbtn">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="7" />
+        <Setter Property="CornerRadius" Value="7" />
+    </Style>
+    <Style Selector="Button.iconbtn /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
+    <!-- Window control buttons (min / max / close) -->
+    <Style Selector="Button.wctl">
+        <Setter Property="Width" Value="42" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.wctl /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.wctl:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+    <Style Selector="Button.wctl.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGo}" />
+    </Style>
+
+    <!-- Selectable cards (dialog lists) -->
+    <Style Selector="ListBox.cards">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.cards ListBoxItem">
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="card" Background="Transparent" BorderBrush="{DynamicResource FidoCardBorder}"
+                        BorderThickness="1" CornerRadius="8" Padding="13,12">
+                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ListBox.cards ListBoxItem:pointerover /template/ Border#card">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+    <Style Selector="ListBox.cards ListBoxItem:selected /template/ Border#card">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintCard}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoAccentCardBorder}" />
+    </Style>
+
+    <!-- Settings disclosure row -->
+    <Style Selector="Button.disclosure">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoDisclosureBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,11" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoDisclosureText}" />
+    </Style>
+    <Style Selector="Button.disclosure /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.disclosure:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
+</Styles>

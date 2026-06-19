@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # SkiaSharp (headless rendering / screenshot capture) needs fontconfig on Linux.
+      - name: Install Skia native deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1
+
+      - name: Build
+        run: dotnet build -c Release tests/Fido.Tests/Fido.Tests.csproj
+
+      # The suite drives the real Avalonia UI headlessly against real git repos (git is preinstalled
+      # on GitHub runners). TUnit runs on Microsoft.Testing.Platform; the process exit code gates the job.
+      - name: Run headless UI + integration tests
+        env:
+          FIDO_SCREENSHOT_DIR: ${{ github.workspace }}/artifacts/screenshots
+        run: dotnet run -c Release --no-build --project tests/Fido.Tests/Fido.Tests.csproj
+
+      - name: Upload screenshots & test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ matrix.os }}
+          path: |
+            artifacts/screenshots
+            tests/Fido.Tests/bin/Release/net10.0/TestResults
+          if-no-files-found: ignore

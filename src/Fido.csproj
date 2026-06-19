@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Fido</RootNamespace>
+        <AssemblyName>Fido</AssemblyName>
+        <Product>Fido</Product>
+        <AssemblyTitle>Fido — Flight Dynamics Officer</AssemblyTitle>
+        <Description>Resolves a branch name to its worktree on disk and opens it in Rider.</Description>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <ApplicationIcon>..\assets\fido.ico</ApplicationIcon>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- Native AOT: `dotnet publish -r <rid> -c Release` produces a self-contained native exe.
+             The app is AOT-safe (compiled bindings + source-generated JSON). -->
+        <PublishAot>true</PublishAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Brand assets live at the repo root; link them into the Fido namespace as avares resources. -->
+        <AvaloniaResource Include="..\assets\png\fido-icon-256.png" Link="Assets\fido-icon-256.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Fido.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+    </ItemGroup>
+
+</Project>
