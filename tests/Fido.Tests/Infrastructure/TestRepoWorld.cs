@@ -101,7 +101,8 @@ public sealed class TestRepoWorld : IDisposable
         IReadOnlyList<string> searchRoots,
         FakeRiderLauncher rider,
         FakeDialogService dialogs,
-        string? worktreeRoot = null)
+        string? worktreeRoot = null,
+        CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine)
     {
         var config = new AppConfig
         {
@@ -109,6 +110,7 @@ public sealed class TestRepoWorld : IDisposable
             MainBranchNames = new() { "main", "master" },
             SearchDepth = 8,
             WorktreeRoot = worktreeRoot,
+            CloseAfterOpen = closeAfterOpen,
         };
 
         var configDir = Path.Combine(Root, "config", Guid.NewGuid().ToString("N"));

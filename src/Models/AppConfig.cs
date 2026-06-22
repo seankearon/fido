@@ -39,6 +39,9 @@ public sealed class AppConfig
     /// <summary>Theme preference; <see cref="AppTheme.System"/> follows the OS.</summary>
     public AppTheme Theme { get; set; } = AppTheme.System;
 
+    /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
+    public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
+
     /// <summary>Builds a config seeded with common dev locations under the user profile.</summary>
     public static AppConfig CreateDefault()
     {

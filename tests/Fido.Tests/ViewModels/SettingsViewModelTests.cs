@@ -32,6 +32,23 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task CloseAfterOpen_round_trips_through_load_and_apply()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig { CloseAfterOpen = CloseAfterOpen.Always });
+
+        await Assert.That(vm.CloseAfterOpen).IsEqualTo(CloseAfterOpen.Always);
+        await Assert.That(vm.IsCloseAlways).IsTrue();
+        await Assert.That(vm.IsCloseCommandLine).IsFalse();
+
+        vm.IsCloseNever = true;   // segmented control selects a different option
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.CloseAfterOpen).IsEqualTo(CloseAfterOpen.Never);
+    }
+
+    [Test]
     public async Task MergeDetected_adds_new_unticked_preserves_state_and_dedups_case_insensitively()
     {
         var vm = new SettingsViewModel();

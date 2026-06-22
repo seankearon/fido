@@ -153,15 +153,20 @@ Failures call it straight — `[✗] …` lines and a **No-go** status; a cancel
 - **Choosers:** arrow keys to move, `Enter` / Open to select, `Esc` to cancel, double-click to
   pick.
 
-### Command-line prefill
+### Command-line launch
 
-Launch arguments pre-populate the form (they do **not** auto-run):
+Launch arguments pre-populate the form, and **supplying a branch runs the open flow
+automatically** — exactly as if you'd typed it and clicked **Open in Rider**, so any
+chooser/decision dialogs still appear when a choice is genuinely needed:
 
 | Argument | Effect |
 | --- | --- |
-| `--branch` / `-b` `<name>` | Pre-fill the branch |
-| `--solution` / `-s` `<name>` | Pre-fill the solution name |
+| `<name>` (bare) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
+| `--solution` / `-s` `<name>` | Set the solution name |
 | `--folder` | Start in Folder open-mode |
+
+For example, `fido feature/new-ui -s MyApp` opens that branch's `MyApp` solution and,
+by default, closes Fido once Rider is launched (see **Close after opening** below).
 
 ---
 
@@ -175,6 +180,9 @@ Launch arguments pre-populate the form (they do **not** auto-run):
 - **New-branch repos** — the repositories Fido may place a branch into in **branch-only mode**
   when the branch isn't checked out anywhere. Click **Detect** to scan your search roots for git
   repositories, then tick the ones to use.
+- **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
+  only when started with a branch on the command line)*, **Always** (after every launch, including
+  the Open button), or **Never**.
 
 ### Defaults
 

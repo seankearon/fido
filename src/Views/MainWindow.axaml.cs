@@ -50,8 +50,16 @@ public partial class MainWindow : Window
         _opener = new OpenerService(_git, _finder, _workingTreeFinder, _vm.AppendLog);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
 
-        ApplyStartupArgs();
-        Opened += (_, _) => BranchBox.Focus();
+        var autoOpen = ApplyStartupArgs();
+        Opened += async (_, _) =>
+        {
+            BranchBox.Focus();
+            if (autoOpen)
+            {
+                autoOpen = false;   // a CLI-supplied branch runs the open flow exactly once
+                await RunOpenAsync(fromCommandLine: true);
+            }
+        };
     }
 
     private async void OnSettingsClick(object? sender, RoutedEventArgs e)
@@ -110,16 +118,23 @@ public partial class MainWindow : Window
 
     // --- Startup / log ------------------------------------------------------------------
 
-    /// <summary>Pre-fills inputs from the CLI: <c>--branch/-b</c>, <c>--solution/-s</c>, <c>--folder</c>.</summary>
-    private void ApplyStartupArgs()
+    /// <summary>
+    /// Pre-fills inputs from the CLI: a bare first argument or <c>--branch/-b</c> sets the branch,
+    /// <c>--solution/-s</c> the solution, <c>--folder</c> the open mode. Returns true when a branch was
+    /// supplied — the signal that the open flow should run automatically on startup, as if the user had
+    /// clicked Open in Rider (so any chooser/decision dialogs still appear).
+    /// </summary>
+    private bool ApplyStartupArgs()
     {
         var args = Program.StartupArgs;
+        var branchProvided = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--branch" or "-b" when i + 1 < args.Length:
                     _vm.BranchName = args[++i];
+                    branchProvided = true;
                     break;
                 case "--solution" or "-s" when i + 1 < args.Length:
                     _vm.SolutionName = args[++i];
@@ -127,8 +142,17 @@ public partial class MainWindow : Window
                 case "--folder":
                     _vm.IsFolderMode = true;
                     break;
+                default:
+                    // A bare positional argument (not an option, not consumed as a value) is the branch.
+                    if (!branchProvided && !args[i].StartsWith('-'))
+                    {
+                        _vm.BranchName = args[i];
+                        branchProvided = true;
+                    }
+                    break;
             }
         }
+        return branchProvided;
     }
 
     private void ScrollLogToEnd() => LogScroller.Offset = new Vector(0, LogScroller.Extent.Height);
@@ -137,7 +161,9 @@ public partial class MainWindow : Window
 
     // Mission control: poll each station, and only when every one is GO do we launch.
     // Internal so tests can await the full flow deterministically rather than racing the async-void click.
-    internal async Task RunOpenAsync()
+    // <paramref name="fromCommandLine"/> marks a startup run driven by a CLI branch — it governs whether
+    // Fido closes itself afterwards (see <see cref="MaybeCloseAfterLaunch"/>).
+    internal async Task RunOpenAsync(bool fromCommandLine = false)
     {
         var branch = _vm.BranchName.Trim();
         var solution = _vm.SolutionName.Trim();
@@ -182,6 +208,7 @@ public partial class MainWindow : Window
             _vm.AppendLog("The Eagle has landed...");
             _rider.Launch(riderPath, plan.Target.Path);
             _vm.SetStatus($"Rider launched on {(plan.Target.IsSolution ? "solution" : "folder")}: {plan.Target.Path}", StatusKind.Go);
+            MaybeCloseAfterLaunch(fromCommandLine);
         }
         catch (Exception ex)
         {
@@ -192,6 +219,23 @@ public partial class MainWindow : Window
         {
             _vm.IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Closes Fido after a successful launch when the configured <see cref="CloseAfterOpen"/> policy says so:
+    /// <see cref="CloseAfterOpen.Always"/> on any launch, <see cref="CloseAfterOpen.CommandLine"/> only for a
+    /// CLI-driven run, <see cref="CloseAfterOpen.Never"/> not at all. Rider is launched detached, so closing
+    /// Fido leaves it running.
+    /// </summary>
+    private void MaybeCloseAfterLaunch(bool fromCommandLine)
+    {
+        var close = _config.CloseAfterOpen switch
+        {
+            CloseAfterOpen.Always => true,
+            CloseAfterOpen.CommandLine => fromCommandLine,
+            _ => false,
+        };
+        if (close) Close();
     }
 
     /// <summary>Solution-centric flow: locate the clone(s), reuse/checkout/worktree the branch, resolve a target.</summary>
