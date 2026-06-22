@@ -14,6 +14,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _riderPath = "";
     private string _worktreeRoot = "";
     private AppTheme _selectedTheme = AppTheme.System;
+    private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
 
     public string SearchRootsText
     {
@@ -65,6 +66,38 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (value) SelectedTheme = AppTheme.Dark; }
     }
 
+    public CloseAfterOpen CloseAfterOpen
+    {
+        get => _closeAfterOpen;
+        set
+        {
+            if (SetField(ref _closeAfterOpen, value))
+            {
+                OnPropertyChanged(nameof(IsCloseCommandLine));
+                OnPropertyChanged(nameof(IsCloseAlways));
+                OnPropertyChanged(nameof(IsCloseNever));
+            }
+        }
+    }
+
+    public bool IsCloseCommandLine
+    {
+        get => _closeAfterOpen == CloseAfterOpen.CommandLine;
+        set { if (value) CloseAfterOpen = CloseAfterOpen.CommandLine; }
+    }
+
+    public bool IsCloseAlways
+    {
+        get => _closeAfterOpen == CloseAfterOpen.Always;
+        set { if (value) CloseAfterOpen = CloseAfterOpen.Always; }
+    }
+
+    public bool IsCloseNever
+    {
+        get => _closeAfterOpen == CloseAfterOpen.Never;
+        set { if (value) CloseAfterOpen = CloseAfterOpen.Never; }
+    }
+
     /// <summary>Repos offered when a typed branch isn't checked out anywhere; ticked ones are persisted.</summary>
     public ObservableCollection<RepoChoice> NewBranchRepos { get; } = new();
 
@@ -74,6 +107,7 @@ public sealed class SettingsViewModel : ObservableObject
         RiderPath = config.RiderPath ?? "";
         WorktreeRoot = config.WorktreeRoot ?? "";
         SelectedTheme = config.Theme;
+        CloseAfterOpen = config.CloseAfterOpen;
 
         NewBranchRepos.Clear();
         foreach (var path in config.NewBranchRepos)
@@ -86,6 +120,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.RiderPath = string.IsNullOrWhiteSpace(RiderPath) ? null : RiderPath.Trim();
         config.WorktreeRoot = string.IsNullOrWhiteSpace(WorktreeRoot) ? null : WorktreeRoot.Trim();
         config.Theme = SelectedTheme;
+        config.CloseAfterOpen = CloseAfterOpen;
         config.NewBranchRepos = NewBranchRepos.Where(r => r.IsEnabled).Select(r => r.Path).ToList();
     }
 

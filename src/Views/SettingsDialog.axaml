@@ -74,6 +74,23 @@
             </Border>
         </StackPanel>
 
+        <StackPanel Spacing="9">
+            <TextBlock Classes="label">
+                <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
+            </TextBlock>
+            <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
+                    BorderThickness="1" CornerRadius="8" Padding="3" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Command line"
+                                 IsChecked="{Binding IsCloseCommandLine, Mode=TwoWay}" />
+                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Always"
+                                 IsChecked="{Binding IsCloseAlways, Mode=TwoWay}" />
+                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Never"
+                                 IsChecked="{Binding IsCloseNever, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
             <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
             <Button x:Name="SaveButton" Classes="primary" Content="Save" Click="OnSaveClick" IsDefault="True" FontSize="13" Padding="24,9" />
