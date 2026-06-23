@@ -42,6 +42,18 @@ public sealed class AppConfig
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
 
+    /// <summary>Default for <see cref="CloseAfterOpenDelaySeconds"/>: a forgiving countdown the user can pre-empt.</summary>
+    public const int DefaultCloseAfterOpenDelaySeconds = 10;
+
+    /// <summary>Upper bound for <see cref="CloseAfterOpenDelaySeconds"/>, so a stray value can't strand the window open.</summary>
+    public const int MaxCloseAfterOpenDelaySeconds = 3600;
+
+    /// <summary>
+    /// Seconds Fido counts down after a successful launch before auto-closing (only when <see cref="CloseAfterOpen"/>
+    /// says to close). <c>0</c> closes immediately; <see cref="CloseAfterOpen.Never"/> turns auto-close off entirely.
+    /// </summary>
+    public int CloseAfterOpenDelaySeconds { get; set; } = DefaultCloseAfterOpenDelaySeconds;
+
     /// <summary>Builds a config seeded with common dev locations under the user profile.</summary>
     public static AppConfig CreateDefault()
     {

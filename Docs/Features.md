@@ -137,8 +137,13 @@ The in-app log narrates each launch like a flight-control "go around the horn" p
 [✓] Rider located: C:\…\rider64.exe
 
 Fido? GO!
-Launching Rider…
+The Eagle has landed...
+Closing in 7…
 ```
+
+The `Closing in N…` line ticks down in place (one line, not a line per second). The countdown also
+shows in a **Keep open** bar at the bottom of the window — click it to call off the close and keep
+Fido up.
 
 Failures call it straight — `[✗] …` lines and a **No-go** status; a cancelled dialog reads
 **Aborted**.
@@ -166,7 +171,8 @@ chooser/decision dialogs still appear when a choice is genuinely needed:
 | `--folder` | Start in Folder open-mode |
 
 For example, `fido feature/new-ui -s MyApp` opens that branch's `MyApp` solution and,
-by default, closes Fido once Rider is launched (see **Close after opening** below).
+by default, closes Fido a few seconds after Rider is launched (see **Close after opening** and
+**Close delay** below).
 
 ---
 
@@ -182,7 +188,11 @@ by default, closes Fido once Rider is launched (see **Close after opening** belo
   repositories, then tick the ones to use.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
-  the Open button), or **Never**.
+  the Open button), or **Never** (turns auto-close off).
+- **Close delay** — seconds Fido counts down before it auto-closes (default **10**; **0** closes
+  immediately). The flight log shows a single line that ticks down in place (`Closing in 10…`, then
+  `9…`, `8…`), and a **Keep open** bar appears at the bottom with the live countdown. Clicking
+  **Keep open** — or simply starting another open — cancels the close, so it's never a point of no return.
 
 ### Defaults
 
@@ -190,6 +200,7 @@ by default, closes Fido once Rider is launched (see **Close after opening** belo
   `%USERPROFILE%\RiderProjects`, `%USERPROFILE%\Projects`.
 - **Default branch names:** `main`, `master`.
 - **Search depth:** 4.
+- **Close after opening:** command-line launches only, with a **10-second** close delay.
 
 ### Where settings live
 

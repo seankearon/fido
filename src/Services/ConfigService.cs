@@ -73,6 +73,7 @@ public sealed class ConfigService
             cfg.MainBranchNames = new() { "main", "master" };
         if (cfg.SearchDepth <= 0)
             cfg.SearchDepth = 4;
+        cfg.CloseAfterOpenDelaySeconds = Math.Clamp(cfg.CloseAfterOpenDelaySeconds, 0, AppConfig.MaxCloseAfterOpenDelaySeconds);
         cfg.SearchRoots ??= new();
         cfg.RecentBranches ??= new();
         cfg.RecentSolutions ??= new();

@@ -19,6 +19,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _isBusy;
     private string _statusText = "";
     private StatusKind _statusKind = StatusKind.None;
+    private bool _isClosingCountdown;
+    private string _countdownText = "";
+    private bool _liveLineActive;
 
     public string BranchName
     {
@@ -96,6 +99,30 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool IsStatusGo => _statusKind == StatusKind.Go;
     public bool IsStatusNoGo => _statusKind == StatusKind.NoGo;
 
+    /// <summary>True while the post-launch auto-close countdown is running; shows the "keep open" bar.</summary>
+    public bool IsClosingCountdown
+    {
+        get => _isClosingCountdown;
+        private set => SetField(ref _isClosingCountdown, value);
+    }
+
+    /// <summary>The countdown caption shown next to the "Keep open" button (e.g. "Closing Fido in 7s").</summary>
+    public string CountdownText
+    {
+        get => _countdownText;
+        private set => SetField(ref _countdownText, value);
+    }
+
+    /// <summary>Shows/updates the close-countdown bar with the seconds remaining.</summary>
+    public void ShowCountdown(int secondsRemaining)
+    {
+        CountdownText = $"Closing Fido in {secondsRemaining}s";
+        IsClosingCountdown = true;
+    }
+
+    /// <summary>Hides the close-countdown bar (the countdown was cancelled or has elapsed).</summary>
+    public void StopCountdown() => IsClosingCountdown = false;
+
     /// <summary>Recently used branch names (newest first) shown as the branch box's MRU suggestions.</summary>
     public ObservableCollection<string> RecentBranches { get; } = new();
 
@@ -121,17 +148,60 @@ public sealed class MainWindowViewModel : ObservableObject
     public void AppendLog(string message)
     {
         if (Dispatcher.UIThread.CheckAccess())
-            Log.Add(LogLine.Infer(message));
+            AddLine(LogLine.Infer(message));
         else
-            Dispatcher.UIThread.Post(() => Log.Add(LogLine.Infer(message)));
+            Dispatcher.UIThread.Post(() => AddLine(LogLine.Infer(message)));
+    }
+
+    /// <summary>Appends a line at an explicit colour level (bypasses prefix inference).</summary>
+    public void AppendLog(string message, LogLevel level)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            AddLine(new LogLine(message, level));
+        else
+            Dispatcher.UIThread.Post(() => AddLine(new LogLine(message, level)));
+    }
+
+    /// <summary>Appends a finished line, closing off any in-place live line (see <see cref="SetLiveLog"/>).</summary>
+    private void AddLine(LogLine line)
+    {
+        _liveLineActive = false;
+        Log.Add(line);
+    }
+
+    /// <summary>
+    /// Writes a single line at the end of the log and overwrites it on each subsequent call, so a value can
+    /// tick in place (the close countdown reads 10 → 9 → 8… on one line, not a line per second). The next
+    /// <see cref="AppendLog(string)"/> closes the live line and starts a fresh one.
+    /// </summary>
+    public void SetLiveLog(string message, LogLevel level)
+    {
+        void Apply()
+        {
+            var line = new LogLine(message, level);
+            if (_liveLineActive && Log.Count > 0)
+                Log[^1] = line;
+            else
+            {
+                Log.Add(line);
+                _liveLineActive = true;
+            }
+        }
+
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
     }
 
     public void ClearLog()
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        void Apply()
+        {
+            _liveLineActive = false;
             Log.Clear();
-        else
-            Dispatcher.UIThread.Post(Log.Clear);
+        }
+
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
     }
 
     public void SetStatus(string message, StatusKind kind = StatusKind.None)

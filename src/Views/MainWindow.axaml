@@ -133,6 +133,21 @@
 
         </StackPanel>
 
+        <!-- close countdown + "keep open" escape hatch; only while an auto-close is pending -->
+        <Border DockPanel.Dock="Bottom" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
+                Background="{DynamicResource FidoGoBg}" BorderBrush="{DynamicResource FidoGo}"
+                BorderThickness="2,0,0,0" CornerRadius="0,5,5,0" Padding="14,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border Grid.Column="0" Width="9" Height="9" CornerRadius="2"
+                        Background="{DynamicResource FidoGo}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center"
+                           FontFamily="{DynamicResource FidoMono}" FontSize="12.5"
+                           Foreground="{DynamicResource FidoTextSecondary}" Text="{Binding CountdownText}" />
+                <Button Grid.Column="2" x:Name="KeepOpenButton" Classes="secondary" Content="Keep open"
+                        Padding="16,7" Click="OnKeepOpenClick" />
+            </Grid>
+        </Border>
+
         <!-- flight log fills the remainder -->
         <Grid RowDefinitions="Auto,*" Margin="0,20,0,0">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,9">

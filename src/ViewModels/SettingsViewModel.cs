@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using Fido.Models;
 using Fido.Mvvm;
@@ -15,6 +16,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _worktreeRoot = "";
     private AppTheme _selectedTheme = AppTheme.System;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
+    private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
     public string SearchRootsText
     {
@@ -76,6 +78,7 @@ public sealed class SettingsViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsCloseCommandLine));
                 OnPropertyChanged(nameof(IsCloseAlways));
                 OnPropertyChanged(nameof(IsCloseNever));
+                OnPropertyChanged(nameof(IsAutoCloseEnabled));
             }
         }
     }
@@ -98,6 +101,19 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (value) CloseAfterOpen = CloseAfterOpen.Never; }
     }
 
+    /// <summary>False when auto-close is off (<see cref="CloseAfterOpen.Never"/>); disables the delay input.</summary>
+    public bool IsAutoCloseEnabled => _closeAfterOpen != CloseAfterOpen.Never;
+
+    /// <summary>
+    /// The close delay as edited (seconds). Free text so an in-progress edit isn't clobbered;
+    /// <see cref="ApplyTo"/> parses and clamps it. <c>0</c> means close immediately.
+    /// </summary>
+    public string CloseAfterOpenDelayText
+    {
+        get => _closeAfterOpenDelayText;
+        set => SetField(ref _closeAfterOpenDelayText, value);
+    }
+
     /// <summary>Repos offered when a typed branch isn't checked out anywhere; ticked ones are persisted.</summary>
     public ObservableCollection<RepoChoice> NewBranchRepos { get; } = new();
 
@@ -108,6 +124,7 @@ public sealed class SettingsViewModel : ObservableObject
         WorktreeRoot = config.WorktreeRoot ?? "";
         SelectedTheme = config.Theme;
         CloseAfterOpen = config.CloseAfterOpen;
+        CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
         NewBranchRepos.Clear();
         foreach (var path in config.NewBranchRepos)
@@ -121,8 +138,15 @@ public sealed class SettingsViewModel : ObservableObject
         config.WorktreeRoot = string.IsNullOrWhiteSpace(WorktreeRoot) ? null : WorktreeRoot.Trim();
         config.Theme = SelectedTheme;
         config.CloseAfterOpen = CloseAfterOpen;
+        config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         config.NewBranchRepos = NewBranchRepos.Where(r => r.IsEnabled).Select(r => r.Path).ToList();
     }
+
+    /// <summary>Parses the delay text to whole seconds, clamped to a sane range; unreadable input falls back to the default.</summary>
+    private static int ParseDelaySeconds(string text) =>
+        int.TryParse(text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds)
+            ? Math.Clamp(seconds, 0, AppConfig.MaxCloseAfterOpenDelaySeconds)
+            : AppConfig.DefaultCloseAfterOpenDelaySeconds;
 
     /// <summary>The search roots as currently typed (honors unsaved edits) — drives repo detection.</summary>
     public IReadOnlyList<string> CurrentSearchRoots() => SplitRoots(SearchRootsText);

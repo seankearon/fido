@@ -102,7 +102,8 @@ public sealed class TestRepoWorld : IDisposable
         FakeRiderLauncher rider,
         FakeDialogService dialogs,
         string? worktreeRoot = null,
-        CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine)
+        CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
+        int closeAfterOpenDelaySeconds = 0)
     {
         var config = new AppConfig
         {
@@ -111,6 +112,7 @@ public sealed class TestRepoWorld : IDisposable
             SearchDepth = 8,
             WorktreeRoot = worktreeRoot,
             CloseAfterOpen = closeAfterOpen,
+            CloseAfterOpenDelaySeconds = closeAfterOpenDelaySeconds,
         };
 
         var configDir = Path.Combine(Root, "config", Guid.NewGuid().ToString("N"));

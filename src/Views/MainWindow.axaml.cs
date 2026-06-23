@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -24,6 +25,9 @@ public partial class MainWindow : Window
     private readonly IDialogService _dialogs;
     private readonly OpenerService _opener;
     private readonly AppConfig _config;
+
+    /// <summary>Live while a post-launch auto-close countdown is running; cancelling it aborts the close.</summary>
+    private CancellationTokenSource? _closeCountdown;
 
     public MainWindow() : this(FidoServices.CreateDefault())
     {
@@ -184,6 +188,7 @@ public partial class MainWindow : Window
     // Fido closes itself afterwards (see <see cref="MaybeCloseAfterLaunch"/>).
     internal async Task RunOpenAsync(bool fromCommandLine = false)
     {
+        CancelPendingClose();   // a fresh open supersedes any countdown left running from the last one
         var branch = _vm.BranchName.Trim();
         var solution = _vm.SolutionName.Trim();
         if (string.IsNullOrEmpty(branch))
@@ -243,8 +248,9 @@ public partial class MainWindow : Window
     /// <summary>
     /// Closes Fido after a successful launch when the configured <see cref="CloseAfterOpen"/> policy says so:
     /// <see cref="CloseAfterOpen.Always"/> on any launch, <see cref="CloseAfterOpen.CommandLine"/> only for a
-    /// CLI-driven run, <see cref="CloseAfterOpen.Never"/> not at all. Rider is launched detached, so closing
-    /// Fido leaves it running.
+    /// CLI-driven run, <see cref="CloseAfterOpen.Never"/> not at all. The close is deferred by
+    /// <see cref="AppConfig.CloseAfterOpenDelaySeconds"/> (0 = immediately). Rider is launched detached, so
+    /// closing Fido leaves it running.
     /// </summary>
     private void MaybeCloseAfterLaunch(bool fromCommandLine)
     {
@@ -254,7 +260,73 @@ public partial class MainWindow : Window
             CloseAfterOpen.CommandLine => fromCommandLine,
             _ => false,
         };
-        if (close) Close();
+        if (!close) return;
+
+        var seconds = Math.Clamp(_config.CloseAfterOpenDelaySeconds, 0, AppConfig.MaxCloseAfterOpenDelaySeconds);
+        if (seconds == 0)
+            Close();
+        else
+            _ = CloseAfterCountdownAsync(seconds);
+    }
+
+    /// <summary>
+    /// Counts down once per second — narrating "Closing in 10… 9… 8…" into the flight log and into the
+    /// "Keep open" bar — then closes Fido. The countdown is cancellable: clicking "Keep open", starting
+    /// another open (see <see cref="RunOpenAsync"/>), or closing the window aborts it and leaves the
+    /// window as the user left it.
+    /// </summary>
+    private async Task CloseAfterCountdownAsync(int seconds)
+    {
+        CancelPendingClose();
+        var cts = new CancellationTokenSource();
+        _closeCountdown = cts;
+        try
+        {
+            for (var remaining = seconds; remaining > 0; remaining--)
+            {
+                _vm.ShowCountdown(remaining);
+                _vm.SetLiveLog($"Closing in {remaining}…", LogLevel.Accent);   // ticks in place: 10 → 9 → 8…
+                await Task.Delay(TimeSpan.FromSeconds(1), cts.Token);
+            }
+            _vm.AppendLog("Fido out.", LogLevel.Accent);
+            Close();
+        }
+        catch (OperationCanceledException)
+        {
+            // superseded by another open, "Keep open", or a manual close — leave the window be
+        }
+        finally
+        {
+            if (ReferenceEquals(_closeCountdown, cts))
+            {
+                _closeCountdown = null;
+                cts.Dispose();
+            }
+        }
+    }
+
+    /// <summary>"Keep open": call off a running auto-close so Fido stays up.</summary>
+    private void OnKeepOpenClick(object? sender, RoutedEventArgs e)
+    {
+        if (_closeCountdown is null) return;
+        CancelPendingClose();
+        _vm.AppendLog("Holding — Fido standing by.");
+    }
+
+    /// <summary>Aborts a running auto-close countdown, if any, hides its bar, and releases its token source.</summary>
+    private void CancelPendingClose()
+    {
+        var cts = _closeCountdown;
+        _closeCountdown = null;
+        cts?.Cancel();
+        cts?.Dispose();
+        _vm.StopCountdown();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        CancelPendingClose();
+        base.OnClosed(e);
     }
 
     /// <summary>Solution-centric flow: locate the clone(s), reuse/checkout/worktree the branch, resolve a target.</summary>
