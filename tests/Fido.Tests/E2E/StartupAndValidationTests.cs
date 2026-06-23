@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Fido;
 using Fido.Models;
 using Fido.Tests.Infrastructure;
@@ -159,6 +160,70 @@ public class StartupAndValidationTests
             await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
             await Assert.That(window.Vm().StatusText).Contains("please enter a branch name");
             await Assert.That(rider.Launches.Count).IsEqualTo(0);
+        });
+    }
+
+    [Test]
+    public async Task Enter_in_the_branch_box_opens_in_a_single_press()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");
+
+            window.PressKeyOn("BranchBox", Key.Enter);   // one Enter — not the drop-down-dismissing first press plus a second
+
+            // a single launch: the box handled Enter and the default button did not also fire
+            var completed = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)rider.FirstLaunch);
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+        });
+    }
+
+    [Test]
+    public async Task Enter_with_the_mru_dropdown_open_opens_in_one_press()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            // Give the branch box MRU history so its suggestion drop-down has something to show,
+            // then set the inputs as if a branch had just been pasted in.
+            window.Vm().LoadMru(["main"], []);
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");
+
+            // Focusing the box surfaces the MRU drop-down (OnMruGotFocus) — the state the user is
+            // in when they hit Enter. Assert it's actually showing so we exercise the real swallow.
+            var box = window.FindControl<AutoCompleteBox>("BranchBox")!;
+            box.Focus();
+            UiTestExtensions.Pump();
+            await Assert.That(box.IsDropDownOpen).IsTrue();
+
+            // One Enter on the real control. Avalonia's AutoCompleteBox.OnKeyDown consumes it just
+            // to dismiss the drop-down (marking it handled); the fix opens on that same press.
+            box.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            await Assert.That(box.IsDropDownOpen).IsFalse();   // the press dismisses the MRU list...
+            UiTestExtensions.Pump();
+
+            // ...and, on that same press, acts on the branch — exactly once, with no second Enter.
+            var completed = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)rider.FirstLaunch);
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
         });
     }
 

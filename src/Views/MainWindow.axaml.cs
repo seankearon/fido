@@ -46,6 +46,12 @@ public partial class MainWindow : Window
         DataContext = _vm;
         _vm.LoadMru(_config.RecentBranches, _config.RecentSolutions);
 
+        // A single Enter in either input should open. The AutoCompleteBox marks the first Enter
+        // handled just to dismiss its MRU drop-down, so it never reaches the default button —
+        // handledEventsToo lets us still act on it (see OnInputBoxKeyDown).
+        BranchBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+        SolutionBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
         _opener = new OpenerService(_git, _finder, _workingTreeFinder, _vm.AppendLog);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
@@ -158,6 +164,19 @@ public partial class MainWindow : Window
     private void ScrollLogToEnd() => LogScroller.Offset = new Vector(0, LogScroller.Extent.Height);
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e) => await RunOpenAsync();
+
+    // Enter inside the branch/solution boxes opens directly. The AutoCompleteBox eats the first
+    // Enter just to close its MRU drop-down, so without this a pasted branch needs a second Enter
+    // to act. Close the drop-down, swallow the key so the default button can't also fire, then run
+    // the open flow — collapsing it back to a single press. Posted so any pending selection/binding
+    // settles before RunOpenAsync reads the branch name.
+    private void OnInputBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || sender is not AutoCompleteBox box) return;
+        box.IsDropDownOpen = false;
+        e.Handled = true;
+        Dispatcher.UIThread.Post(() => _ = RunOpenAsync(), DispatcherPriority.Input);
+    }
 
     // Mission control: poll each station, and only when every one is GO do we launch.
     // Internal so tests can await the full flow deterministically rather than racing the async-void click.

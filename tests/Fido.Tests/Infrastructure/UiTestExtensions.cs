@@ -46,6 +46,15 @@ public static class UiTestExtensions
         Dispatcher.UIThread.RunJobs();
     }
 
+    /// <summary>Sends a key-down originating at a named control, so its own handlers see it (e.g. Enter in a box).</summary>
+    public static void PressKeyOn(this Window window, string controlName, Key key)
+    {
+        var control = window.FindControl<Control>(controlName)
+                      ?? throw new InvalidOperationException($"No control named '{controlName}'.");
+        control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key });
+        Dispatcher.UIThread.RunJobs();
+    }
+
     /// <summary>The whole flight log as one newline-joined string for easy substring assertions.</summary>
     public static string LogText(this MainWindow window) =>
         string.Join("\n", window.Vm().Log.Select(line => line.Text));
