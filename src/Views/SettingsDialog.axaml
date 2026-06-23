@@ -89,6 +89,13 @@
                                  IsChecked="{Binding IsCloseNever, Mode=TwoWay}" />
                 </StackPanel>
             </Border>
+            <StackPanel Orientation="Horizontal" Spacing="11" IsEnabled="{Binding IsAutoCloseEnabled}">
+                <TextBlock Classes="label" VerticalAlignment="Center">
+                    <Run Text="Close delay " /><Run Text="· seconds, 0 = immediately" Foreground="{DynamicResource FidoTextDim}" />
+                </TextBlock>
+                <TextBox x:Name="CloseDelayBox" Classes="fido" Width="84"
+                         Text="{Binding CloseAfterOpenDelayText, Mode=TwoWay}" />
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">

@@ -146,6 +146,130 @@ public class StartupAndValidationTests
     }
 
     [Test]
+    public async Task CloseAfterOpen_with_a_delay_counts_down_then_closes()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService(),
+            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var closed = new TaskCompletionSource();
+            window.Closed += (_, _) => closed.TrySetResult();
+
+            await window.Open("main", "Foo");
+
+            // Launched — but the close is deferred behind the countdown: the window is still up, the
+            // "keep open" bar is showing, and the console has started narrating the countdown.
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            await Assert.That(closed.Task.IsCompleted).IsFalse();
+            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
+            await Assert.That(window.LogText()).Contains("Closing in");
+            Screenshots.Save(window, "close-countdown");
+
+            // ...and once the countdown elapses, it closes itself.
+            var didClose = await Task.WhenAny(closed.Task, Task.Delay(TimeSpan.FromSeconds(8)));
+            await Assert.That(didClose).IsEqualTo((Task)closed.Task);
+        });
+    }
+
+    [Test]
+    public async Task Countdown_ticks_down_in_place_on_a_single_log_line()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService(),
+            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 4);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Open("main", "Foo");
+
+            var lineCount = window.Vm().Log.Count;
+            var firstTick = window.Vm().Log[^1].Text;
+            await Assert.That(firstTick).Contains("Closing in 4");
+
+            await Task.Delay(TimeSpan.FromSeconds(1.5));   // let it tick at least once
+
+            // The number reduced, but on the same line — the log didn't grow by a line per second.
+            await Assert.That(window.Vm().Log.Count).IsEqualTo(lineCount);
+            await Assert.That(window.Vm().Log[^1].Text).IsNotEqualTo(firstTick);
+            await Assert.That(window.Vm().Log[^1].Text).Contains("Closing in");
+        });
+    }
+
+    [Test]
+    public async Task Keep_open_cancels_a_pending_auto_close()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService(),
+            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 2);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            await window.Open("main", "Foo");           // arms a 2s countdown, shows the bar
+            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
+
+            window.ClickButton("KeepOpenButton");        // the escape hatch
+            await Assert.That(window.Vm().IsClosingCountdown).IsFalse();
+
+            // Wait past the original delay: because it was kept open, the window stays up.
+            await Task.Delay(TimeSpan.FromSeconds(3));
+            await Assert.That(closed).IsFalse();
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+        });
+    }
+
+    [Test]
+    public async Task Starting_another_open_cancels_a_pending_auto_close()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var rider = new FakeRiderLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService(),
+            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            await window.Open("main", "Foo");   // arms a 1s countdown
+            await Assert.That(closed).IsFalse();
+            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
+
+            await window.Open("", "");           // a fresh open (here a no-go) supersedes the countdown
+            await Assert.That(window.Vm().IsClosingCountdown).IsFalse();
+
+            // Wait well past the original delay: because the countdown was cancelled, the window stays open.
+            await Task.Delay(TimeSpan.FromSeconds(2.5));
+            await Assert.That(closed).IsFalse();
+            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+        });
+    }
+
+    [Test]
     public async Task Empty_branch_is_no_go_and_touches_neither_git_nor_rider()
     {
         using var world = new TestRepoWorld();

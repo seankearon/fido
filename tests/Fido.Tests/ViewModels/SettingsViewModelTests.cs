@@ -49,6 +49,57 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task CloseDelay_round_trips_through_load_and_apply()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig { CloseAfterOpenDelaySeconds = 25 });
+
+        await Assert.That(vm.CloseAfterOpenDelayText).IsEqualTo("25");
+
+        vm.CloseAfterOpenDelayText = "3";
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.CloseAfterOpenDelaySeconds).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task CloseDelay_zero_is_preserved_as_immediate()
+    {
+        var vm = new SettingsViewModel { CloseAfterOpenDelayText = "0" };
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.CloseAfterOpenDelaySeconds).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("", AppConfig.DefaultCloseAfterOpenDelaySeconds)]   // blank → default
+    [Arguments("abc", AppConfig.DefaultCloseAfterOpenDelaySeconds)] // garbage → default
+    [Arguments("-5", 0)]                                            // negative → clamped to immediate
+    [Arguments("999999", AppConfig.MaxCloseAfterOpenDelaySeconds)]  // huge → clamped to the ceiling
+    public async Task CloseDelay_apply_sanitizes_input(string text, int expected)
+    {
+        var vm = new SettingsViewModel { CloseAfterOpenDelayText = text };
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.CloseAfterOpenDelaySeconds).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task IsAutoCloseEnabled_tracks_the_never_option()
+    {
+        var vm = new SettingsViewModel();
+
+        vm.IsCloseAlways = true;
+        await Assert.That(vm.IsAutoCloseEnabled).IsTrue();
+
+        vm.IsCloseNever = true;
+        await Assert.That(vm.IsAutoCloseEnabled).IsFalse();
+    }
+
+    [Test]
     public async Task MergeDetected_adds_new_unticked_preserves_state_and_dedups_case_insensitively()
     {
         var vm = new SettingsViewModel();
