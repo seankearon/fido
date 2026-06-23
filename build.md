@@ -58,6 +58,65 @@ For a portable build that relies on an installed .NET runtime:
 dotnet publish -c Release -p:PublishAot=false
 ```
 
+## Packaging the macOS app (signed + notarized)
+
+The macOS `.dmg` is built with [**Avalonia Parcel**](https://docs.avaloniaui.net/tools/parcel/)
+from `src/Fido.parcel`. Two important constraints:
+
+- **Native AOT can't cross-compile**, so the Mac build must run *on a Mac* — we use the
+  `macos-latest` GitHub Actions runner (`.github/workflows/release-macos.yml`).
+- For the app to open without Gatekeeper warnings it must be **signed with a Developer ID
+  Application certificate and notarized by Apple**. The signature carries the team name
+  (*Shine Forms*), which is what macOS shows users as the verified developer.
+
+### How it runs
+
+Push a tag (`git tag v1.2.3 && git push --tags`) or trigger the **Release (macOS)**
+workflow manually. It installs Parcel, decodes the certificate, runs
+`parcel pack src/Fido.parcel -r osx-arm64 -p dmg`, and attaches the `.dmg` to the release.
+(Only `osx-arm64` is built today; add `-r osx-x64` to the workflow to also cover Intel Macs.)
+
+### Required GitHub secrets
+
+| Secret | What it is | How to get it |
+| --- | --- | --- |
+| `PARCEL_LICENSE_KEY` | Avalonia Plus licence for the Parcel **CLI** (separate from Apple). | From your Avalonia account portal. |
+| `APPLE_DEVELOPER_ID_P12_BASE64` | Your *Developer ID Application* cert + private key, as a base64-encoded `.p12`. | See below. |
+| `APPLE_DEVELOPER_ID_P12_PASSWORD` | The password you set when exporting the `.p12`. | You choose it at export time. |
+| `APPLE_NOTARY_APPLE_ID` | The Apple ID email of the Shine Forms developer account. | Your account login. |
+| `APPLE_NOTARY_PASSWORD` | An **app-specific password** (not your Apple password). | Create at <https://account.apple.com> → Sign-In & Security → App-Specific Passwords. |
+| `APPLE_TEAM_ID` | The 10-character Team ID. | Apple Developer site → Membership details. |
+
+The `.parcel` file references all of these by env-var name only — **no credentials are committed**.
+
+### Creating the Developer ID certificate (one-time, on a Mac)
+
+1. In **Keychain Access** → Certificate Assistant → *Request a Certificate from a Certificate
+   Authority* — save the `.certSigningRequest` to disk.
+2. At <https://developer.apple.com/account> → Certificates → **+** → choose
+   **Developer ID Application**, upload the CSR, download the resulting `.cer`.
+3. Double-click the `.cer` to import it; in Keychain Access find it, **expand it to include the
+   private key**, right-click → *Export* → save as `developer_id.p12` and set a password.
+4. Base64-encode it for the GitHub secret:
+   - macOS/Linux: `base64 -i developer_id.p12 | pbcopy`
+   - Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("developer_id.p12")) | Set-Clipboard`
+
+   Paste that into the `APPLE_DEVELOPER_ID_P12_BASE64` secret.
+
+> No Apple Developer membership available? Set `MacOsSettings.SigningCredentialsType` back to
+> `"AdHoc"` in `src/Fido.parcel`. The app still builds, but users must right-click → **Open**
+> (or run `xattr -dr com.apple.quarantine /Applications/Fido.app`) the first time.
+
+### Building it locally on a Mac instead
+
+```sh
+dotnet tool install --global AvaloniaUI.Parcel
+export PARCEL_LICENSE_KEY=...            FIDO_VERSION=1.2.3
+export APPLE_DEVELOPER_ID_P12=~/developer_id.p12   APPLE_DEVELOPER_ID_P12_PASSWORD=...
+export APPLE_NOTARY_APPLE_ID=...         APPLE_NOTARY_PASSWORD=...   APPLE_TEAM_ID=...
+parcel pack src/Fido.parcel -r osx-arm64 -p dmg -o artifacts/macos
+```
+
 ## Notes
 
 - Settings persist to `%APPDATA%\Fido\config.json` (a legacy `atlantic-opener` folder is
