@@ -1,0 +1,147 @@
+name: Release
+
+# Manually triggered SemVer release: builds Fido, packages a signed MSIX installer,
+# and publishes a GitHub release with the installer attached.
+#
+# How to run: Actions -> Release -> "Run workflow", then supply the SemVer version
+# (e.g. 1.2.0). The workflow must exist on the default branch for the button to appear.
+#
+# Code signing:
+#   - If the repo secrets MSIX_CERTIFICATE_BASE64 (+ MSIX_CERTIFICATE_PASSWORD and a
+#     matching MSIX_PUBLISHER subject) are set, the MSIX is signed with that real cert.
+#   - Otherwise a self-signed certificate is minted and its public part (.cer) is
+#     attached to the release so users can trust it before installing. See
+#     packaging/msix/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (SemVer, e.g. 1.2.0 or 1.2.0-beta.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the GitHub release as a pre-release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, package (MSIX) & release
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version (SemVer) and derive names
+        shell: pwsh
+        run: |
+          $v = '${{ inputs.version }}'.Trim()
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$') {
+            Write-Error "Version '$v' is not valid SemVer (expected e.g. 1.2.0 or 1.2.0-beta.1)."
+            exit 1
+          }
+          # MSIX versions are 4-part numeric (Major.Minor.Build.Revision) with no pre-release tag.
+          $core = ($v -split '[-+]')[0]
+          Add-Content $env:GITHUB_ENV "SEMVER=$v"
+          Add-Content $env:GITHUB_ENV "MSIX_VERSION=$core.0"
+          Add-Content $env:GITHUB_ENV "MSIX_FILE=Fido-$v-win-x64.msix"
+          Add-Content $env:GITHUB_ENV "CER_FILE=Fido-$v.cer"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Native AOT, self-contained single executable (the project's default publish).
+      # windows-latest ships the C++ toolchain the AOT linker needs.
+      - name: Publish (win-x64, Native AOT)
+        run: dotnet publish src/Fido.csproj -c Release -r win-x64 -p:Version=${{ inputs.version }} -o publish
+
+      - name: Stage MSIX package layout
+        shell: pwsh
+        env:
+          MSIX_PUBLISHER: ${{ secrets.MSIX_PUBLISHER }}
+        run: |
+          $stage = 'msix-stage'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          # App payload (AOT exe + Avalonia/Skia native libs).
+          Copy-Item -Recurse -Force publish\* $stage\
+          # Symbols don't belong in the installer.
+          Remove-Item (Join-Path $stage '*.pdb') -Force -ErrorAction SilentlyContinue
+
+          # Visual assets, sourced from the repo's PNG icon set (single source of truth).
+          $img = Join-Path $stage 'Images'
+          New-Item -ItemType Directory -Force -Path $img | Out-Null
+          Copy-Item assets\png\fido-icon-64.png  (Join-Path $img 'Square44x44Logo.png')  -Force
+          Copy-Item assets\png\fido-icon-128.png (Join-Path $img 'Square150x150Logo.png') -Force
+          Copy-Item assets\png\fido-icon-64.png  (Join-Path $img 'StoreLogo.png')        -Force
+
+          # Manifest with version + publisher substituted.
+          $publisher = $env:MSIX_PUBLISHER
+          if ([string]::IsNullOrWhiteSpace($publisher)) { $publisher = 'CN=Fido' }
+          (Get-Content packaging\msix\AppxManifest.xml -Raw) `
+            -replace '\{VERSION\}', $env:MSIX_VERSION `
+            -replace '\{PUBLISHER\}', $publisher |
+            Set-Content (Join-Path $stage 'AppxManifest.xml')
+
+      - name: Locate Windows SDK tools (makeappx / signtool)
+        shell: pwsh
+        run: |
+          $sdk = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory |
+                 Where-Object { Test-Path (Join-Path $_.FullName 'x64\makeappx.exe') } |
+                 Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $sdk) { Write-Error 'Windows SDK (makeappx.exe) not found on the runner.'; exit 1 }
+          Add-Content $env:GITHUB_PATH "$($sdk.FullName)\x64"
+
+      - name: Pack MSIX
+        shell: pwsh
+        run: makeappx pack /d msix-stage /p "$($env:MSIX_FILE)" /o
+
+      - name: Sign MSIX
+        shell: pwsh
+        env:
+          CERT_BASE64: ${{ secrets.MSIX_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MSIX_CERTIFICATE_PASSWORD }}
+          MSIX_PUBLISHER: ${{ secrets.MSIX_PUBLISHER }}
+        run: |
+          $msix = $env:MSIX_FILE
+          if ($env:CERT_BASE64) {
+            # Real code-signing certificate supplied via secrets.
+            $pfx = Join-Path $env:RUNNER_TEMP 'cert.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_BASE64))
+            signtool sign /fd SHA256 /a /f $pfx /p "$env:CERT_PASSWORD" $msix
+          } else {
+            # No cert configured: mint a self-signed code-signing cert whose subject matches
+            # the package Publisher, then export the public .cer so users can trust it.
+            $publisher = if ($env:MSIX_PUBLISHER) { $env:MSIX_PUBLISHER } else { 'CN=Fido' }
+            $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher `
+              -KeyUsage DigitalSignature -FriendlyName 'Fido MSIX (self-signed)' `
+              -CertStoreLocation 'Cert:\CurrentUser\My' `
+              -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+            $pfx = Join-Path $env:RUNNER_TEMP 'self.pfx'
+            $pwd = ConvertTo-SecureString -String 'fido-ci' -Force -AsPlainText
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $pwd | Out-Null
+            Export-Certificate -Cert $cert -FilePath $env:CER_FILE | Out-Null
+            signtool sign /fd SHA256 /f $pfx /p 'fido-ci' $msix
+          }
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$($env:SEMVER)"
+          $assets = @($env:MSIX_FILE)
+          if (Test-Path $env:CER_FILE) { $assets += $env:CER_FILE }
+          $ghArgs = @($tag) + $assets + @(
+            '--target', $env:GITHUB_SHA,
+            '--title',  "Fido $tag",
+            '--generate-notes'
+          )
+          if ('${{ inputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+          gh release create @ghArgs

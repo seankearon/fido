@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A manually-triggered **Release** workflow that builds Fido, packages a signed
+  **MSIX** installer, and publishes a SemVer GitHub release with the installer
+  attached. See [`packaging/msix/README.md`](packaging/msix/README.md).
+
 ### Fixed
 
 - Pressing **Enter** in the Branch (or Solution) box now opens in a single press.

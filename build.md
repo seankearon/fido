@@ -58,6 +58,15 @@ For a portable build that relies on an installed .NET runtime:
 dotnet publish -c Release -p:PublishAot=false
 ```
 
+## Release — MSIX installer
+
+Releases are cut by the manually-triggered **Release** workflow
+(`.github/workflows/release.yml`): **Actions → Release → Run workflow**, supply a
+SemVer version (e.g. `1.2.0`). It publishes the AOT `win-x64` build, packages a
+signed **MSIX** installer, and creates the GitHub release with the installer
+attached. See [`packaging/msix/README.md`](packaging/msix/README.md) for signing
+and install details.
+
 ## Notes
 
 - Settings persist to `%APPDATA%\Fido\config.json` (a legacy `atlantic-opener` folder is
