@@ -81,7 +81,7 @@ workflow manually. It installs Parcel, decodes the certificate, runs
 | Secret | What it is | How to get it |
 | --- | --- | --- |
 | `PARCEL_LICENSE_KEY` | Avalonia Plus licence for the Parcel **CLI** (separate from Apple). | From your Avalonia account portal. |
-| `APPLE_DEVELOPER_ID_P12_BASE64` | Your *Developer ID Application* cert + private key, as a base64-encoded `.p12`. | See below. |
+| `APPLE_DEVELOPER_ID_P12_BASE64` | Your *Developer ID Application* cert + private key, as a base64-encoded `.p12`. **Must be a "Developer ID Application" cert** — see below. | See below. |
 | `APPLE_DEVELOPER_ID_P12_PASSWORD` | The password you set when exporting the `.p12`. | You choose it at export time. |
 | `APPLE_NOTARY_APPLE_ID` | The Apple ID email of the Shine Forms developer account. | Your account login. |
 | `APPLE_NOTARY_PASSWORD` | An **app-specific password** (not your Apple password). | Create at <https://account.apple.com> → Sign-In & Security → App-Specific Passwords. |
@@ -91,17 +91,46 @@ The `.parcel` file references all of these by env-var name only — **no credent
 
 ### Creating the Developer ID certificate (one-time, on a Mac)
 
+> ⚠️ It **must** be a **Developer ID Application** certificate. An *Apple Development*,
+> *Apple Distribution*, *Mac Developer*, or *Developer ID Installer* cert will sign fine but
+> Apple's notary rejects every binary with *"not signed with a valid Developer ID certificate."*
+> Creating a Developer ID Application cert requires a **paid Apple Developer Program membership**
+> (a free Apple ID can only make *Apple Development* certs). No membership? Use AdHoc (see below).
+
 1. In **Keychain Access** → Certificate Assistant → *Request a Certificate from a Certificate
    Authority* — save the `.certSigningRequest` to disk.
 2. At <https://developer.apple.com/account> → Certificates → **+** → choose
    **Developer ID Application**, upload the CSR, download the resulting `.cer`.
 3. Double-click the `.cer` to import it; in Keychain Access find it, **expand it to include the
    private key**, right-click → *Export* → save as `developer_id.p12` and set a password.
+   (You don't need to also select the intermediate — the workflow bundles Apple's full
+   certificate chain into the `.p12` automatically before signing.)
 4. Base64-encode it for the GitHub secret:
    - macOS/Linux: `base64 -i developer_id.p12 | pbcopy`
    - Windows (PowerShell): `[Convert]::ToBase64String([IO.File]::ReadAllBytes("developer_id.p12")) | Set-Clipboard`
 
    Paste that into the `APPLE_DEVELOPER_ID_P12_BASE64` secret.
+
+### Notarization rejected? Check the certificate
+
+If notarization fails with *"The binary is not signed with a valid Developer ID certificate"*,
+the signing identity in the secret is the problem (the rest of the pipeline is fine). The
+workflow now bundles Apple's intermediate + root into the `.p12`, so a missing chain is handled
+automatically — which leaves the **wrong cert type** as the cause. The workflow's *"Decode and
+re-chain Developer ID certificate"* step prints the leaf subject and fails fast if it isn't a
+Developer ID Application cert. To check the secret yourself on a Mac (Keychain exports need
+Homebrew's openssl, as the system `openssl` is LibreSSL and lacks `-legacy`):
+
+```sh
+OSSL="$(brew --prefix openssl@3)/bin/openssl"
+# The CN must read "Developer ID Application: <Name> (<TEAMID>)":
+"$OSSL" pkcs12 -legacy -in developer_id.p12 -passin pass:YOUR_PASSWORD -clcerts -nokeys \
+  | "$OSSL" x509 -noout -subject -issuer -dates
+```
+
+If the subject says anything else (*Apple Development*, *Apple Distribution*, *Developer ID
+Installer*, …), regenerate it as a **Developer ID Application** cert per the steps above and
+update both `APPLE_DEVELOPER_ID_P12_BASE64` and `APPLE_DEVELOPER_ID_P12_PASSWORD`.
 
 > No Apple Developer membership available? Set `MacOsSettings.SigningCredentialsType` back to
 > `"AdHoc"` in `src/Fido.parcel`. The app still builds, but users must right-click → **Open**
