@@ -62,6 +62,7 @@ jobs:
           APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          mkdir -p artifacts/macos
           parcel pack src/Fido.parcel -r osx-arm64 -p dmg -o artifacts/macos
 
       - name: Remove decoded certificate
