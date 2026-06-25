@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Branch search progress.** When a typed branch isn't checked out anywhere, Fido hunts for it across
+  the repos configured for new branches — and now narrates that hunt in the flight log:
+  `Searching for local branch in <repo>`, then `Searching for remote branch in <repo>` only when it
+  actually reaches out to origin. The repo names tick through in place on a single line (like the close
+  countdown) rather than scrolling a line per repo.
+
 - **Pick the editor on the command line.** Each editor now carries a short **slug** (built-in defaults
   `rider`, `vsc`, `vs`, `zed`; editable per editor in Settings). Pass it as the second bare argument —
   `fido feature/new-ui zed` — or explicitly with `--editor` / `-e` (`fido -b feature/new-ui -e vs`) to

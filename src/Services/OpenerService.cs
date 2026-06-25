@@ -27,13 +27,16 @@ public sealed class OpenerService
     private readonly SolutionFinder _finder;
     private readonly WorkingTreeFinder _workingTreeFinder;
     private readonly Action<string> _log;
+    private readonly Action<string> _liveLog;
 
-    public OpenerService(GitService git, SolutionFinder finder, WorkingTreeFinder workingTreeFinder, Action<string>? log = null)
+    public OpenerService(GitService git, SolutionFinder finder, WorkingTreeFinder workingTreeFinder,
+        Action<string>? log = null, Action<string>? liveLog = null)
     {
         _git = git;
         _finder = finder;
         _workingTreeFinder = workingTreeFinder;
         _log = log ?? (_ => { });
+        _liveLog = liveLog ?? (_ => { });
     }
 
     /// <summary>
@@ -136,8 +139,19 @@ public sealed class OpenerService
         {
             ct.ThrowIfCancellationRequested();
             var dir = repo.MainWorktreePath;
-            if (await _git.LocalBranchExistsAsync(dir, branch, ct)
-                || await _git.RemoteBranchExistsAsync(dir, branch, ct)
+
+            // Narrate the hunt in place — one line ticking through the repo names, not a line per repo
+            // (mirrors the close countdown). The remote query only runs when the local checks miss, so the
+            // "remote" line appears only when Fido actually reaches out to origin.
+            _liveLog($"Searching for local branch in {repo.Name}");
+            if (await _git.LocalBranchExistsAsync(dir, branch, ct))
+            {
+                found.Add(repo);
+                continue;
+            }
+
+            _liveLog($"Searching for remote branch in {repo.Name}");
+            if (await _git.RemoteBranchExistsAsync(dir, branch, ct)
                 || await _git.RemoteHasBranchAsync(dir, branch, ct))
             {
                 found.Add(repo);

@@ -9,13 +9,9 @@ namespace Fido.Models;
 /// </summary>
 public sealed record RepositoryInfo(string MainWorktreePath, string SolutionFileName)
 {
+    /// <summary>The repo's folder name, e.g. <c>my-app</c> — used in pickers, logs and search progress.</summary>
+    public string Name => new DirectoryInfo(MainWorktreePath).Name;
+
     /// <summary>Friendly label for pickers/logs, e.g. <c>MyApp (C:\src\my-app)</c>.</summary>
-    public string DisplayName
-    {
-        get
-        {
-            var repoName = new DirectoryInfo(MainWorktreePath).Name;
-            return $"{repoName}  ({MainWorktreePath})";
-        }
-    }
+    public string DisplayName => $"{Name}  ({MainWorktreePath})";
 }

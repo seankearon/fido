@@ -150,6 +150,42 @@ public class OpenerServiceTests
     }
 
     [Test]
+    public async Task FindReposWithBranch_narrates_local_then_remote_search_when_the_branch_is_remote_only()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");   // remote-only ⇒ local check misses, forcing the remote search
+
+        var live = new List<string>();
+        var opener = new OpenerService(new GitService(), new SolutionFinder(), new WorkingTreeFinder(), liveLog: live.Add);
+        await opener.FindReposWithBranchAsync([new RepositoryInfo(clone, "")], "feature/x");
+
+        var name = new DirectoryInfo(clone).Name;
+        await Assert.That(live.Contains($"Searching for local branch in {name}")).IsTrue();
+        await Assert.That(live.Contains($"Searching for remote branch in {name}")).IsTrue();
+    }
+
+    [Test]
+    public async Task FindReposWithBranch_does_not_reach_the_remote_search_when_the_branch_is_local()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        TestRepoWorld.Git(clone, "branch", "feature/x");   // a local ref ⇒ the local check hits first
+
+        var live = new List<string>();
+        var opener = new OpenerService(new GitService(), new SolutionFinder(), new WorkingTreeFinder(), liveLog: live.Add);
+        await opener.FindReposWithBranchAsync([new RepositoryInfo(clone, "")], "feature/x");
+
+        var name = new DirectoryInfo(clone).Name;
+        await Assert.That(live.Contains($"Searching for local branch in {name}")).IsTrue();
+        await Assert.That(live.Contains($"Searching for remote branch in {name}")).IsFalse();   // never queried origin
+    }
+
+    [Test]
     public async Task Main_context_for_an_unfetched_remote_branch_plans_to_fetch_and_track()
     {
         using var world = new TestRepoWorld();
