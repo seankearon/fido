@@ -1,0 +1,58 @@
+{
+    "GeneralSettings": {
+        "NetProjectPath": "Fido.csproj",
+        "ApplicationName": "Fido",
+        "Version": {
+            "$type": "env",
+            "name": "FIDO_VERSION"
+        },
+        "PackageName": {
+            "$type": "msbuild",
+            "property": "AssemblyName"
+        },
+        "AssemblyName": {
+            "$type": "msbuild",
+            "property": "AssemblyName"
+        }
+    },
+    "LinuxSettings": {
+        "CreateBinSymlink": "True"
+    },
+    "Win32Settings": {
+        "InstallerIcon": "../assets/fido.ico",
+        "Company": "Fido",
+        "InstallerRequiresAdmin": "False",
+        "IncludeUninstaller": "True"
+    },
+    "MacOsSettings": {
+        "CreateBundle": true,
+        "BundleIdentifier": "com.shineforms.fido",
+        "TeamId": {
+            "$type": "env",
+            "name": "APPLE_TEAM_ID"
+        },
+        "AppIcon": "../assets/png/fido-icon-1024.png",
+        "SigningCredentialsType": "P12Certificate",
+        "SigningP12Certificate": {
+            "$type": "env",
+            "name": "APPLE_DEVELOPER_ID_P12"
+        },
+        "SigningP12Password": {
+            "$type": "env",
+            "name": "APPLE_DEVELOPER_ID_P12_PASSWORD"
+        },
+        "NotaryCredentialsType": "AppleAccount",
+        "NotaryAppleId": {
+            "$type": "env",
+            "name": "APPLE_NOTARY_APPLE_ID"
+        },
+        "NotaryAppPassword": {
+            "$type": "env",
+            "name": "APPLE_NOTARY_PASSWORD"
+        }
+    },
+    "PublishSettings": {
+        "PublishSingleFile": "True",
+        "ExtraBuildProperties": {}
+    }
+}

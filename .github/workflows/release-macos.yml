@@ -1,0 +1,152 @@
+name: Release (macOS)
+
+# Builds, signs and notarizes the macOS .dmg with Avalonia Parcel.
+#
+# Native AOT cannot cross-compile, so this MUST run on a macOS runner.
+# Signing/notarization need an Apple Developer ID; the Parcel CLI needs an
+# Avalonia Plus licence. All credentials come from repository secrets — see
+# build.md ("Releasing the macOS build") for how to create each one.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp into the build (e.g. 1.2.3)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  package:
+    name: Package macOS (osx-arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Avalonia Parcel
+        run: dotnet tool install --global AvaloniaUI.Parcel
+
+      - name: Resolve version
+        id: version
+        # Tag pushes give refs/tags/vX.Y.Z -> strip the leading "v".
+        # Manual runs use the workflow_dispatch input.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode and re-chain Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          # Parcel signs via `rcodesign`, which embeds ONLY the certificates found in
+          # the .p12 — unlike Apple's `codesign`, it never pulls the intermediate from a
+          # keychain. A .p12 exported from Keychain Access usually omits the "Developer
+          # ID Certification Authority" intermediate, so the signature can't be chained
+          # to the Apple root and notarization rejects every binary with "not signed
+          # with a valid Developer ID certificate". We rebuild the .p12 with the full
+          # Apple chain bundled in so the signature always validates.
+
+          work="$RUNNER_TEMP/p12work"
+          mkdir -p "$work"
+          echo "$P12_BASE64" | base64 --decode > "$work/original.p12"
+
+          # macOS runners expose LibreSSL as `openssl` (no -legacy support); use the
+          # Homebrew openssl@3, installing it only if the image lacks it.
+          ossl_prefix="$(brew --prefix openssl@3 2>/dev/null || true)"
+          if [ -z "$ossl_prefix" ] || [ ! -x "$ossl_prefix/bin/openssl" ]; then
+            brew install openssl@3
+            ossl_prefix="$(brew --prefix openssl@3)"
+          fi
+          OSSL="$ossl_prefix/bin/openssl"
+          "$OSSL" version
+
+          # Apple's chain certs (DER). A Developer ID Application leaf chains:
+          #   leaf -> "Developer ID Certification Authority" -> "Apple Root CA".
+          # Both intermediate generations (G2 current, G1 for older leaves) are bundled
+          # so the matching one is always present; the shared root completes the chain.
+          for f in DeveloperIDG2CA DeveloperIDCA; do
+            curl -fsSL -o "$work/$f.cer" "https://www.apple.com/certificateauthority/$f.cer"
+            "$OSSL" x509 -inform DER -in "$work/$f.cer" -out "$work/$f.pem"
+          done
+          curl -fsSL -o "$work/AppleRootCA.cer" "https://www.apple.com/appleca/AppleIncRootCertificate.cer"
+          "$OSSL" x509 -inform DER -in "$work/AppleRootCA.cer" -out "$work/AppleRootCA.pem"
+          cat "$work"/DeveloperIDG2CA.pem "$work"/DeveloperIDCA.pem "$work"/AppleRootCA.pem > "$work/chain.pem"
+
+          # Split the leaf key + cert out of the original .p12 (-legacy: Keychain uses
+          # legacy RC2/3DES encryption that openssl 3 won't read otherwise).
+          "$OSSL" pkcs12 -legacy -in "$work/original.p12" -passin env:P12_PASSWORD -nocerts -nodes -out "$work/leaf.key"
+          "$OSSL" pkcs12 -legacy -in "$work/original.p12" -passin env:P12_PASSWORD -clcerts -nokeys -out "$work/leaf.crt"
+          if ! grep -q 'PRIVATE KEY' "$work/leaf.key" || ! grep -q 'BEGIN CERTIFICATE' "$work/leaf.crt"; then
+            echo "::error::Could not extract the private key and leaf certificate from APPLE_DEVELOPER_ID_P12_BASE64 — check the secret and APPLE_DEVELOPER_ID_P12_PASSWORD."
+            exit 1
+          fi
+
+          # Fail fast on the wrong certificate TYPE: notarization only accepts a
+          # "Developer ID Application" leaf, and no CI step can fix a wrong-type cert.
+          # Surfacing it here avoids a slow, cryptic notary round-trip.
+          subject="$("$OSSL" x509 -in "$work/leaf.crt" -noout -subject)"
+          echo "Signing certificate subject: $subject"
+          case "$subject" in
+            *"Developer ID Application"*) echo "OK: Developer ID Application certificate." ;;
+            *)
+              echo "::error::The signing certificate is NOT a 'Developer ID Application' certificate (subject: $subject). Apple will not notarize it. Create a Developer ID Application certificate (requires a paid Apple Developer Program membership) and update APPLE_DEVELOPER_ID_P12_BASE64 — see build.md."
+              exit 1 ;;
+          esac
+
+          # Re-pack with the full chain (-legacy keeps the RC2/3DES format rcodesign reads).
+          "$OSSL" pkcs12 -legacy -export \
+            -inkey "$work/leaf.key" \
+            -in "$work/leaf.crt" \
+            -certfile "$work/chain.pem" \
+            -passout env:P12_PASSWORD \
+            -out "$RUNNER_TEMP/developer_id.p12"
+
+          ncerts="$("$OSSL" pkcs12 -legacy -in "$RUNNER_TEMP/developer_id.p12" -passin env:P12_PASSWORD -nokeys 2>/dev/null | grep -c 'BEGIN CERTIFICATE' || true)"
+          echo "Rebuilt developer_id.p12 contains $ncerts certificates (leaf + chain)."
+
+          rm -f "$work"/original.p12 "$work"/leaf.key "$work"/leaf.crt "$work"/chain.pem
+
+      - name: Pack, sign and notarize
+        env:
+          # Avalonia Plus licence for the Parcel CLI.
+          PARCEL_LICENSE_KEY: ${{ secrets.PARCEL_LICENSE_KEY }}
+          # Version stamped into the bundle (Info.plist CFBundleShortVersionString).
+          FIDO_VERSION: ${{ steps.version.outputs.value }}
+          # Code signing — .parcel reads these env vars (see MacOsSettings).
+          APPLE_DEVELOPER_ID_P12: ${{ runner.temp }}/developer_id.p12
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          # Notarization.
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          mkdir -p artifacts/macos
+          parcel pack src/Fido.parcel -r osx-arm64 -p dmg -o artifacts/macos
+
+      - name: Remove decoded certificate
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/developer_id.p12" "$RUNNER_TEMP/p12work"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fido-macos-arm64
+          path: artifacts/macos/*.dmg
+          if-no-files-found: error
+
+      - name: Attach DMG to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/macos/*.dmg
