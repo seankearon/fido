@@ -79,8 +79,8 @@ public sealed class EditorChoice : ObservableObject
         set => SetField(ref _isDefault, value);
     }
 
-    /// <summary>Hint shown in the path box — auto-detect for known kinds, "required" for Custom.</summary>
-    public string PathPlaceholder => _kind == EditorKind.Custom ? "path to executable (required)" : "blank = auto-detect";
+    /// <summary>Hint shown in the path box — names the field and notes auto-detect for known kinds, "required" for Custom.</summary>
+    public string PathPlaceholder => _kind == EditorKind.Custom ? "path to executable (required)" : "path (blank = auto-detect)";
 
     /// <summary>Materialises the row back into a persisted <see cref="Editor"/>.</summary>
     public Editor ToEditor() => new()
