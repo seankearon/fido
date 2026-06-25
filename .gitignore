@@ -9,3 +9,5 @@ riderModule.iml
 # Test output (TUnit/MTP reports and captured UI screenshots)
 /artifacts/
 TestResults/
+
+.vs
