@@ -126,6 +126,32 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task Editor_slug_round_trips_and_is_trimmed_or_cleared()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig
+        {
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider, Slug = "rider" },
+                new Editor { Name = "Custom", Kind = EditorKind.Custom, Path = @"C:\x\ed.exe" },
+            },
+        });
+
+        await Assert.That(vm.Editors[0].Slug).IsEqualTo("rider");
+        await Assert.That(vm.Editors[1].Slug).IsEqualTo("");   // null slug surfaces as empty text
+
+        vm.Editors[0].Slug = "  rdr  ";   // edited with stray whitespace
+        vm.Editors[1].Slug = "   ";       // whitespace-only clears the slug
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+
+        await Assert.That(cfg.Editors[0].Slug).IsEqualTo("rdr");   // trimmed on save
+        await Assert.That(cfg.Editors[1].Slug).IsNull();          // blank persists as null
+    }
+
+    [Test]
     public async Task Setting_a_row_default_clears_the_others()
     {
         var vm = new SettingsViewModel();

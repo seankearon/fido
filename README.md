@@ -13,6 +13,26 @@ creating one when needed — and opens the solution or repo folder in your edito
 
 ---
 
+## Command-line launch
+
+Fido pre-fills its form from the command line, and **giving it a branch runs the open immediately** —
+the same flow as typing the branch and pressing **Open** (any chooser/decision dialogs still appear
+when a choice is genuinely needed):
+
+```text
+fido feature/new-ui                    # resolve the branch, open in the default editor
+fido feature/new-ui -s MyApp           # open MyApp's solution on that branch
+fido feature/new-ui zed                # open in a specific editor by its slug
+fido -b feature/new-ui -s MyApp -e vs  # the same, with explicit options
+```
+
+Each editor has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`) that you can pass as the
+**second argument** — or explicitly with `-e` / `--editor` — to open in that editor instead of the
+default. Slugs are editable per editor in **Settings**; an unknown slug stops with a clear **No-go**
+rather than silently using the default. See **[Features](Docs/Features.md)** for the full reference.
+
+---
+
 ## Why "Fido"? 🚀
 
 When you're juggling a massive project spread across concurrent Git branches, hopping between context switches can feel like navigating through deep space. Finding the right local folder, verifying the worktree, and booting up your IDE takes manual steps you'd rather spend actually coding.
