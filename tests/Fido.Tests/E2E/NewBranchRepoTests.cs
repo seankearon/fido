@@ -212,6 +212,35 @@ public class NewBranchRepoTests
     }
 
     [Test]
+    public async Task Branch_present_only_on_an_unfetched_remote_is_found_and_opened()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");       // only main fetched
+        world.PublishBranchToOrigin(origin, "feature/x");   // pushed to origin AFTER the clone → not fetched here
+
+        var rider = new FakeRiderLauncher();
+        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
+        var services = world.BuildServices([root], rider, dialogs);
+        ConfigureNewBranchRepos(services, clone);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Open("feature/x");
+            Screenshots.Save(window, "D-unfetched-remote-branch");
+
+            // Before the fix this was a no-go ("branch not found in any configured repo"); now Fido
+            // queries the remote, fetches the branch, and opens it.
+            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+            await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "feature-x")).IsTrue();
+
+            var current = await new GitService().GetCurrentBranchAsync(clone);
+            await Assert.That(current).IsEqualTo("main");   // worktree took the branch; main tree untouched
+        });
+    }
+
+    [Test]
     public async Task Branch_present_only_on_origin_is_checked_out_tracking()
     {
         using var world = new TestRepoWorld();
