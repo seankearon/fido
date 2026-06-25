@@ -66,14 +66,20 @@ public partial class MainWindow : Window
         _opener = new OpenerService(_git, _finder, _workingTreeFinder, _vm.AppendLog);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
 
-        var autoOpen = ApplyStartupArgs();
+        var startup = ApplyStartupArgs();
+        var autoOpen = startup.AutoOpen;
         Opened += async (_, _) =>
         {
             BranchBox.Focus();
+            if (startup.UnknownEditorSlug is { } slug)
+            {
+                ReportUnknownEditor(slug);   // an explicit editor that doesn't exist: say so, don't auto-launch
+                return;
+            }
             if (autoOpen)
             {
                 autoOpen = false;   // a CLI-supplied branch runs the open flow exactly once
-                await RunOpenAsync(fromCommandLine: true);
+                await RunOpenAsync(fromCommandLine: true, editor: startup.Editor);
             }
         };
     }
@@ -166,15 +172,19 @@ public partial class MainWindow : Window
     // --- Startup / log ------------------------------------------------------------------
 
     /// <summary>
-    /// Pre-fills inputs from the CLI: a bare first argument or <c>--branch/-b</c> sets the branch,
-    /// <c>--solution/-s</c> the solution, <c>--folder</c> the open mode. Returns true when a branch was
+    /// Pre-fills inputs from the CLI and resolves which editor to open with. A bare first argument or
+    /// <c>--branch/-b</c> sets the branch, <c>--solution/-s</c> the solution, <c>--folder</c> the open mode,
+    /// and a bare second argument or <c>--editor/-e</c> picks the editor by its slug (e.g.
+    /// <c>fido &lt;branch&gt; rider</c>). <see cref="StartupPlan.AutoOpen"/> is true when a branch was
     /// supplied — the signal that the open flow should run automatically on startup, as if the user had
-    /// clicked Open in Rider (so any chooser/decision dialogs still appear).
+    /// clicked Open (so any chooser/decision dialogs still appear). When an editor slug is given but matches
+    /// no configured editor, <see cref="StartupPlan.UnknownEditorSlug"/> carries it so startup can report it.
     /// </summary>
-    private bool ApplyStartupArgs()
+    private StartupPlan ApplyStartupArgs()
     {
         var args = Program.StartupArgs;
         var branchProvided = false;
+        string? editorSlug = null;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -186,21 +196,58 @@ public partial class MainWindow : Window
                 case "--solution" or "-s" when i + 1 < args.Length:
                     _vm.SolutionName = args[++i];
                     break;
+                case "--editor" or "-e" when i + 1 < args.Length:
+                    editorSlug = args[++i];
+                    break;
                 case "--folder":
                     _vm.IsFolderMode = true;
                     break;
                 default:
-                    // A bare positional argument (not an option, not consumed as a value) is the branch.
-                    if (!branchProvided && !args[i].StartsWith('-'))
+                    // Bare positional arguments: the first is the branch, the second the editor slug.
+                    if (args[i].StartsWith('-')) break;
+                    if (!branchProvided)
                     {
                         _vm.BranchName = args[i];
                         branchProvided = true;
                     }
+                    else
+                    {
+                        editorSlug ??= args[i];   // an explicit --editor still wins over the positional
+                    }
                     break;
             }
         }
-        return branchProvided;
+
+        // Resolve the slug against the configured editors; an unrecognised one is reported at startup
+        // rather than silently falling back to the default.
+        Editor? editor = null;
+        string? unknownSlug = null;
+        if (!string.IsNullOrWhiteSpace(editorSlug))
+        {
+            editor = _config.FindEditorBySlug(editorSlug);
+            if (editor is null) unknownSlug = editorSlug.Trim();
+        }
+
+        return new StartupPlan(branchProvided, editor, unknownSlug);
     }
+
+    /// <summary>
+    /// Surfaces a command-line editor slug that matched no configured editor: a no-go status plus a log line
+    /// listing the slugs that <em>are</em> known, so the user can correct the typo.
+    /// </summary>
+    private void ReportUnknownEditor(string slug)
+    {
+        var known = string.Join(", ", _config.Editors
+            .Select(e => e.Slug)
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        var hint = known.Length > 0 ? $" — known editors: {known}" : "";
+        _vm.AppendLog($"[✗] Unknown editor '{slug}' on the command line{hint}.");
+        _vm.SetStatus($"unknown editor '{slug}'{hint}", StatusKind.NoGo);
+    }
+
+    /// <summary>What <see cref="ApplyStartupArgs"/> resolved from the CLI: whether to auto-open, the chosen
+    /// editor (null = use the default), and any editor slug that didn't match a configured editor.</summary>
+    private sealed record StartupPlan(bool AutoOpen, Editor? Editor, string? UnknownEditorSlug);
 
     private void ScrollLogToEnd() => LogScroller.Offset = new Vector(0, LogScroller.Extent.Height);
 

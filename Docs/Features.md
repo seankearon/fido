@@ -126,6 +126,11 @@ Built-in editor kinds — **Rider**, **VS Code**, **Visual Studio**, **Zed** —
 path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
+Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `code`,
+`vs`, `zed`) — so a specific editor can be picked when launching Fido from the command line (see
+**Command-line launch**). The slug is editable per editor in Settings; leave it blank to make that
+editor un-selectable from the CLI.
+
 **Auto-detection** for each known kind looks, in order, at an explicit path, then your **`PATH`**,
 then common install locations:
 
@@ -182,13 +187,19 @@ chooser/decision dialogs still appear when a choice is genuinely needed:
 
 | Argument | Effect |
 | --- | --- |
-| `<name>` (bare) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
+| `<name>` (bare, first) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
+| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the editor whose **slug** matches (e.g. `rider`, `code`, `vs`, `zed`) instead of the default |
 | `--solution` / `-s` `<name>` | Set the solution name |
 | `--folder` | Start in Folder open-mode |
 
 For example, `fido feature/new-ui -s MyApp` opens that branch's `MyApp` solution and,
 by default, closes Fido a few seconds after Rider is launched (see **Close after opening** and
 **Close delay** below).
+
+To pick a non-default editor, give its slug as the **second bare argument** — `fido feature/new-ui zed`
+opens in Zed — or pass it explicitly with `--editor` / `-e`: `fido -b feature/new-ui -s MyApp -e vs`.
+An unrecognised slug stops with a **No-go** that names it (and lists the known slugs) rather than
+silently falling back to the default editor.
 
 ---
 
@@ -197,10 +208,11 @@ by default, closes Fido a few seconds after Rider is launched (see **Close after
 ### Settings (in the app's **Settings** panel)
 
 - **Search roots** — directories to scan for solutions / working trees (one per line).
-- **Editors** — the editors/IDEs Fido can open into. Each row has a name, a **kind** (Rider, VS Code,
-  Visual Studio, Zed, or Custom), and an optional path (blank = auto-detect for known kinds; required
-  for Custom). Tick the **●** radio to set the default (the Open button / Enter); the rest are reached
-  by **Ctrl+1 … Ctrl+9**. **Add** appends a new editor; **✕** removes one.
+- **Editors** — the editors/IDEs Fido can open into. Each row has a name, an optional **slug** (the
+  command-line token that selects it, e.g. `rider`), a **kind** (Rider, VS Code, Visual Studio, Zed, or
+  Custom), and an optional path (blank = auto-detect for known kinds; required for Custom). Tick the
+  **●** radio to set the default (the Open button / Enter); the rest are reached by **Ctrl+1 … Ctrl+9**
+  or by their slug on the command line. **Add** appends a new editor; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
 - **New-branch repos** — the repositories Fido may place a branch into in **branch-only mode**
   when the branch isn't checked out anywhere. Click **Detect** to scan your search roots for git
@@ -238,7 +250,7 @@ the next save writes to the new location.
 | Cross-clone reuse | Never creates a second worktree for a branch already checked out |
 | Placement | Switch main tree **or** create a linked worktree |
 | Open target | `.sln` / `.slnx` solution, or the repo folder |
-| Editors | Rider / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9 |
+| Editors | Rider / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | Commit links | Short HEAD hash, clickable to the GitHub commit |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

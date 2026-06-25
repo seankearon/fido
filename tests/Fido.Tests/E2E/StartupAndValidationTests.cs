@@ -98,6 +98,94 @@ public class StartupAndValidationTests
     }
 
     [Test]
+    public async Task Cli_editor_slug_selects_that_editor_for_the_auto_open()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["-b", "main", "-s", "Foo", "-e", "zed"];   // open in Zed, not the default (Rider)
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
+                await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Zed);
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+    }
+
+    [Test]
+    public async Task Positional_editor_slug_after_the_branch_selects_that_editor()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["main", "-s", "Foo", "zed"];   // bare branch, then a bare editor slug
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
+                await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Zed);
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+    }
+
+    [Test]
+    public async Task Unknown_editor_slug_is_no_go_and_does_not_launch()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["-b", "main", "-s", "Foo", "-e", "nope"];   // a slug that matches no editor
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                await Task.Delay(200);
+                UiTestExtensions.Pump();
+
+                await Assert.That(launcher.Launches.Count).IsEqualTo(0);   // nothing auto-launched
+                await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
+                await Assert.That(window.Vm().StatusText).Contains("nope");
+                await Assert.That(window.Vm().BranchName).IsEqualTo("main");   // form is still prefilled to correct & retry
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+    }
+
+    [Test]
     public async Task Button_open_does_not_close_the_window_by_default()
     {
         using var world = new TestRepoWorld();

@@ -12,6 +12,7 @@ namespace Fido.ViewModels;
 public sealed class EditorChoice : ObservableObject
 {
     private string _name;
+    private string _slug;
     private EditorKind _kind;
     private string _path;
     private string _arguments;
@@ -20,6 +21,7 @@ public sealed class EditorChoice : ObservableObject
     public EditorChoice(Editor editor, bool isDefault)
     {
         _name = editor.Name;
+        _slug = editor.Slug ?? "";
         _kind = editor.Kind;
         _path = editor.Path ?? "";
         _arguments = editor.Arguments ?? "";
@@ -39,6 +41,13 @@ public sealed class EditorChoice : ObservableObject
     {
         get => _name;
         set => SetField(ref _name, value);
+    }
+
+    /// <summary>Command-line slug that selects this editor (e.g. <c>fido &lt;branch&gt; rider</c>); blank = not CLI-selectable.</summary>
+    public string Slug
+    {
+        get => _slug;
+        set => SetField(ref _slug, value);
     }
 
     public EditorKind Kind
@@ -77,6 +86,7 @@ public sealed class EditorChoice : ObservableObject
     public Editor ToEditor() => new()
     {
         Name = string.IsNullOrWhiteSpace(Name) ? Kind.ToString() : Name.Trim(),
+        Slug = string.IsNullOrWhiteSpace(Slug) ? null : Slug.Trim(),
         Kind = Kind,
         Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim(),
         Arguments = string.IsNullOrWhiteSpace(Arguments) ? null : Arguments.Trim(),

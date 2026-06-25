@@ -73,6 +73,20 @@ public sealed class AppConfig
     public Editor? DefaultEditor =>
         Editors.Count == 0 ? null : Editors[Math.Clamp(DefaultEditorIndex, 0, Editors.Count - 1)];
 
+    /// <summary>
+    /// Finds the configured editor whose <see cref="Editor.Slug"/> matches <paramref name="slug"/>
+    /// (case-insensitive, trimmed), or null when none match. Editors with a blank slug are skipped, so they
+    /// can't be selected from the command line. Used to honour <c>fido &lt;branch&gt; &lt;slug&gt;</c>.
+    /// </summary>
+    public Editor? FindEditorBySlug(string? slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug)) return null;
+        var wanted = slug.Trim();
+        return Editors.FirstOrDefault(e =>
+            !string.IsNullOrWhiteSpace(e.Slug) &&
+            string.Equals(e.Slug.Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Builds a config seeded with common dev locations and the built-in editor list.</summary>
     public static AppConfig CreateDefault()
     {

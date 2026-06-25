@@ -11,6 +11,13 @@ public sealed class Editor
     /// <summary>Display name shown on the launch button and in the flight log (e.g. "Rider", "VS Code").</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>
+    /// Short command-line token that selects this editor when Fido is launched from the CLI — e.g.
+    /// <c>fido &lt;branch&gt; rider</c> or <c>fido -b &lt;branch&gt; -e rider</c>. Matched case-insensitively;
+    /// blank means the editor can't be picked by slug (see <see cref="AppConfig.FindEditorBySlug"/>).
+    /// </summary>
+    public string? Slug { get; set; }
+
     /// <summary>Which editor family this is — selects the auto-detection strategy.</summary>
     public EditorKind Kind { get; set; } = EditorKind.Custom;
 
@@ -26,9 +33,9 @@ public sealed class Editor
     /// <summary>The built-in editors offered out of the box, in shortcut order; Rider is the default.</summary>
     public static List<Editor> Defaults() => new()
     {
-        new Editor { Name = "Rider", Kind = EditorKind.Rider },
-        new Editor { Name = "VS Code", Kind = EditorKind.VsCode },
-        new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio },
-        new Editor { Name = "Zed", Kind = EditorKind.Zed },
+        new Editor { Name = "Rider", Kind = EditorKind.Rider, Slug = "rider" },
+        new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Slug = "code" },
+        new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio, Slug = "vs" },
+        new Editor { Name = "Zed", Kind = EditorKind.Zed, Slug = "zed" },
     };
 }

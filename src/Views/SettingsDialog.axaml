@@ -26,7 +26,7 @@
         <StackPanel Spacing="9">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center">
-                    <Run Text="Editors " /><Run Text="· ● = default (Enter); others open by Ctrl+N" Foreground="{DynamicResource FidoTextDim}" />
+                    <Run Text="Editors " /><Run Text="· ● = default (Enter); others by Ctrl+N or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
                 </TextBlock>
                 <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
             </Grid>
@@ -48,8 +48,14 @@
                                               VerticalAlignment="Center" />
                                     <Button Grid.Row="0" Grid.Column="3" Classes="secondary" Margin="8,0,0,0"
                                             Content="✕" Click="OnRemoveEditorClick" ToolTip.Tip="Remove this editor" />
-                                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="fido" Margin="0,6,0,0"
-                                             Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}" />
+                                    <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,6,0,0"
+                                          ColumnDefinitions="Auto,*">
+                                        <TextBox Grid.Column="0" Classes="fido" Width="116" Text="{Binding Slug, Mode=TwoWay}"
+                                                 PlaceholderText="slug"
+                                                 ToolTip.Tip="Command-line slug to open with this editor (fido &lt;branch&gt; &lt;slug&gt;). Blank = not selectable." />
+                                        <TextBox Grid.Column="1" Classes="fido" Margin="8,0,0,0"
+                                                 Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}" />
+                                    </Grid>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

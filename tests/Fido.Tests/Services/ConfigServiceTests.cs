@@ -60,6 +60,36 @@ public class ConfigServiceTests
     }
 
     [Test]
+    public async Task An_editor_slug_survives_a_save_and_load_round_trip()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig
+        {
+            Editors = new() { new Editor { Name = "Zed", Kind = EditorKind.Zed, Slug = "z" } },
+            DefaultEditorIndex = 0,
+        });
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.Editors[0].Slug).IsEqualTo("z");
+        await Assert.That(loaded.FindEditorBySlug("z")!.Kind).IsEqualTo(EditorKind.Zed);
+    }
+
+    [Test]
+    public async Task Seeded_default_editors_carry_their_slugs()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig());   // no editors → seeded with the defaults on load
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.FindEditorBySlug("rider")!.Kind).IsEqualTo(EditorKind.Rider);
+        await Assert.That(loaded.FindEditorBySlug("zed")!.Kind).IsEqualTo(EditorKind.Zed);
+    }
+
+    [Test]
     public async Task An_out_of_range_default_index_is_clamped()
     {
         using var world = new TestRepoWorld();
