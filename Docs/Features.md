@@ -176,8 +176,13 @@ Failures call it straight — `[✗] …` lines and a **No-go** status; a cancel
   secondary buttons), so you can pick a non-default editor without leaving the keyboard.
 - **Decision dialog:** `M` / `1` = checkout in main, `W` / `2` = create worktree,
   `Enter` = worktree (the default), `Esc` = cancel.
-- **Choosers:** arrow keys to move, `Enter` / Open to select, `Esc` to cancel, double-click to
-  pick.
+- **Choosers:** `↑` / `↓` move the highlighted row, `Enter` (or the **Open** button, or a
+  double-click) opens it, `Esc` cancels. The shortcuts work whatever holds focus, and a hint
+  line along the bottom edge spells them out.
+- **Settings dialog:** `Enter` saves, `Esc` cancels.
+
+Every dialog follows the same convention — `Enter` triggers the primary action and `Esc` dismisses —
+so the keyboard behaves consistently across the app.
 
 ### Command-line launch
 
