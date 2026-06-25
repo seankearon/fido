@@ -251,7 +251,7 @@ public partial class MainWindow : Window
         try
         {
             var plan = string.IsNullOrEmpty(solution)
-                ? await ResolveByBranchOnlyAsync(branch)
+                ? await ResolveByBranchOnlyAsync(branch, editor)
                 : await ResolveBySolutionAsync(branch, solution);
 
             if (plan is null) return;   // a station called no-go (or aborted); status already set
@@ -435,19 +435,19 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Branch-only flow: find a folder already on the branch, then pick a solution or the folder.</summary>
-    private async Task<OpenPlan?> ResolveByBranchOnlyAsync(string branch)
+    private async Task<OpenPlan?> ResolveByBranchOnlyAsync(string branch, Editor editor)
     {
         var folders = await _opener.FindBranchFoldersAsync(_config, branch);
         if (folders.Count == 0)
         {
             _vm.AppendLog($"[✗] No working tree on '{branch}' under the search roots.");
-            return await OfferConfiguredRepoAsync(branch);
+            return await OfferConfiguredRepoAsync(branch, editor);
         }
 
         var folder = folders.Count == 1 ? folders[0].Path : await ChooseFolderAsync(folders, branch);
         if (folder is null) { _vm.SetStatus("", StatusKind.None); return null; }
 
-        var target = await ChooseOpenTargetAsync(folder);
+        var target = await ChooseOpenTargetAsync(folder, editor);
         if (target is null) { _vm.SetStatus("", StatusKind.None); return null; }
 
         return new OpenPlan(branch, folder, "Worktree located", target);
@@ -459,7 +459,7 @@ public partial class MainWindow : Window
     /// it there — a main-tree checkout or a new worktree — reusing the solution flow's decision dialog and
     /// git steps. If the branch exists in none of them, abandon with a clear no-go.
     /// </summary>
-    private async Task<OpenPlan?> OfferConfiguredRepoAsync(string branch)
+    private async Task<OpenPlan?> OfferConfiguredRepoAsync(string branch, Editor editor)
     {
         var configured = _config.NewBranchRepos
             .Where(Directory.Exists)
@@ -507,7 +507,7 @@ public partial class MainWindow : Window
                 return null;
         }
 
-        var target = await ChooseOpenTargetAsync(workingDir);
+        var target = await ChooseOpenTargetAsync(workingDir, editor);
         if (target is null) { _vm.SetStatus("", StatusKind.None); return null; }
 
         return new OpenPlan(branch, workingDir, locatedAs, target);
@@ -569,7 +569,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Presents the solutions in a folder (plus an "open the folder" option) and returns the choice.</summary>
-    private async Task<LaunchTarget?> ChooseOpenTargetAsync(string folder)
+    private async Task<LaunchTarget?> ChooseOpenTargetAsync(string folder, Editor editor)
     {
         var solutions = _opener.FindSolutionsInFolder(folder, _config);
         if (solutions.Count == 0)
@@ -586,7 +586,7 @@ public partial class MainWindow : Window
                 return new ChooserItem(Path.GetFileName(s), rel is "." or "" ? "repo root" : rel);
             })
             .ToList();
-        items.Add(new ChooserItem("Open this folder in Rider", folder));
+        items.Add(new ChooserItem($"Open this folder in {editor.Name}", folder));
 
         var index = await _dialogs.ShowChooserAsync(
             "Open from branch folder",

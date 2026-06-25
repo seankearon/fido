@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Fido.Models;
@@ -87,6 +88,32 @@ public class EditorSelectionTests
             var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
             await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
             await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.VsCode);
+        });
+    }
+
+    [Test]
+    public async Task The_open_folder_chooser_entry_names_the_chosen_editor()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], launcher, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vsCode = new Editor { Name = "VS Code", Kind = EditorKind.VsCode };
+
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "");   // branch-only flow → folder chooser lists solutions + "open folder"
+            await window.RunOpenAsync(editor: vsCode);
+
+            var items = dialogs.LastChooser!.Items;
+            await Assert.That(items.Any(i => i.Title == "Open this folder in VS Code")).IsTrue();
+            await Assert.That(items.Any(i => i.Title == "Open this folder in Rider")).IsFalse();
         });
     }
 
