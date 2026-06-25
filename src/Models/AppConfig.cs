@@ -12,7 +12,19 @@ public sealed class AppConfig
     /// <summary>Directories scanned (depth-limited) for a matching <c>&lt;name&gt;</c> solution or project.</summary>
     public List<string> SearchRoots { get; set; } = new();
 
-    /// <summary>Explicit path to the Rider executable; auto-detected when null/empty.</summary>
+    /// <summary>
+    /// The editors/IDEs Fido can launch into. The one at <see cref="DefaultEditorIndex"/> drives the
+    /// Open button and Enter; the rest are reachable by numbered keyboard shortcuts (Ctrl+1…Ctrl+9).
+    /// </summary>
+    public List<Editor> Editors { get; set; } = new();
+
+    /// <summary>Index into <see cref="Editors"/> of the default editor (the Open button / Enter).</summary>
+    public int DefaultEditorIndex { get; set; }
+
+    /// <summary>
+    /// Legacy explicit Rider path. Superseded by <see cref="Editors"/>; retained so an older config is
+    /// migrated forward into the Rider editor's path on load (see <c>ConfigService.Normalize</c>).
+    /// </summary>
     public string? RiderPath { get; set; }
 
     /// <summary>Override for where new worktrees are created; sibling convention when null/empty.</summary>
@@ -54,7 +66,14 @@ public sealed class AppConfig
     /// </summary>
     public int CloseAfterOpenDelaySeconds { get; set; } = DefaultCloseAfterOpenDelaySeconds;
 
-    /// <summary>Builds a config seeded with common dev locations under the user profile.</summary>
+    /// <summary>
+    /// The currently selected default editor (the Open button / Enter), or null when none are configured.
+    /// Clamps an out-of-range <see cref="DefaultEditorIndex"/> back to the first editor.
+    /// </summary>
+    public Editor? DefaultEditor =>
+        Editors.Count == 0 ? null : Editors[Math.Clamp(DefaultEditorIndex, 0, Editors.Count - 1)];
+
+    /// <summary>Builds a config seeded with common dev locations and the built-in editor list.</summary>
     public static AppConfig CreateDefault()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -67,6 +86,7 @@ public sealed class AppConfig
                 System.IO.Path.Combine(home, "RiderProjects"),
                 System.IO.Path.Combine(home, "Projects"),
             },
+            Editors = Editor.Defaults(),
         };
     }
 }

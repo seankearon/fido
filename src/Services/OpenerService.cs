@@ -354,13 +354,13 @@ public sealed class OpenerService
     }
 
     /// <summary>
-    /// Resolves what to hand Rider: the solution file in folder mode falls back to the folder
+    /// Resolves what to hand the editor: the solution file in folder mode falls back to the folder
     /// when the <c>.sln</c> can't be located.
     /// </summary>
-    public RiderTarget ResolveTarget(string workingDir, RepositoryInfo repo, OpenMode mode)
+    public LaunchTarget ResolveTarget(string workingDir, RepositoryInfo repo, OpenMode mode)
     {
         if (mode == OpenMode.Folder)
-            return new RiderTarget(workingDir, IsSolution: false);
+            return new LaunchTarget(workingDir, IsSolution: false);
 
         string? found = null;
         try
@@ -373,10 +373,10 @@ public sealed class OpenerService
         }
 
         if (found is not null)
-            return new RiderTarget(found, IsSolution: true);
+            return new LaunchTarget(found, IsSolution: true);
 
         _log($"[!] {repo.SolutionFileName} not found under {workingDir}; opening the folder instead.");
-        return new RiderTarget(workingDir, IsSolution: false);
+        return new LaunchTarget(workingDir, IsSolution: false);
     }
 
     // --- Path helpers -------------------------------------------------------------------

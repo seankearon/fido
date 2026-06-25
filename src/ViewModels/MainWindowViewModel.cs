@@ -123,6 +123,47 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>Hides the close-countdown bar (the countdown was cancelled or has elapsed).</summary>
     public void StopCountdown() => IsClosingCountdown = false;
 
+    private string _openButtonText = "Open";
+
+    /// <summary>Caption of the primary Open button — "Open in &lt;default editor&gt;".</summary>
+    public string OpenButtonText
+    {
+        get => _openButtonText;
+        private set => SetField(ref _openButtonText, value);
+    }
+
+    /// <summary>The non-default editors, shown as secondary launch buttons with their shortcut hints.</summary>
+    public ObservableCollection<EditorLaunchOption> SecondaryEditors { get; } = new();
+
+    /// <summary>True when there's at least one non-default editor to surface a secondary button for.</summary>
+    public bool HasSecondaryEditors => SecondaryEditors.Count > 0;
+
+    /// <summary>
+    /// Rebuilds the editor launch options from config: sets the Open button caption to the default
+    /// editor and lists the rest as secondary buttons (the first nine get a Ctrl+N gesture).
+    /// </summary>
+    public void SetEditors(IReadOnlyList<Models.Editor> editors, int defaultIndex)
+    {
+        SecondaryEditors.Clear();
+        if (editors.Count == 0)
+        {
+            OpenButtonText = "Open (no editor configured)";
+            OnPropertyChanged(nameof(HasSecondaryEditors));
+            return;
+        }
+
+        var def = Math.Clamp(defaultIndex, 0, editors.Count - 1);
+        OpenButtonText = $"Open in {editors[def].Name}";
+
+        for (var i = 0; i < editors.Count; i++)
+        {
+            if (i == def) continue;
+            var gesture = i < 9 ? $"Ctrl+{i + 1}" : "";
+            SecondaryEditors.Add(new EditorLaunchOption(i, editors[i].Name, gesture, IsDefault: false));
+        }
+        OnPropertyChanged(nameof(HasSecondaryEditors));
+    }
+
     /// <summary>Recently used branch names (newest first) shown as the branch box's MRU suggestions.</summary>
     public ObservableCollection<string> RecentBranches { get; } = new();
 

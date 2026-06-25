@@ -99,14 +99,30 @@
                 </Border>
             </StackPanel>
 
-            <!-- primary -->
+            <!-- primary: opens in the default editor -->
             <Button x:Name="OpenButton" Classes="primary" Click="OnOpenClick" IsDefault="True" IsEnabled="{Binding NotBusy}">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Path Data="M3,2 L12,7 L3,12 Z" Fill="{DynamicResource FidoButtonText}"
                           Width="14" Height="14" VerticalAlignment="Center" />
-                    <TextBlock Text="Open in Rider" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding OpenButtonText}" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
+
+            <!-- secondary: open in another configured editor (also reachable by Ctrl+N) -->
+            <ItemsControl ItemsSource="{Binding SecondaryEditors}" IsVisible="{Binding HasSecondaryEditors}"
+                          Margin="0,10,0,0" IsEnabled="{Binding NotBusy}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:EditorLaunchOption">
+                        <Button Classes="secondary" Margin="0,0,8,8" Click="OnLaunchWithEditorClick"
+                                Content="{Binding ButtonLabel}" ToolTip.Tip="{Binding Name}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <!-- status: NO-GO -->
             <Border IsVisible="{Binding IsStatusNoGo}" Background="{DynamicResource FidoNoGoBg}"

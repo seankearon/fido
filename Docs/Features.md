@@ -21,7 +21,8 @@ Given a branch and a solution, Fido:
 1. Finds the git repository (or repositories) on your machine that contain the solution.
 2. Works out where the branch should be opened — reusing an existing checkout when one
    exists, or letting you switch the main tree / create a worktree when it doesn't.
-3. Opens the resolved `.sln`/`.slnx` (or the repo folder) in Rider.
+3. Opens the resolved `.sln`/`.slnx` (or the repo folder) in your chosen editor — Rider by default,
+   or VS Code / Visual Studio / Zed / a custom editor.
 
 Everything is keyboard-friendly, and a live log narrates each step.
 
@@ -112,18 +113,31 @@ When a choice is needed, Fido shows a keyboard-navigable list with rich, two-lin
 - **Branch-only mode:** the chooser lists each solution found in the folder plus an
   "open the folder" option.
 
-### Locating Rider
+### Editors / IDEs
 
-Fido finds Rider automatically, in order:
+Fido can open the resolved target into any of several editors. The list is configured in Settings,
+and one editor is the **default**:
 
-1. An explicit **Rider path** from settings.
-2. Your **`PATH`** (`rider64`, `rider`, `rider.cmd` on Windows; `rider` on macOS).
-3. Common installs — Windows: `%LOCALAPPDATA%\Programs\Rider`, JetBrains **Toolbox** apps
-   (newest) and shim, `Program Files\JetBrains\JetBrains Rider *`. macOS: `/Applications`,
-   `~/Applications`, and Toolbox app bundles/shim.
+- The **default** editor is launched by the **Open** button and **Enter**.
+- Every other editor gets a **secondary button** on the main window and a numbered keyboard
+  shortcut, **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth editor in the list).
 
-Rider is launched **detached** (Fido doesn't wait on it). If Rider can't be found, Fido says so
-and points you to the Rider-path setting.
+Built-in editor kinds — **Rider**, **VS Code**, **Visual Studio**, **Zed** — auto-detect when their
+path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
+Optional extra command-line arguments can be supplied per editor (passed before the target path).
+
+**Auto-detection** for each known kind looks, in order, at an explicit path, then your **`PATH`**,
+then common install locations:
+
+- **Rider** — `%LOCALAPPDATA%\Programs\Rider`, JetBrains **Toolbox** apps (newest) and shim,
+  `Program Files\JetBrains\JetBrains Rider *`; macOS `/Applications`, `~/Applications`, Toolbox bundles/shim.
+- **VS Code** — `code` on `PATH`; `%LOCALAPPDATA%\Programs\Microsoft VS Code\bin\code.cmd` or under
+  `Program Files`; macOS `Visual Studio Code.app`.
+- **Visual Studio** *(Windows)* — `devenv` on `PATH`; `Program Files\Microsoft Visual Studio\<year>\<edition>\Common7\IDE\devenv.exe`.
+- **Zed** — `zed` on `PATH`; macOS `Zed.app`; Windows `%LOCALAPPDATA%\Programs\Zed\Zed.exe`.
+
+The editor is launched **detached** (Fido doesn't wait on it). If the chosen editor can't be found,
+Fido says so and points you to its path setting.
 
 ### Mission-control console
 
@@ -152,7 +166,9 @@ Failures call it straight — `[✗] …` lines and a **No-go** status; a cancel
 
 - The **branch** field is focused on launch; both fields and the Open button have access-key
   mnemonics.
-- **Enter** triggers **Open in Rider**; the inputs disable while a launch is in progress.
+- **Enter** triggers **Open in &lt;default editor&gt;**; the inputs disable while a launch is in progress.
+- **Ctrl+1 … Ctrl+9** open in the corresponding configured editor (the same editors shown as
+  secondary buttons), so you can pick a non-default editor without leaving the keyboard.
 - **Decision dialog:** `M` / `1` = checkout in main, `W` / `2` = create worktree,
   `Enter` = worktree (the default), `Esc` = cancel.
 - **Choosers:** arrow keys to move, `Enter` / Open to select, `Esc` to cancel, double-click to
@@ -181,7 +197,10 @@ by default, closes Fido a few seconds after Rider is launched (see **Close after
 ### Settings (in the app's **Settings** panel)
 
 - **Search roots** — directories to scan for solutions / working trees (one per line).
-- **Rider path** — leave blank to auto-detect.
+- **Editors** — the editors/IDEs Fido can open into. Each row has a name, a **kind** (Rider, VS Code,
+  Visual Studio, Zed, or Custom), and an optional path (blank = auto-detect for known kinds; required
+  for Custom). Tick the **●** radio to set the default (the Open button / Enter); the rest are reached
+  by **Ctrl+1 … Ctrl+9**. **Add** appends a new editor; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
 - **New-branch repos** — the repositories Fido may place a branch into in **branch-only mode**
   when the branch isn't checked out anywhere. Click **Detect** to scan your search roots for git
@@ -219,6 +238,7 @@ the next save writes to the new location.
 | Cross-clone reuse | Never creates a second worktree for a branch already checked out |
 | Placement | Switch main tree **or** create a linked worktree |
 | Open target | `.sln` / `.slnx` solution, or the repo folder |
-| Rider discovery | Config → PATH → Toolbox / standard installs |
+| Editors | Rider / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9 |
+| Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | Commit links | Short HEAD hash, clickable to the GitHub commit |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

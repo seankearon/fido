@@ -68,6 +68,14 @@ public partial class SettingsDialog : Window
         }
     }
 
+    private void OnAddEditorClick(object? sender, RoutedEventArgs e) => _vm.AddEditor();
+
+    private void OnRemoveEditorClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: EditorChoice choice })
+            _vm.RemoveEditor(choice);
+    }
+
     private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         _vm.ApplyTo(_config);

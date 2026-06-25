@@ -32,7 +32,7 @@ public class NewBranchRepoTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);   // NewBranchRepos left empty
 
@@ -55,7 +55,7 @@ public class NewBranchRepoTests
         var clone = world.Clone(origin, root, "Foo");
         AddLocalBranch(clone, "feature/x");   // exists locally, not checked out
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, clone);
@@ -84,7 +84,7 @@ public class NewBranchRepoTests
         var clone = world.Clone(origin, root, "Foo");
         AddLocalBranch(clone, "feature/x");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Main };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, clone);
@@ -113,7 +113,7 @@ public class NewBranchRepoTests
         AddLocalBranch(cloneFoo, "feature/x");
         AddLocalBranch(cloneBar, "feature/x");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService
         {
             OnDecision = _ => OpenDecision.Worktree,
@@ -146,7 +146,7 @@ public class NewBranchRepoTests
         var cloneBar = world.Clone(originBar, root, "Bar");
         AddLocalBranch(cloneFoo, "feature/x");   // only Foo has the branch
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
@@ -173,7 +173,7 @@ public class NewBranchRepoTests
         var cloneBar = world.Clone(originBar, root, "Bar");
         // neither clone has "feature/zzz"
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
@@ -197,7 +197,7 @@ public class NewBranchRepoTests
         var clone = world.Clone(origin, root, "Foo");
         AddLocalBranch(clone, "feature/x");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Cancel };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, clone);
@@ -220,7 +220,7 @@ public class NewBranchRepoTests
         var clone = world.Clone(origin, root, "Foo");       // only main fetched
         world.PublishBranchToOrigin(origin, "feature/x");   // pushed to origin AFTER the clone → not fetched here
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, clone);
@@ -255,7 +255,7 @@ public class NewBranchRepoTests
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");   // fetches origin/feature/x; stays on main, no local ref
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
         var services = world.BuildServices([root], rider, dialogs);
         ConfigureNewBranchRepos(services, clone);

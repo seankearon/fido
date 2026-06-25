@@ -17,7 +17,7 @@ public class TwoClonesTests
         world.Clone(origin, rootA, "Foo");
         var cloneB = world.Clone(origin, rootB, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService
         {
             OnChooser = request => request.PickTitleContaining(cloneB),   // choose the second clone
@@ -51,7 +51,7 @@ public class TwoClonesTests
         var cloneA = world.Clone(origin, rootA, "Foo");
         world.Clone(origin, rootB, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService
         {
             OnChooser = request => request.PickTitleContaining(cloneA),   // open in the first clone
