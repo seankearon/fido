@@ -164,6 +164,10 @@ The `Closing in N…` line ticks down in place (one line, not a line per second)
 shows in a **Keep open** bar at the bottom of the window — click it to call off the close and keep
 Fido up.
 
+When a typed branch isn't checked out anywhere and Fido searches the repos configured for new branches,
+it narrates the hunt the same way — `Searching for local branch in <repo>`, then `Searching for remote
+branch in <repo>` when it queries origin — ticking through the repo names in place on a single line.
+
 Failures call it straight — `[✗] …` lines and a **No-go** status; a cancelled dialog reads
 **Aborted**.
 

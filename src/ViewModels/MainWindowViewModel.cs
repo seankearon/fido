@@ -233,6 +233,13 @@ public sealed class MainWindowViewModel : ObservableObject
         else Dispatcher.UIThread.Post(Apply);
     }
 
+    /// <summary>
+    /// Writes a plain string as an in-place "live" line (see <see cref="SetLiveLog"/>), inferring its colour
+    /// from any marker prefix — the live-log counterpart of <see cref="AppendLog(string)"/>. Used for progress
+    /// that should tick in place on one line (e.g. the per-repo branch search) rather than a line apiece.
+    /// </summary>
+    public void AppendLiveLog(string message) => SetLiveLog(message, LogLine.Infer(message).Level);
+
     public void ClearLog()
     {
         void Apply()

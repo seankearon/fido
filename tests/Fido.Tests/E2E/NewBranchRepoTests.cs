@@ -268,4 +268,32 @@ public class NewBranchRepoTests
             await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "feature-x")).IsTrue();
         });
     }
+
+    [Test]
+    public async Task Branch_search_progress_ticks_in_place_in_the_flight_log()
+    {
+        using var world = new TestRepoWorld();
+        var originFoo = world.CreateOrigin("Foo", "Foo");
+        var originBar = world.CreateOrigin("Bar", "Bar");
+        var root = world.SearchRoot("root");
+        var cloneFoo = world.Clone(originFoo, root, "Foo");   // searched first, lacks the branch
+        var cloneBar = world.Clone(originBar, root, "Bar");   // searched second, has it locally
+        AddLocalBranch(cloneBar, "feature/x");
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
+        var services = world.BuildServices([root], rider, dialogs);
+        ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Open("feature/x");
+
+            var log = window.Vm().Log;
+            // The hunt is narrated by repo name (Bar is where the branch was found)...
+            await Assert.That(log.Any(l => l.Text == "Searching for local branch in Bar")).IsTrue();
+            // ...but in place: searching two repos (and both phases) leaves a single line, not one apiece.
+            await Assert.That(log.Count(l => l.Text.Contains("Searching for"))).IsEqualTo(1);
+        });
+    }
 }
