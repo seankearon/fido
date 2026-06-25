@@ -95,11 +95,11 @@ public sealed class TestRepoWorld : IDisposable
 
     /// <summary>
     /// Wires a <see cref="FidoServices"/> bundle: config (search roots, worktree root) saved under a temp
-    /// folder via <see cref="ConfigService"/>, plus the supplied fakes for Rider and the dialog layer.
+    /// folder via <see cref="ConfigService"/>, plus the supplied fakes for the editor launcher and dialogs.
     /// </summary>
     internal FidoServices BuildServices(
         IReadOnlyList<string> searchRoots,
-        FakeRiderLauncher rider,
+        FakeEditorLauncher launcher,
         FakeDialogService dialogs,
         string? worktreeRoot = null,
         CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
@@ -123,7 +123,7 @@ public sealed class TestRepoWorld : IDisposable
         return new FidoServices
         {
             ConfigService = configService,
-            Rider = rider,
+            Launcher = launcher,
             Dialogs = dialogs,
         };
     }

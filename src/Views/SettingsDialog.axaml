@@ -24,10 +24,38 @@
         </StackPanel>
 
         <StackPanel Spacing="9">
-            <TextBlock Classes="label">
-                <Run Text="Rider path " /><Run Text="· blank = auto-detect" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <TextBox Classes="fido" Text="{Binding RiderPath, Mode=TwoWay}" PlaceholderText="auto-detect" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center">
+                    <Run Text="Editors " /><Run Text="· ● = default (Enter); others open by Ctrl+N" Foreground="{DynamicResource FidoTextDim}" />
+                </TextBlock>
+                <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
+            </Grid>
+            <Border BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
+                    Background="{DynamicResource FidoLogBg}">
+                <ScrollViewer MaxHeight="232" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="EditorsList" ItemsSource="{Binding Editors}" Margin="12,10">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EditorChoice">
+                                <Grid RowDefinitions="Auto,Auto" Margin="0,0,0,10"
+                                      ColumnDefinitions="Auto,*,Auto,Auto">
+                                    <RadioButton Grid.Row="0" Grid.Column="0" GroupName="DefaultEditor"
+                                                 IsChecked="{Binding IsDefault, Mode=TwoWay}" VerticalAlignment="Center"
+                                                 Margin="0,0,8,0" ToolTip.Tip="Set as default editor" />
+                                    <TextBox Grid.Row="0" Grid.Column="1" Classes="fido" Text="{Binding Name, Mode=TwoWay}"
+                                             PlaceholderText="name" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Row="0" Grid.Column="2" Margin="8,0,0,0" Width="132"
+                                              ItemsSource="{Binding KindOptions}" SelectedItem="{Binding Kind, Mode=TwoWay}"
+                                              VerticalAlignment="Center" />
+                                    <Button Grid.Row="0" Grid.Column="3" Classes="secondary" Margin="8,0,0,0"
+                                            Content="✕" Click="OnRemoveEditorClick" ToolTip.Tip="Remove this editor" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Classes="fido" Margin="0,6,0,0"
+                                             Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
         </StackPanel>
 
         <StackPanel Spacing="9">

@@ -19,7 +19,7 @@ public class MultipleWorktreesTests
         world.AddWorktree(clone, "feature/x");
         world.AddWorktree(clone, "feature/y");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 

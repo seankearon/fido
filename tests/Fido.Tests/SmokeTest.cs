@@ -20,7 +20,7 @@ public class SmokeTest
         var rootA = world.SearchRoot("rootA");
         world.Clone(origin, rootA, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([rootA], rider, dialogs);
 

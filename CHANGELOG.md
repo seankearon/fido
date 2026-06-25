@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multiple editors / IDEs.** Fido can now open into Rider, **VS Code**, **Visual Studio**,
+  **Zed**, or any **custom** editor you point it at. Configure the list in Settings and mark one
+  as the **default** — the Open button (and **Enter**) launch into it. Every other editor gets a
+  numbered keyboard shortcut (**Ctrl+1 … Ctrl+9**) and a secondary button on the main window, so a
+  branch can be opened in whichever editor you want without changing the default. Known editors
+  auto-detect (PATH + common install locations) when their path is left blank; a custom editor uses
+  the path you give it. An older config's single **Rider path** is migrated onto the Rider editor
+  automatically.
+
 - **Close delay** after a successful launch. When Fido is set to close after opening
   (see **Close after opening**), it now counts down before quitting instead of vanishing
   instantly. The flight log shows a single line that ticks down in place (`Closing in 10…` → `9…`

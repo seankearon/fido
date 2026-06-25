@@ -1,0 +1,110 @@
+using Avalonia.Input;
+using Avalonia.Threading;
+using Fido.Models;
+using Fido.Tests.Infrastructure;
+using Fido.ViewModels;
+
+namespace Fido.Tests.E2E;
+
+/// <summary>Launching into a chosen editor, and the main window's editor launch-option wiring.</summary>
+[NotInParallel]
+public class EditorSelectionTests
+{
+    [Test]
+    public async Task The_default_editor_drives_the_open_button_and_is_used_on_open()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            // Defaults are seeded by ConfigService; Rider is the default, the rest are secondary.
+            await Assert.That(window.Vm().OpenButtonText).IsEqualTo("Open in Rider");
+            await Assert.That(window.Vm().HasSecondaryEditors).IsTrue();
+
+            await window.Open("main", "Foo");
+
+            await Assert.That(launcher.Launches.Count).IsEqualTo(1);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Rider);
+        });
+    }
+
+    [Test]
+    public async Task Opening_with_a_chosen_editor_launches_that_editor()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vsCode = new Editor { Name = "VS Code", Kind = EditorKind.VsCode };
+
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");
+            await window.RunOpenAsync(editor: vsCode);   // as a Ctrl+N shortcut / secondary button would
+
+            await Assert.That(launcher.Launches.Count).IsEqualTo(1);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Name).IsEqualTo("VS Code");
+            await Assert.That(window.Vm().StatusText).Contains("VS Code launched");
+        });
+    }
+
+    [Test]
+    public async Task Ctrl_n_launches_the_nth_configured_editor()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");
+
+            // Seeded editor order is [Rider, VS Code, Visual Studio, Zed]; Ctrl+2 → index 1 → VS Code.
+            window.RaiseEvent(new KeyEventArgs
+            {
+                RoutedEvent = InputElement.KeyDownEvent,
+                Key = Key.D2,
+                KeyModifiers = KeyModifiers.Control,
+            });
+            Dispatcher.UIThread.RunJobs();
+
+            var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.VsCode);
+        });
+    }
+
+    [Test]
+    public async Task Secondary_editors_carry_numbered_shortcut_gestures()
+    {
+        var vm = new MainWindowViewModel();
+        vm.SetEditors(new List<Editor>
+        {
+            new() { Name = "Rider", Kind = EditorKind.Rider },
+            new() { Name = "VS Code", Kind = EditorKind.VsCode },
+            new() { Name = "Zed", Kind = EditorKind.Zed },
+        }, defaultIndex: 0);
+
+        await Assert.That(vm.OpenButtonText).IsEqualTo("Open in Rider");
+        await Assert.That(vm.SecondaryEditors.Count).IsEqualTo(2);
+        await Assert.That(vm.SecondaryEditors[0].Name).IsEqualTo("VS Code");
+        await Assert.That(vm.SecondaryEditors[0].Gesture).IsEqualTo("Ctrl+2");   // editor index 1 → Ctrl+2
+        await Assert.That(vm.SecondaryEditors[1].Gesture).IsEqualTo("Ctrl+3");
+    }
+}

@@ -100,6 +100,76 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task Editors_round_trip_through_load_and_apply()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig
+        {
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider },
+                new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Path = @"C:\code\code.cmd" },
+            },
+            DefaultEditorIndex = 1,
+        });
+
+        await Assert.That(vm.Editors.Count).IsEqualTo(2);
+        await Assert.That(vm.Editors[1].IsDefault).IsTrue();
+        await Assert.That(vm.Editors[0].IsDefault).IsFalse();
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+
+        await Assert.That(cfg.Editors.Count).IsEqualTo(2);
+        await Assert.That(cfg.Editors[1].Path).IsEqualTo(@"C:\code\code.cmd");
+        await Assert.That(cfg.DefaultEditorIndex).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Setting_a_row_default_clears_the_others()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig
+        {
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider },
+                new Editor { Name = "Zed", Kind = EditorKind.Zed },
+            },
+            DefaultEditorIndex = 0,
+        });
+
+        vm.Editors[1].IsDefault = true;   // ticking the second row
+
+        await Assert.That(vm.Editors[0].IsDefault).IsFalse();
+        await Assert.That(vm.Editors[1].IsDefault).IsTrue();
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.DefaultEditorIndex).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Removing_the_default_promotes_another_editor()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig
+        {
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider },
+                new Editor { Name = "Zed", Kind = EditorKind.Zed },
+            },
+            DefaultEditorIndex = 0,
+        });
+
+        vm.RemoveEditor(vm.Editors[0]);   // drop the current default
+
+        await Assert.That(vm.Editors.Count).IsEqualTo(1);
+        await Assert.That(vm.Editors[0].IsDefault).IsTrue();   // the survivor became default
+    }
+
+    [Test]
     public async Task MergeDetected_adds_new_unticked_preserves_state_and_dedups_case_insensitively()
     {
         var vm = new SettingsViewModel();

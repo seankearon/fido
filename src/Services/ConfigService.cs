@@ -78,6 +78,20 @@ public sealed class ConfigService
         cfg.RecentBranches ??= new();
         cfg.RecentSolutions ??= new();
         cfg.NewBranchRepos ??= new();
+
+        // Seed the editor list for configs written before multi-editor support, carrying a legacy
+        // explicit Rider path forward onto the Rider editor so the old setting isn't lost.
+        cfg.Editors ??= new();
+        if (cfg.Editors.Count == 0)
+        {
+            cfg.Editors = Editor.Defaults();
+            if (!string.IsNullOrWhiteSpace(cfg.RiderPath))
+            {
+                var rider = cfg.Editors.FirstOrDefault(e => e.Kind == EditorKind.Rider);
+                if (rider is not null) rider.Path = cfg.RiderPath;
+            }
+        }
+        cfg.DefaultEditorIndex = Math.Clamp(cfg.DefaultEditorIndex, 0, cfg.Editors.Count - 1);
         return cfg;
     }
 }

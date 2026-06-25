@@ -12,7 +12,6 @@ namespace Fido.ViewModels;
 public sealed class SettingsViewModel : ObservableObject
 {
     private string _searchRootsText = "";
-    private string _riderPath = "";
     private string _worktreeRoot = "";
     private AppTheme _selectedTheme = AppTheme.System;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
@@ -24,10 +23,38 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _searchRootsText, value);
     }
 
-    public string RiderPath
+    /// <summary>The configured editors; exactly one is <see cref="EditorChoice.IsDefault"/> at a time.</summary>
+    public ObservableCollection<EditorChoice> Editors { get; } = new();
+
+    /// <summary>Appends a new Custom editor row and makes it the default if it's the only one.</summary>
+    public void AddEditor()
     {
-        get => _riderPath;
-        set => SetField(ref _riderPath, value);
+        var choice = new EditorChoice(new Editor { Name = "New editor", Kind = EditorKind.Custom }, isDefault: Editors.Count == 0);
+        choice.PropertyChanged += OnEditorChoiceChanged;
+        Editors.Add(choice);
+    }
+
+    /// <summary>Removes an editor row, ensuring a default and at least... nothing — an empty list is allowed.</summary>
+    public void RemoveEditor(EditorChoice choice)
+    {
+        choice.PropertyChanged -= OnEditorChoiceChanged;
+        var wasDefault = choice.IsDefault;
+        Editors.Remove(choice);
+        if (wasDefault && Editors.Count > 0)
+            Editors[0].IsDefault = true;   // never leave the list without a default
+    }
+
+    // Keep the default single-select: ticking one row clears the others.
+    private bool _syncingDefault;
+    private void OnEditorChoiceChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_syncingDefault || e.PropertyName != nameof(EditorChoice.IsDefault)) return;
+        if (sender is not EditorChoice changed || !changed.IsDefault) return;
+
+        _syncingDefault = true;
+        foreach (var other in Editors)
+            if (!ReferenceEquals(other, changed)) other.IsDefault = false;
+        _syncingDefault = false;
     }
 
     public string WorktreeRoot
@@ -120,8 +147,19 @@ public sealed class SettingsViewModel : ObservableObject
     public void LoadFrom(AppConfig config)
     {
         SearchRootsText = string.Join(Environment.NewLine, config.SearchRoots);
-        RiderPath = config.RiderPath ?? "";
         WorktreeRoot = config.WorktreeRoot ?? "";
+
+        foreach (var existing in Editors) existing.PropertyChanged -= OnEditorChoiceChanged;
+        Editors.Clear();
+        var defaultIndex = config.Editors.Count == 0
+            ? -1
+            : Math.Clamp(config.DefaultEditorIndex, 0, config.Editors.Count - 1);
+        for (var i = 0; i < config.Editors.Count; i++)
+        {
+            var choice = new EditorChoice(config.Editors[i], isDefault: i == defaultIndex);
+            choice.PropertyChanged += OnEditorChoiceChanged;
+            Editors.Add(choice);
+        }
         SelectedTheme = config.Theme;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
@@ -134,8 +172,14 @@ public sealed class SettingsViewModel : ObservableObject
     public void ApplyTo(AppConfig config)
     {
         config.SearchRoots = SplitRoots(SearchRootsText);
-        config.RiderPath = string.IsNullOrWhiteSpace(RiderPath) ? null : RiderPath.Trim();
         config.WorktreeRoot = string.IsNullOrWhiteSpace(WorktreeRoot) ? null : WorktreeRoot.Trim();
+
+        config.Editors = Editors.Select(e => e.ToEditor()).ToList();
+        var defaultIndex = -1;
+        for (var i = 0; i < Editors.Count; i++)
+            if (Editors[i].IsDefault) { defaultIndex = i; break; }
+        config.DefaultEditorIndex = defaultIndex < 0 ? 0 : defaultIndex;
+        config.RiderPath = null;   // superseded by Editors; clear the migrated legacy value
         config.Theme = SelectedTheme;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);

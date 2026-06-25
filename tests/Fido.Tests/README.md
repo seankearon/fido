@@ -26,11 +26,11 @@ if set) and an HTML report to `bin/<config>/net10.0/TestResults/`. CI uploads bo
 
 | Folder | What it covers |
 |--------|----------------|
-| `E2E/` | The headline scenarios through the real `MainWindow`: two clones of one repo, two repos, multiple worktrees, Rider-not-installed, CLI prefill, validation, button click |
+| `E2E/` | The headline scenarios through the real `MainWindow`: two clones of one repo, two repos, multiple worktrees, editor-not-installed, editor selection, CLI prefill, validation, button click |
 | `Dialogs/` | The real `ChooserDialog` / `DecisionDialog` / `SettingsDialog` windows, driven by list/keyboard/buttons |
-| `Services/` | `OpenerService` / `GitService` / `Mru` against a real temp git world (no UI) |
-| `Locator/` | The real `RiderLauncher.Locate` probing, against a fake rider executable |
-| `Infrastructure/` | `TestRepoWorld` (real git fixtures), `FakeRiderLauncher`, `FakeDialogService`, headless helpers, screenshots |
+| `Services/` | `OpenerService` / `GitService` / `Mru` / `ConfigService` against a real temp git world (no UI) |
+| `Locator/` | The real `EditorLauncher.Locate` probing, against a fake editor executable |
+| `Infrastructure/` | `TestRepoWorld` (real git fixtures), `FakeEditorLauncher`, `FakeDialogService`, headless helpers, screenshots |
 
 `TestRepoWorld` builds bare origins, clones and `git worktree`s with the real git CLI in a hermetic
 temp folder (the machine's git config is ignored; a deterministic identity is supplied).

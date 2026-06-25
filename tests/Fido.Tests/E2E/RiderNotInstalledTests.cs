@@ -15,7 +15,7 @@ public class RiderNotInstalledTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher { LocateResult = null };   // Rider not installed
+        var rider = new FakeEditorLauncher { LocateResult = null };   // Rider not installed
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 

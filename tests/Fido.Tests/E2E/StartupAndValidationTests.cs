@@ -16,7 +16,7 @@ public class StartupAndValidationTests
     {
         using var world = new TestRepoWorld();
         var root = world.SearchRoot("root");
-        var services = world.BuildServices([root], new FakeRiderLauncher(), new FakeDialogService());
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
 
         var original = Program.StartupArgs;
         Program.StartupArgs = ["-b", "feature/z", "-s", "MyApp", "--folder"];
@@ -45,7 +45,7 @@ public class StartupAndValidationTests
     {
         using var world = new TestRepoWorld();
         var root = world.SearchRoot("root");
-        var services = world.BuildServices([root], new FakeRiderLauncher(), new FakeDialogService());
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
 
         var original = Program.StartupArgs;
         Program.StartupArgs = ["feature/positional"];   // a bare argument is taken as the branch
@@ -70,7 +70,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());   // default: close on CLI launch
 
         var original = Program.StartupArgs;
@@ -105,7 +105,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());   // default: CommandLine
 
         await Harness.WithWindow(services, async window =>
@@ -129,7 +129,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService(),
             closeAfterOpen: CloseAfterOpen.Always);
 
@@ -153,7 +153,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService(),
             closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
 
@@ -186,7 +186,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService(),
             closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 4);
 
@@ -215,7 +215,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService(),
             closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 2);
 
@@ -245,7 +245,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService(),
             closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
 
@@ -274,7 +274,7 @@ public class StartupAndValidationTests
     {
         using var world = new TestRepoWorld();
         var root = world.SearchRoot("root");
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
@@ -295,7 +295,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
@@ -320,7 +320,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
@@ -359,7 +359,7 @@ public class StartupAndValidationTests
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>

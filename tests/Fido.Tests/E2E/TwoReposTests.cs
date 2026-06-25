@@ -17,7 +17,7 @@ public class TwoReposTests
         world.Clone(originFoo, root, "Foo");
         var cloneBar = world.Clone(originBar, root, "Bar");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -45,7 +45,7 @@ public class TwoReposTests
         world.CreateBranch(cloneFoo, "feature/x");
         world.CreateBranch(cloneBar, "feature/x");
 
-        var rider = new FakeRiderLauncher();
+        var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService
         {
             // first chooser = which folder (pick Foo); second = which target inside it (pick the solution)

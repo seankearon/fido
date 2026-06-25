@@ -21,7 +21,7 @@ public partial class MainWindow : Window
     private readonly GitService _git;
     private readonly SolutionFinder _finder;
     private readonly WorkingTreeFinder _workingTreeFinder;
-    private readonly IRiderLauncher _rider;
+    private readonly IEditorLauncher _launcher;
     private readonly IDialogService _dialogs;
     private readonly OpenerService _opener;
     private readonly AppConfig _config;
@@ -40,7 +40,7 @@ public partial class MainWindow : Window
         _git = services.Git;
         _finder = services.Finder;
         _workingTreeFinder = services.WorkingTreeFinder;
-        _rider = services.Rider;
+        _launcher = services.Launcher;
 
         // Load config and apply the theme variant before the XAML resolves its DynamicResources.
         _config = _configService.Load();
@@ -49,12 +49,18 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = _vm;
         _vm.LoadMru(_config.RecentBranches, _config.RecentSolutions);
+        _vm.SetEditors(_config.Editors, _config.DefaultEditorIndex);
 
         // A single Enter in either input should open. The AutoCompleteBox marks the first Enter
         // handled just to dismiss its MRU drop-down, so it never reaches the default button —
         // handledEventsToo lets us still act on it (see OnInputBoxKeyDown).
         BranchBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         SolutionBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // Ctrl+1…Ctrl+9 launch with the Nth configured editor. Handled at the window so it fires even
+        // while a text box has focus (Ctrl-modified digits aren't text input, so the boxes ignore them);
+        // handledEventsToo in case a child marks the keystroke handled on the way up.
+        AddHandler(InputElement.KeyDownEvent, OnEditorShortcutKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
         _opener = new OpenerService(_git, _finder, _workingTreeFinder, _vm.AppendLog);
@@ -73,7 +79,38 @@ public partial class MainWindow : Window
     }
 
     private async void OnSettingsClick(object? sender, RoutedEventArgs e)
-        => await _dialogs.ShowSettingsAsync(_config, _configService);
+    {
+        await _dialogs.ShowSettingsAsync(_config, _configService);
+        _vm.SetEditors(_config.Editors, _config.DefaultEditorIndex);   // editors may have changed
+    }
+
+    // Launch with a non-default editor when its secondary button is clicked.
+    private async void OnLaunchWithEditorClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { DataContext: EditorLaunchOption option }) return;
+        if (option.Index < 0 || option.Index >= _config.Editors.Count) return;
+        await RunOpenAsync(editor: _config.Editors[option.Index]);
+    }
+
+    // Ctrl+1…Ctrl+9 → launch with editor index 0…8 (matching the secondary buttons' gestures).
+    private void OnEditorShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.Control) return;
+        var index = DigitKeyToIndex(e.Key);
+        if (index is not { } i || i < 0 || i >= _config.Editors.Count) return;
+
+        e.Handled = true;
+        var editor = _config.Editors[i];
+        Dispatcher.UIThread.Post(() => _ = RunOpenAsync(editor: editor), DispatcherPriority.Input);
+    }
+
+    /// <summary>Maps a top-row or numpad digit key (1–9) to a zero-based editor index, else null.</summary>
+    private static int? DigitKeyToIndex(Key key) => key switch
+    {
+        >= Key.D1 and <= Key.D9 => key - Key.D1,
+        >= Key.NumPad1 and <= Key.NumPad9 => key - Key.NumPad1,
+        _ => null,
+    };
 
     // Surface the MRU suggestions as soon as a field is focused — but only when there's history to show.
     private void OnMruGotFocus(object? sender, FocusChangedEventArgs e)
@@ -186,9 +223,16 @@ public partial class MainWindow : Window
     // Internal so tests can await the full flow deterministically rather than racing the async-void click.
     // <paramref name="fromCommandLine"/> marks a startup run driven by a CLI branch — it governs whether
     // Fido closes itself afterwards (see <see cref="MaybeCloseAfterLaunch"/>).
-    internal async Task RunOpenAsync(bool fromCommandLine = false)
+    internal async Task RunOpenAsync(bool fromCommandLine = false, Editor? editor = null)
     {
         CancelPendingClose();   // a fresh open supersedes any countdown left running from the last one
+        editor ??= _config.DefaultEditor;
+        if (editor is null)
+        {
+            _vm.SetStatus("no editor configured — add one in Settings", StatusKind.NoGo);
+            return;
+        }
+
         var branch = _vm.BranchName.Trim();
         var solution = _vm.SolutionName.Trim();
         if (string.IsNullOrEmpty(branch))
@@ -218,20 +262,20 @@ public partial class MainWindow : Window
                 ? $"[✓] Solution found: {Path.GetFileName(plan.Target.Path)}"
                 : $"[✓] Folder located: {plan.Target.Path}");
 
-            var riderPath = _rider.Locate(_config);
-            if (riderPath is null)
+            var editorPath = _launcher.Locate(editor);
+            if (editorPath is null)
             {
-                _vm.AppendLog("[✗] Rider not located.");
-                _vm.SetStatus("Rider not found — set the Rider path in Settings", StatusKind.NoGo);
+                _vm.AppendLog($"[✗] {editor.Name} not located.");
+                _vm.SetStatus($"{editor.Name} not found — set its path in Settings", StatusKind.NoGo);
                 return;
             }
-            _vm.AppendLog($"[✓] Rider located: {riderPath}");
+            _vm.AppendLog($"[✓] {editor.Name} located: {editorPath}");
 
             _vm.AppendLog("");
             _vm.AppendLog("Fido? GO!");
             _vm.AppendLog("The Eagle has landed...");
-            _rider.Launch(riderPath, plan.Target.Path);
-            _vm.SetStatus($"Rider launched on {(plan.Target.IsSolution ? "solution" : "folder")}: {plan.Target.Path}", StatusKind.Go);
+            _launcher.Launch(editor, editorPath, plan.Target.Path);
+            _vm.SetStatus($"{editor.Name} launched on {(plan.Target.IsSolution ? "solution" : "folder")}: {plan.Target.Path}", StatusKind.Go);
             MaybeCloseAfterLaunch(fromCommandLine);
         }
         catch (Exception ex)
@@ -525,13 +569,13 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Presents the solutions in a folder (plus an "open the folder" option) and returns the choice.</summary>
-    private async Task<RiderTarget?> ChooseOpenTargetAsync(string folder)
+    private async Task<LaunchTarget?> ChooseOpenTargetAsync(string folder)
     {
         var solutions = _opener.FindSolutionsInFolder(folder, _config);
         if (solutions.Count == 0)
         {
             _vm.AppendLog($"No solution files found under {folder}; opening the folder.");
-            return new RiderTarget(folder, IsSolution: false);
+            return new LaunchTarget(folder, IsSolution: false);
         }
 
         var items = solutions
@@ -551,13 +595,13 @@ public partial class MainWindow : Window
 
         if (index is not { } i || i < 0) return null;
         return i < solutions.Count
-            ? new RiderTarget(solutions[i], IsSolution: true)
-            : new RiderTarget(folder, IsSolution: false);
+            ? new LaunchTarget(solutions[i], IsSolution: true)
+            : new LaunchTarget(folder, IsSolution: false);
     }
 
     private async Task<OpenDecision> ShowDecisionDialogAsync(RepositoryInfo repo, string branch, MainContext ctx)
         => await _dialogs.ShowDecisionAsync(repo, branch, ctx) ?? OpenDecision.Cancel;
 
-    /// <summary>Resolved trajectory: where the branch lives and what to hand Rider.</summary>
-    private sealed record OpenPlan(string Branch, string WorkingDir, string LocatedAs, RiderTarget Target);
+    /// <summary>Resolved trajectory: where the branch lives and what to hand the editor.</summary>
+    private sealed record OpenPlan(string Branch, string WorkingDir, string LocatedAs, LaunchTarget Target);
 }
