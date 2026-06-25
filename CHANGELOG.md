@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The chooser dialog is now fully keyboard-driven.** Up/Down arrows move the highlighted
+  row, **Enter** opens it, and **Esc** cancels — previously the arrows didn't move the
+  selection, so picking a clone / checkout / what-to-open meant reaching for the mouse. A
+  shortcut hint runs along the dialog's bottom edge, matching the decision dialog.
+
 - Pressing **Enter** in the Branch (or Solution) box now opens in a single press.
   Previously the first Enter only dismissed the MRU suggestion drop-down, so you
   had to press Enter again to launch. The keystroke now closes the drop-down and

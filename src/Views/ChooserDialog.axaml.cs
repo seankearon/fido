@@ -27,6 +27,44 @@ public partial class ChooserDialog : Window
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(null);
     private void OnListDoubleTapped(object? sender, TappedEventArgs e) => Accept();
 
+    // Raw key handling so the shortcuts work wherever focus sits (the list, a button, the window).
+    // Up/Down only reach here when the focused ListBox hasn't already moved the selection itself —
+    // it marks navigation keys handled, and class handlers skip handled events — so there's no double step.
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Up:
+                MoveSelection(-1);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                MoveSelection(+1);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                Accept();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                Close(null);
+                e.Handled = true;
+                break;
+            default:
+                base.OnKeyDown(e);
+                break;
+        }
+    }
+
+    /// <summary>Moves the highlighted row by <paramref name="delta"/>, clamped to the list bounds.</summary>
+    private void MoveSelection(int delta)
+    {
+        var count = Chooser.ItemCount;
+        if (count == 0) return;
+        var current = Chooser.SelectedIndex < 0 ? 0 : Chooser.SelectedIndex;
+        Chooser.SelectedIndex = Math.Clamp(current + delta, 0, count - 1);
+    }
+
     private void Accept()
     {
         var index = _vm?.SelectedIndex ?? -1;
