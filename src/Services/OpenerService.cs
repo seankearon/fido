@@ -122,9 +122,11 @@ public sealed class OpenerService
     }
 
     /// <summary>
-    /// Of <paramref name="repos"/>, those whose refs already contain <paramref name="branch"/> — either a
-    /// local branch or an <c>origin</c> remote-tracking branch. Lets the branch-only flow offer a repo only
-    /// where the branch genuinely exists, rather than silently spawning an unrelated new branch elsewhere.
+    /// Of <paramref name="repos"/>, those that contain <paramref name="branch"/> — as a local branch, an
+    /// <c>origin</c> remote-tracking branch, or a branch that exists on <c>origin</c> but hasn't been fetched
+    /// yet (checked live). Lets the branch-only flow offer a repo only where the branch genuinely exists,
+    /// rather than silently spawning an unrelated new branch elsewhere — and find branches a clone hasn't
+    /// fetched. The remote is queried only when both local checks miss, so already-known branches stay offline.
     /// </summary>
     public async Task<IReadOnlyList<RepositoryInfo>> FindReposWithBranchAsync(
         IReadOnlyList<RepositoryInfo> repos, string branch, CancellationToken ct = default)
@@ -135,7 +137,8 @@ public sealed class OpenerService
             ct.ThrowIfCancellationRequested();
             var dir = repo.MainWorktreePath;
             if (await _git.LocalBranchExistsAsync(dir, branch, ct)
-                || await _git.RemoteBranchExistsAsync(dir, branch, ct))
+                || await _git.RemoteBranchExistsAsync(dir, branch, ct)
+                || await _git.RemoteHasBranchAsync(dir, branch, ct))
             {
                 found.Add(repo);
             }
@@ -215,6 +218,16 @@ public sealed class OpenerService
         var existsRemote = await _git.RemoteBranchExistsAsync(dir, branch, ct);
         var status = await _git.GetStatusAsync(dir, ct);
 
+        // No local branch and no cached remote-tracking ref doesn't mean the branch is new — it may exist on
+        // origin but never have been fetched into this clone. Ask the remote directly before treating it as
+        // brand-new; if it's there, track it (fetching the ref first) instead of creating a divergent branch.
+        var requiresFetch = false;
+        if (!existsLocal && !existsRemote && await _git.RemoteHasBranchAsync(dir, branch, ct))
+        {
+            existsRemote = true;
+            requiresFetch = true;
+        }
+
         string? startPoint = null;
         var startIsRemote = false;
         string startDescription;
@@ -227,7 +240,9 @@ public sealed class OpenerService
         {
             startPoint = $"origin/{branch}";
             startIsRemote = true;
-            startDescription = $"remote branch origin/{branch} (will track)";
+            startDescription = requiresFetch
+                ? $"remote branch origin/{branch} (will fetch and track)"
+                : $"remote branch origin/{branch} (will track)";
         }
         else
         {
@@ -256,6 +271,7 @@ public sealed class OpenerService
             CurrentBranch = currentBranch,
             BranchExistsLocally = existsLocal,
             BranchExistsOnRemote = existsRemote,
+            RequiresFetch = requiresFetch,
             OutstandingChanges = status,
             ProposedWorktreePath = BuildWorktreePath(repo, branch, config),
             StartPoint = startPoint,
@@ -277,6 +293,7 @@ public sealed class OpenerService
         }
         else if (ctx.BranchExistsOnRemote)
         {
+            if (ctx.RequiresFetch) await FetchTrackingRefAsync(dir, branch, ct);
             _log($"Creating local branch '{branch}' tracking origin/{branch}…");
             result = await _git.SwitchNewTrackingAsync(dir, branch, ct);
         }
@@ -305,6 +322,7 @@ public sealed class OpenerService
         ProcessResult result;
         if (ctx.BranchExistsLocally || ctx.BranchExistsOnRemote)
         {
+            if (ctx.RequiresFetch) await FetchTrackingRefAsync(dir, branch, ct);
             // For a remote-only branch, `git worktree add <path> <branch>` DWIMs a local
             // tracking branch from origin/<branch>.
             _log($"Adding worktree for '{branch}' at {path}…");
@@ -321,6 +339,18 @@ public sealed class OpenerService
 
         _log($"Worktree ready at {path}.");
         return path;
+    }
+
+    /// <summary>
+    /// Fetches <c>origin/&lt;branch&gt;</c> into the clone so a tracking branch or worktree can be created from
+    /// a branch that exists on the remote but hadn't been fetched yet (see <see cref="MainContext.RequiresFetch"/>).
+    /// </summary>
+    private async Task FetchTrackingRefAsync(string dir, string branch, CancellationToken ct)
+    {
+        _log($"Fetching origin/{branch} (not yet in this clone)…");
+        var result = await _git.FetchBranchAsync(dir, branch, ct);
+        if (!result.Success)
+            throw new InvalidOperationException($"git fetch failed: {result.Message}");
     }
 
     /// <summary>

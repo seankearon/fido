@@ -132,4 +132,60 @@ public class OpenerServiceTests
         await Assert.That(withBranch.Count).IsEqualTo(1);
         await Assert.That(withBranch[0].MainWorktreePath).IsEqualTo(cloneFoo);
     }
+
+    [Test]
+    public async Task FindReposWithBranch_finds_a_branch_that_exists_only_on_an_unfetched_remote()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");   // on origin, not fetched into the clone
+
+        var repos = new[] { new RepositoryInfo(clone, "") };
+        var withBranch = await NewOpener().FindReposWithBranchAsync(repos, "feature/x");
+
+        await Assert.That(withBranch.Count).IsEqualTo(1);
+        await Assert.That(withBranch[0].MainWorktreePath).IsEqualTo(clone);
+    }
+
+    [Test]
+    public async Task Main_context_for_an_unfetched_remote_branch_plans_to_fetch_and_track()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");
+        var config = world.Config(root);
+
+        var opener = NewOpener();
+        var repos = await opener.FindRepositoriesAsync("Foo", config);
+        var context = await opener.BuildMainContextAsync(repos[0], "feature/x", config);
+
+        await Assert.That(context.BranchExistsLocally).IsFalse();
+        await Assert.That(context.BranchExistsOnRemote).IsTrue();   // discovered live, not from a tracking ref
+        await Assert.That(context.RequiresFetch).IsTrue();
+    }
+
+    [Test]
+    public async Task Create_worktree_fetches_then_tracks_an_unfetched_remote_branch()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");
+        var config = world.Config(root);
+
+        var opener = NewOpener();
+        var repos = await opener.FindRepositoriesAsync("Foo", config);
+        var context = await opener.BuildMainContextAsync(repos[0], "feature/x", config);
+        var path = await opener.CreateWorktreeAsync(repos[0], "feature/x", context);
+
+        var git = new GitService();
+        await Assert.That(System.IO.Directory.Exists(path)).IsTrue();
+        await Assert.That(await git.GetCurrentBranchAsync(path)).IsEqualTo("feature/x");   // really on the branch
+        await Assert.That(await git.RemoteBranchExistsAsync(clone, "feature/x")).IsTrue(); // fetched as a side effect
+    }
 }

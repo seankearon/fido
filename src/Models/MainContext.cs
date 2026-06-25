@@ -15,6 +15,13 @@ public sealed class MainContext
     public bool BranchExistsLocally { get; init; }
     public bool BranchExistsOnRemote { get; init; }
 
+    /// <summary>
+    /// True when the branch exists on <c>origin</c> but hasn't been fetched into this clone yet, so its
+    /// <c>refs/remotes/origin/&lt;branch&gt;</c> tracking ref must be fetched before a tracking branch or
+    /// worktree can be created from it.
+    /// </summary>
+    public bool RequiresFetch { get; init; }
+
     /// <summary>Outstanding changes in the main tree (porcelain lines); empty when clean.</summary>
     public IReadOnlyList<string> OutstandingChanges { get; init; } = [];
 

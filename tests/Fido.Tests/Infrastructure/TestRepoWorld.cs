@@ -72,6 +72,25 @@ public sealed class TestRepoWorld : IDisposable
     /// <summary>Switches a clone's main working tree onto a new branch.</summary>
     public void CreateBranch(string repoPath, string branch) => Git(repoPath, "switch", "-c", branch);
 
+    /// <summary>
+    /// Publishes <paramref name="branch"/> to <paramref name="origin"/> from a throwaway clone (then discards
+    /// it), so a clone made <em>earlier</em> has the branch on origin but has never fetched it — mirroring a
+    /// teammate pushing a branch after you cloned. The publisher lives outside the search roots and is deleted,
+    /// so it never shows up as a working tree.
+    /// </summary>
+    public void PublishBranchToOrigin(string origin, string branch)
+    {
+        var pub = Path.Combine(Root, "publishers", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.GetDirectoryName(pub)!);
+        Git(Root, "clone", origin, pub);
+        Git(pub, "switch", "-c", branch);
+        File.WriteAllText(Path.Combine(pub, "published.txt"), branch);
+        Git(pub, "add", "-A");
+        Git(pub, "commit", "-m", $"publish {branch}");
+        Git(pub, "push", "-u", "origin", branch);
+        ForceDelete(pub);   // discard the publisher so it's never scanned as a working tree
+    }
+
     /// <summary>Adds a linked worktree on a new branch; returns the worktree path.</summary>
     public string AddWorktree(string clonePath, string branch)
     {

@@ -60,6 +60,33 @@ public sealed class GitService
     public async Task<bool> RemoteBranchExistsAsync(string dir, string branch, CancellationToken ct = default)
         => (await Git(dir, ct, "rev-parse", "--verify", "--quiet", $"refs/remotes/origin/{branch}")).Success;
 
+    /// <summary>
+    /// True when <paramref name="branch"/> exists on the <c>origin</c> remote right now — queried live with
+    /// <c>git ls-remote</c>. Unlike <see cref="RemoteBranchExistsAsync"/> (which reads the cached
+    /// <c>refs/remotes/origin/*</c> tracking refs) this also finds branches pushed to origin but never
+    /// fetched into this clone.
+    /// </summary>
+    public async Task<bool> RemoteHasBranchAsync(string dir, string branch, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "ls-remote", "--heads", "origin", branch);
+        if (!r.Success) return false;
+
+        // ls-remote prints "<sha>\t<ref>" lines and matches the pattern as a path suffix, so asking for
+        // "x" would also return "refs/heads/feature/x". Require an exact ref match to avoid false positives.
+        var wanted = '\t' + RefsHeads + branch;
+        return r.StdOut
+            .Split('\n')
+            .Any(line => line.TrimEnd('\r').EndsWith(wanted, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Fetches <paramref name="branch"/> from <c>origin</c> into its <c>refs/remotes/origin/&lt;branch&gt;</c>
+    /// tracking ref, so a subsequent switch/worktree can create a local branch that tracks it. Used when the
+    /// branch exists on the remote but hasn't been fetched into this clone yet.
+    /// </summary>
+    public Task<ProcessResult> FetchBranchAsync(string dir, string branch, CancellationToken ct = default)
+        => Git(dir, ct, "fetch", "origin", $"{RefsHeads}{branch}:refs/remotes/origin/{branch}");
+
     /// <summary>Current branch of the working tree, or <c>"HEAD"</c> when detached.</summary>
     public async Task<string> GetCurrentBranchAsync(string dir, CancellationToken ct = default)
     {
