@@ -34,7 +34,7 @@ public sealed class Editor
     public static List<Editor> Defaults() => new()
     {
         new Editor { Name = "Rider", Kind = EditorKind.Rider, Slug = "rider" },
-        new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Slug = "code" },
+        new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Slug = "vsc" },
         new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio, Slug = "vs" },
         new Editor { Name = "Zed", Kind = EditorKind.Zed, Slug = "zed" },
     };

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Pick the editor on the command line.** Each editor now carries a short **slug** (built-in defaults
-  `rider`, `code`, `vs`, `zed`; editable per editor in Settings). Pass it as the second bare argument —
+  `rider`, `vsc`, `vs`, `zed`; editable per editor in Settings). Pass it as the second bare argument —
   `fido feature/new-ui zed` — or explicitly with `--editor` / `-e` (`fido -b feature/new-ui -e vs`) to
   open with that editor instead of the configured default. An unrecognised slug stops with a **No-go**
   that names it and lists the known slugs, rather than silently using the default.

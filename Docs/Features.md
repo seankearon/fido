@@ -126,7 +126,7 @@ Built-in editor kinds — **Rider**, **VS Code**, **Visual Studio**, **Zed** —
 path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
-Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `code`,
+Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `vsc`,
 `vs`, `zed`) — so a specific editor can be picked when launching Fido from the command line (see
 **Command-line launch**). The slug is editable per editor in Settings; leave it blank to make that
 editor un-selectable from the CLI.
@@ -188,7 +188,7 @@ chooser/decision dialogs still appear when a choice is genuinely needed:
 | Argument | Effect |
 | --- | --- |
 | `<name>` (bare, first) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
-| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the editor whose **slug** matches (e.g. `rider`, `code`, `vs`, `zed`) instead of the default |
+| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the editor whose **slug** matches (e.g. `rider`, `vsc`, `vs`, `zed`) instead of the default |
 | `--solution` / `-s` `<name>` | Set the solution name |
 | `--folder` | Start in Folder open-mode |
 

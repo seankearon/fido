@@ -4,8 +4,8 @@
         x:Class="Fido.Views.SettingsDialog"
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
-        Width="480" SizeToContent="Height"
-        MinWidth="420" CanResize="False"
+        Width="600" SizeToContent="Height"
+        MinWidth="520" CanResize="False"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/fido-icon-256.png"
         FontFamily="{DynamicResource FidoMono}"
@@ -25,37 +25,35 @@
 
         <StackPanel Spacing="9">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0">
                     <Run Text="Editors " /><Run Text="· ● = default (Enter); others by Ctrl+N or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
                 </TextBlock>
                 <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
             </Grid>
             <Border BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
                     Background="{DynamicResource FidoLogBg}">
-                <ScrollViewer MaxHeight="232" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="EditorsList" ItemsSource="{Binding Editors}" Margin="12,10">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorChoice">
+                                <!-- Row 0: default · name · slug · kind · remove.  Row 1: explicit path (full width). -->
                                 <Grid RowDefinitions="Auto,Auto" Margin="0,0,0,10"
-                                      ColumnDefinitions="Auto,*,Auto,Auto">
+                                      ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                                     <RadioButton Grid.Row="0" Grid.Column="0" GroupName="DefaultEditor"
                                                  IsChecked="{Binding IsDefault, Mode=TwoWay}" VerticalAlignment="Center"
                                                  Margin="0,0,8,0" ToolTip.Tip="Set as default editor" />
                                     <TextBox Grid.Row="0" Grid.Column="1" Classes="fido" Text="{Binding Name, Mode=TwoWay}"
                                              PlaceholderText="name" VerticalAlignment="Center" />
-                                    <ComboBox Grid.Row="0" Grid.Column="2" Margin="8,0,0,0" Width="132"
+                                    <TextBox Grid.Row="0" Grid.Column="2" Classes="fido" Width="92" Margin="8,0,0,0"
+                                             Text="{Binding Slug, Mode=TwoWay}" PlaceholderText="slug" VerticalAlignment="Center"
+                                             ToolTip.Tip="Command-line slug to open with this editor (fido &lt;branch&gt; &lt;slug&gt;). Blank = not selectable." />
+                                    <ComboBox Grid.Row="0" Grid.Column="3" Margin="8,0,0,0" Width="152"
                                               ItemsSource="{Binding KindOptions}" SelectedItem="{Binding Kind, Mode=TwoWay}"
                                               VerticalAlignment="Center" />
-                                    <Button Grid.Row="0" Grid.Column="3" Classes="secondary" Margin="8,0,0,0"
+                                    <Button Grid.Row="0" Grid.Column="4" Classes="secondary" Margin="8,0,0,0"
                                             Content="✕" Click="OnRemoveEditorClick" ToolTip.Tip="Remove this editor" />
-                                    <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,6,0,0"
-                                          ColumnDefinitions="Auto,*">
-                                        <TextBox Grid.Column="0" Classes="fido" Width="116" Text="{Binding Slug, Mode=TwoWay}"
-                                                 PlaceholderText="slug"
-                                                 ToolTip.Tip="Command-line slug to open with this editor (fido &lt;branch&gt; &lt;slug&gt;). Blank = not selectable." />
-                                        <TextBox Grid.Column="1" Classes="fido" Margin="8,0,0,0"
-                                                 Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}" />
-                                    </Grid>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
+                                             Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -73,7 +71,7 @@
 
         <StackPanel Spacing="9">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0">
                     <Run Text="New-branch repos " /><Run Text="· tick where an unknown branch may be created" Foreground="{DynamicResource FidoTextDim}" />
                 </TextBlock>
                 <Button Grid.Column="1" x:Name="DetectReposButton" Classes="secondary" Content="Detect" Click="OnDetectClick" />
@@ -109,7 +107,7 @@
         </StackPanel>
 
         <StackPanel Spacing="9">
-            <TextBlock Classes="label">
+            <TextBlock Classes="label" TextWrapping="Wrap">
                 <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
             </TextBlock>
             <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
