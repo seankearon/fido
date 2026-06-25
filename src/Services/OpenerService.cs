@@ -141,8 +141,8 @@ public sealed class OpenerService
             var dir = repo.MainWorktreePath;
 
             // Narrate the hunt in place — one line ticking through the repo names, not a line per repo
-            // (mirrors the close countdown). The remote query only runs when the local checks miss, so the
-            // "remote" line appears only when Fido actually reaches out to origin.
+            // (mirrors the close countdown). The "remote" line covers both the cached origin tracking ref
+            // and the live ls-remote query, and shows only once the local-branch check has missed.
             _liveLog($"Searching for local branch in {repo.Name}");
             if (await _git.LocalBranchExistsAsync(dir, branch, ct))
             {
