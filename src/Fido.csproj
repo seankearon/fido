@@ -15,8 +15,14 @@
         <ApplicationIcon>..\assets\fido.ico</ApplicationIcon>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <!-- Native AOT: `dotnet publish -r <rid> -c Release` produces a self-contained native exe.
-             The app is AOT-safe (compiled bindings + source-generated JSON). -->
-        <PublishAot>true</PublishAot>
+             The app is AOT-safe (compiled bindings + source-generated JSON).
+             PublishAot is gated to publish-only because, when set unconditionally, the SDK stamps
+             IsDynamicCodeSupported=false into every build's runtimeconfig — which breaks the Avalonia
+             XAML previewer (it compiles XAML at runtime via Reflection.Emit). `dotnet publish` sets
+             _IsPublishing=true, so the native-AOT publish output is unaffected. IsAotCompatible keeps the
+             trim/AOT analyzers running on ordinary builds so AOT-safety is still enforced at compile time. -->
+        <PublishAot Condition="'$(_IsPublishing)' == 'true'">true</PublishAot>
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
