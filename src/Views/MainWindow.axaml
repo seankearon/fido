@@ -12,9 +12,11 @@
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">
 
-    <DockPanel Margin="26,24,26,26" LastChildFill="True">
+    <!-- top controls size to content; the flight log takes the slack; the countdown pins to the bottom.
+         A Grid (not a DockPanel) so the log can shrink instead of overlapping its neighbours when space is tight. -->
+    <Grid Margin="26,24,26,26" RowDefinitions="Auto,*,Auto">
 
-        <StackPanel DockPanel.Dock="Top">
+        <StackPanel Grid.Row="0">
 
             <!-- header: brand left, settings cog right -->
             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
@@ -147,30 +149,15 @@
 
         </StackPanel>
 
-        <!-- close countdown + "keep open" escape hatch; only while an auto-close is pending -->
-        <Border DockPanel.Dock="Bottom" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
-                Background="{DynamicResource FidoGoBg}" BorderBrush="{DynamicResource FidoGo}"
-                BorderThickness="2,0,0,0" CornerRadius="0,5,5,0" Padding="14,10">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <Border Grid.Column="0" Width="9" Height="9" CornerRadius="2"
-                        Background="{DynamicResource FidoGo}" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center"
-                           FontFamily="{DynamicResource FidoMono}" FontSize="12.5"
-                           Foreground="{DynamicResource FidoTextSecondary}" Text="{Binding CountdownText}" />
-                <Button Grid.Column="2" x:Name="KeepOpenButton" Classes="secondary" Content="Keep open"
-                        Padding="16,7" Click="OnKeepOpenClick" />
-            </Grid>
-        </Border>
-
         <!-- flight log fills the remainder -->
-        <Grid RowDefinitions="Auto,*" Margin="0,20,0,0">
+        <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,20,0,0">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,9">
                 <TextBlock Grid.Column="0" Classes="label" Text="Flight log" VerticalAlignment="Center" />
                 <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoLogRule}"
                         VerticalAlignment="Center" Margin="8,0,0,0" />
             </Grid>
             <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="190">
+                    BorderThickness="1" CornerRadius="8" Padding="15,14">
                 <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Log}">
                         <ItemsControl.ItemTemplate>
@@ -186,5 +173,20 @@
             </Border>
         </Grid>
 
-    </DockPanel>
+        <!-- close countdown + "keep open" escape hatch; only while an auto-close is pending -->
+        <Border Grid.Row="2" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
+                Background="{DynamicResource FidoGoBg}" BorderBrush="{DynamicResource FidoGo}"
+                BorderThickness="2,0,0,0" CornerRadius="0,5,5,0" Padding="14,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border Grid.Column="0" Width="9" Height="9" CornerRadius="2"
+                        Background="{DynamicResource FidoGo}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center"
+                           FontFamily="{DynamicResource FidoMono}" FontSize="12.5"
+                           Foreground="{DynamicResource FidoTextSecondary}" Text="{Binding CountdownText}" />
+                <Button Grid.Column="2" x:Name="KeepOpenButton" Classes="secondary" Content="Keep open"
+                        Padding="16,7" Click="OnKeepOpenClick" />
+            </Grid>
+        </Border>
+
+    </Grid>
 </Window>
