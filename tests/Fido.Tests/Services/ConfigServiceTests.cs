@@ -43,12 +43,13 @@ public class ConfigServiceTests
     }
 
     [Test]
-    public async Task An_existing_editor_list_is_left_intact()
+    public async Task A_current_version_editor_list_is_left_intact()
     {
         using var world = new TestRepoWorld();
         var svc = InTempDir(world);
         svc.Save(new AppConfig
         {
+            ConfigVersion = AppConfig.CurrentConfigVersion,   // already migrated → nothing is appended
             Editors = new() { new Editor { Name = "Zed", Kind = EditorKind.Zed } },
             DefaultEditorIndex = 0,
         });
@@ -57,6 +58,56 @@ public class ConfigServiceTests
 
         await Assert.That(loaded.Editors.Count).IsEqualTo(1);
         await Assert.That(loaded.Editors[0].Kind).IsEqualTo(EditorKind.Zed);
+    }
+
+    [Test]
+    public async Task WebStorm_is_appended_to_a_config_that_predates_it()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig
+        {
+            // A pre-WebStorm config (ConfigVersion defaults to 0) with the old built-in line-up.
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider },
+                new Editor { Name = "VS Code", Kind = EditorKind.VsCode },
+                new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio },
+                new Editor { Name = "Zed", Kind = EditorKind.Zed },
+            },
+            DefaultEditorIndex = 1,   // VS Code is the default
+        });
+
+        var loaded = svc.Load();
+
+        // WebStorm is appended (not inserted), so existing positions and the default pointer are preserved.
+        await Assert.That(loaded.Editors.Count).IsEqualTo(5);
+        await Assert.That(loaded.Editors[^1].Kind).IsEqualTo(EditorKind.WebStorm);
+        await Assert.That(loaded.Editors[0].Kind).IsEqualTo(EditorKind.Rider);
+        await Assert.That(loaded.DefaultEditor!.Kind).IsEqualTo(EditorKind.VsCode);
+        await Assert.That(loaded.ConfigVersion).IsEqualTo(AppConfig.CurrentConfigVersion);
+    }
+
+    [Test]
+    public async Task The_webstorm_migration_does_not_add_a_duplicate()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig
+        {
+            // Predates versioning, but the user already has a WebStorm editor → don't add a second.
+            Editors = new()
+            {
+                new Editor { Name = "Rider", Kind = EditorKind.Rider },
+                new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm },
+            },
+            DefaultEditorIndex = 0,
+        });
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.Editors.Count(e => e.Kind == EditorKind.WebStorm)).IsEqualTo(1);
+        await Assert.That(loaded.Editors.Count).IsEqualTo(2);
     }
 
     [Test]
@@ -96,6 +147,7 @@ public class ConfigServiceTests
         var svc = InTempDir(world);
         svc.Save(new AppConfig
         {
+            ConfigVersion = AppConfig.CurrentConfigVersion,   // isolate the clamp from the WebStorm migration
             Editors = new() { new Editor { Name = "Rider", Kind = EditorKind.Rider } },
             DefaultEditorIndex = 7,
         });
