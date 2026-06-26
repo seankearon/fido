@@ -4,8 +4,8 @@
         xmlns:sys="using:System"
         x:Class="Fido.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="600" Height="680"
-        MinWidth="520" MinHeight="520"
+        Width="600" Height="780"
+        MinWidth="520" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/fido-icon-256.png"
         Title="Fido"
@@ -170,7 +170,7 @@
                         VerticalAlignment="Center" Margin="8,0,0,0" />
             </Grid>
             <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="110">
+                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="190">
                 <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Log}">
                         <ItemsControl.ItemTemplate>
