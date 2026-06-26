@@ -531,6 +531,7 @@ public partial class MainWindow : Window
 
         if (configured.Count == 0)
         {
+            _vm.AppendLog($"[✗] Branch '{branch}' could not be found. Check that your repositories are listed under Settings → New-branch repos.");
             _vm.SetStatus($"branch '{branch}' isn't checked out, and no repos are configured in Settings", StatusKind.NoGo);
             return null;
         }
