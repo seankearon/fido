@@ -8,7 +8,11 @@ creating one when needed — and opens the solution or repo folder in your edito
 (opened with **Enter**); other editors are a **Ctrl+1 … Ctrl+9** away.
 
 <p align="center">
-  <img src="src/docs/main-window-dark.png" alt="Fido main window — mission-control console, dark theme" width="640">
+  <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
+</p>
+
+<p align="center">
+  <em>Fido? GO! — branch resolved, worktree located, editor launched. The Eagle has landed.</em>
 </p>
 
 ---
@@ -30,6 +34,13 @@ Each editor has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`) that yo
 **second argument** — or explicitly with `-e` / `--editor` — to open in that editor instead of the
 default. Slugs are editable per editor in **Settings**; an unknown slug stops with a clear **No-go**
 rather than silently using the default. See **[Features](Docs/Features.md)** for the full reference.
+
+---
+
+## Screenshots
+
+Fido ships with matching **dark** and **light** themes. Browse the full set — home screen,
+branch-folder chooser, and settings — in the **[screenshot gallery](Docs/screenshots/)**.
 
 ---
 
