@@ -22,6 +22,7 @@ public sealed class EditorLauncher : IEditorLauncher
         return editor.Kind switch
         {
             EditorKind.Rider => LocateRider(),
+            EditorKind.WebStorm => LocateWebStorm(),
             EditorKind.VsCode => LocateVsCode(),
             EditorKind.VisualStudio => LocateVisualStudio(),
             EditorKind.Zed => LocateZed(),
@@ -117,6 +118,63 @@ public sealed class EditorLauncher : IEditorLauncher
             return bundle;
 
         var shim = Path.Combine(home, "Library", "Application Support", "JetBrains", "Toolbox", "scripts", "rider");
+        if (File.Exists(shim)) return shim;
+
+        return null;
+    }
+
+    // --- WebStorm -----------------------------------------------------------------------
+
+    private static string? LocateWebStorm()
+    {
+        if (FindOnPath(OperatingSystem.IsWindows()
+                ? ["webstorm64.exe", "webstorm.cmd", "webstorm.exe"]
+                : ["webstorm"]) is { } onPath)
+            return onPath;
+
+        if (OperatingSystem.IsWindows()) return LocateWebStormWindows();
+        if (OperatingSystem.IsMacOS()) return LocateWebStormMac();
+        return null;
+    }
+
+    private static string? LocateWebStormWindows()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        var direct = Path.Combine(localAppData, "Programs", "WebStorm", "bin", "webstorm64.exe");
+        if (File.Exists(direct)) return direct;
+
+        var toolboxApps = Path.Combine(localAppData, "JetBrains", "Toolbox", "apps");
+        if (NewestFile(toolboxApps, "webstorm64.exe") is { } toolboxExe)
+            return toolboxExe;
+
+        var shim = Path.Combine(localAppData, "JetBrains", "Toolbox", "scripts", "webstorm.cmd");
+        if (File.Exists(shim)) return shim;
+
+        foreach (var programFiles in ProgramFilesDirs())
+        {
+            var jetbrains = Path.Combine(programFiles, "JetBrains");
+            foreach (var dir in SafeEnumerateDirectories(jetbrains, "WebStorm*"))
+            {
+                var exe = Path.Combine(dir, "bin", "webstorm64.exe");
+                if (File.Exists(exe)) return exe;
+            }
+        }
+        return null;
+    }
+
+    private static string? LocateWebStormMac()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        foreach (var app in new[] { "/Applications/WebStorm.app", Path.Combine(home, "Applications", "WebStorm.app") })
+            if (Directory.Exists(app)) return app;
+
+        var toolboxApps = Path.Combine(home, "Library", "Application Support", "JetBrains", "Toolbox", "apps");
+        if (NewestAppBundle(toolboxApps, "WebStorm") is { } bundle)
+            return bundle;
+
+        var shim = Path.Combine(home, "Library", "Application Support", "JetBrains", "Toolbox", "scripts", "webstorm");
         if (File.Exists(shim)) return shim;
 
         return null;

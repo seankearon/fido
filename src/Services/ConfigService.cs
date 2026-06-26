@@ -91,6 +91,18 @@ public sealed class ConfigService
                 if (rider is not null) rider.Path = cfg.RiderPath;
             }
         }
+        // One-time, version-gated migrations carrying older configs forward as built-ins are added.
+        if (cfg.ConfigVersion < 1)
+        {
+            // WebStorm became a built-in editor. Append it to lists that predate it so it shows up after an
+            // upgrade — appended rather than inserted, so existing editor positions (and the default-editor
+            // index, which is a position) are preserved. The version stamp below stops this re-running, so a
+            // user who then removes WebStorm keeps it removed.
+            if (cfg.Editors.All(e => e.Kind != EditorKind.WebStorm))
+                cfg.Editors.Add(Editor.Defaults().First(e => e.Kind == EditorKind.WebStorm));
+        }
+        cfg.ConfigVersion = AppConfig.CurrentConfigVersion;
+
         cfg.DefaultEditorIndex = Math.Clamp(cfg.DefaultEditorIndex, 0, cfg.Editors.Count - 1);
         return cfg;
     }

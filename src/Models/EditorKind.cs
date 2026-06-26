@@ -12,6 +12,9 @@ public enum EditorKind
     /// <summary>JetBrains Rider.</summary>
     Rider,
 
+    /// <summary>JetBrains WebStorm. Opens a project folder only (it has no concept of a <c>.sln</c>).</summary>
+    WebStorm,
+
     /// <summary>Microsoft Visual Studio (Windows).</summary>
     VisualStudio,
 

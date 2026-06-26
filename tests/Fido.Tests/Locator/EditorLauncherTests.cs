@@ -61,6 +61,28 @@ public class EditorLauncherTests
     }
 
     [Test]
+    public async Task A_webstorm_on_PATH_is_discovered()
+    {
+        using var world = new TestRepoWorld();
+        var binDir = Path.Combine(world.Root, "bin");
+        Directory.CreateDirectory(binDir);
+        var exe = Path.Combine(binDir, OperatingSystem.IsWindows() ? "webstorm64.exe" : "webstorm");
+        File.WriteAllText(exe, "");
+
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        Environment.SetEnvironmentVariable("PATH", binDir + Path.PathSeparator + originalPath);
+        try
+        {
+            var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.WebStorm });
+            await Assert.That(found).IsEqualTo(exe);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+        }
+    }
+
+    [Test]
     public async Task A_nonexistent_path_is_never_returned_verbatim()
     {
         var bogus = Path.Combine(Path.GetTempPath(), "definitely", "not", "rider");

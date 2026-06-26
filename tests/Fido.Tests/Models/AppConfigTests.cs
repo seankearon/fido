@@ -14,6 +14,7 @@ public class AppConfigTests
 
         await Assert.That(defaults.All(e => !string.IsNullOrWhiteSpace(e.Slug))).IsTrue();
         await Assert.That(defaults.First(e => e.Kind == EditorKind.Rider).Slug).IsEqualTo("rider");
+        await Assert.That(defaults.First(e => e.Kind == EditorKind.WebStorm).Slug).IsEqualTo("ws");
         await Assert.That(defaults.First(e => e.Kind == EditorKind.VsCode).Slug).IsEqualTo("vsc");
         await Assert.That(defaults.First(e => e.Kind == EditorKind.VisualStudio).Slug).IsEqualTo("vs");
         await Assert.That(defaults.First(e => e.Kind == EditorKind.Zed).Slug).IsEqualTo("zed");

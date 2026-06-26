@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Open in WebStorm.** [JetBrains **WebStorm**](https://www.jetbrains.com/webstorm/) is now a built-in
+  editor kind (slug `ws`), auto-detected on `PATH`, in `%LOCALAPPDATA%\Programs\WebStorm`, the JetBrains
+  **Toolbox** apps/shim, and `Program Files\JetBrains\WebStorm *` (macOS `/Applications`, `~/Applications`,
+  Toolbox bundles/shim). Because WebStorm only understands a project folder, it's **folder-only**: Fido
+  always hands it the repo folder — ignoring the Solution/Folder toggle and skipping the "which solution?"
+  chooser — rather than a `.sln`/`.slnx`. Existing configs are migrated forward once on load: WebStorm is
+  **appended** to the editor list (preserving your existing editor order and default), so it appears after
+  an upgrade without overwriting your settings.
+
 - **Branch search progress.** When a typed branch isn't checked out anywhere, Fido hunts for it across
   the repos configured for new branches — and now narrates that hunt in the flight log:
   `Searching for local branch in <repo>`, then `Searching for remote branch in <repo>` only when it

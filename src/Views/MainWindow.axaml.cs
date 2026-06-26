@@ -299,7 +299,7 @@ public partial class MainWindow : Window
         {
             var plan = string.IsNullOrEmpty(solution)
                 ? await ResolveByBranchOnlyAsync(branch, editor)
-                : await ResolveBySolutionAsync(branch, solution);
+                : await ResolveBySolutionAsync(branch, solution, editor);
 
             if (plan is null) return;   // a station called no-go (or aborted); status already set
 
@@ -421,7 +421,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Solution-centric flow: locate the clone(s), reuse/checkout/worktree the branch, resolve a target.</summary>
-    private async Task<OpenPlan?> ResolveBySolutionAsync(string branch, string solution)
+    private async Task<OpenPlan?> ResolveBySolutionAsync(string branch, string solution, Editor editor)
     {
         var repos = await _opener.FindRepositoriesAsync(solution, _config);
         if (repos.Count == 0)
@@ -477,7 +477,12 @@ public partial class MainWindow : Window
             }
         }
 
-        var target = _opener.ResolveTarget(workingDir, repo, _vm.CurrentMode);
+        // WebStorm (and any folder-only editor) has no concept of a solution — always hand it the folder.
+        var mode = editor.OpensFolderOnly ? OpenMode.Folder : _vm.CurrentMode;
+        if (editor.OpensFolderOnly && _vm.CurrentMode == OpenMode.Solution)
+            _vm.AppendLog($"{editor.Name} opens folders only — opening the folder instead of the solution.");
+
+        var target = _opener.ResolveTarget(workingDir, repo, mode);
         return new OpenPlan(branch, workingDir, locatedAs, target);
     }
 
@@ -618,6 +623,13 @@ public partial class MainWindow : Window
     /// <summary>Presents the solutions in a folder (plus an "open the folder" option) and returns the choice.</summary>
     private async Task<LaunchTarget?> ChooseOpenTargetAsync(string folder, Editor editor)
     {
+        // Folder-only editors (e.g. WebStorm) can't open a .sln, so don't bother offering the choice.
+        if (editor.OpensFolderOnly)
+        {
+            _vm.AppendLog($"{editor.Name} opens folders only — opening the folder.");
+            return new LaunchTarget(folder, IsSolution: false);
+        }
+
         var solutions = _opener.FindSolutionsInFolder(folder, _config);
         if (solutions.Count == 0)
         {

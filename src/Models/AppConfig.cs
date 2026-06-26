@@ -9,6 +9,18 @@ namespace Fido.Models;
 /// </summary>
 public sealed class AppConfig
 {
+    /// <summary>
+    /// Latest config schema version. Bumped when a one-time forward-migration is needed (e.g. seeding a
+    /// newly-introduced built-in editor into existing lists); see <c>ConfigService.Normalize</c>.
+    /// </summary>
+    public const int CurrentConfigVersion = 1;
+
+    /// <summary>
+    /// Schema version of the loaded config; <c>0</c> for files written before versioning. Drives the
+    /// one-time migrations in <c>ConfigService.Normalize</c>, which stamps it to <see cref="CurrentConfigVersion"/>.
+    /// </summary>
+    public int ConfigVersion { get; set; }
+
     /// <summary>Directories scanned (depth-limited) for a matching <c>&lt;name&gt;</c> solution or project.</summary>
     public List<string> SearchRoots { get; set; } = new();
 
@@ -93,6 +105,7 @@ public sealed class AppConfig
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return new AppConfig
         {
+            ConfigVersion = CurrentConfigVersion,
             SearchRoots =
             {
                 System.IO.Path.Combine(home, "source", "repos"),
