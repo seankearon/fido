@@ -419,10 +419,16 @@ public class StartupAndValidationTests
             window.SetText("BranchBox", "main");
             window.SetText("SolutionBox", "Foo");
 
-            // Focusing the box surfaces the MRU drop-down (OnMruGotFocus) — the state the user is
-            // in when they hit Enter. Assert it's actually showing so we exercise the real swallow.
+            // Ctrl+Space summons the MRU drop-down (the boxes no longer open it on focus) — the
+            // state the user is in when they hit Enter. Assert it's showing so we exercise the swallow.
             var box = window.FindControl<AutoCompleteBox>("BranchBox")!;
             box.Focus();
+            box.RaiseEvent(new KeyEventArgs
+            {
+                RoutedEvent = InputElement.KeyDownEvent,
+                Key = Key.Space,
+                KeyModifiers = KeyModifiers.Control,
+            });
             UiTestExtensions.Pump();
             await Assert.That(box.IsDropDownOpen).IsTrue();
 

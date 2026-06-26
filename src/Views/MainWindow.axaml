@@ -40,8 +40,7 @@
                 <AutoCompleteBox x:Name="BranchBox" Classes="fido"
                                  Text="{Binding BranchName, Mode=TwoWay}"
                                  ItemsSource="{Binding RecentBranches}"
-                                 FilterMode="Contains" MinimumPrefixLength="0"
-                                 GotFocus="OnMruGotFocus">
+                                 FilterMode="Contains" MinimumPrefixLength="0">
                     <AutoCompleteBox.ItemTemplate>
                         <DataTemplate x:DataType="sys:String">
                             <Grid ColumnDefinitions="*,Auto" Background="Transparent">
@@ -67,7 +66,6 @@
                                  Text="{Binding SolutionName, Mode=TwoWay}"
                                  ItemsSource="{Binding RecentSolutions}"
                                  FilterMode="Contains" MinimumPrefixLength="0"
-                                 GotFocus="OnMruGotFocus"
                                  PlaceholderText="blank → find the branch's folder and list its solutions">
                     <AutoCompleteBox.ItemTemplate>
                         <DataTemplate x:DataType="sys:String">

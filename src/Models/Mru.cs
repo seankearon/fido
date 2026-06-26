@@ -9,7 +9,7 @@ namespace Fido.Models;
 public static class Mru
 {
     /// <summary>Most entries kept per list.</summary>
-    public const int MaxItems = 12;
+    public const int MaxItems = 10;
 
     /// <summary>
     /// Promotes <paramref name="value"/> to the front, removing any earlier (case-insensitive)

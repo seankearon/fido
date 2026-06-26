@@ -118,13 +118,6 @@ public partial class MainWindow : Window
         _ => null,
     };
 
-    // Surface the MRU suggestions as soon as a field is focused — but only when there's history to show.
-    private void OnMruGotFocus(object? sender, FocusChangedEventArgs e)
-    {
-        if (sender is AutoCompleteBox { ItemsSource: ICollection { Count: > 0 } } box)
-            Dispatcher.UIThread.Post(() => box.IsDropDownOpen = true);
-    }
-
     /// <summary>Promotes the entered branch/solution to the front of the MRU lists and persists them.</summary>
     private void RecordMru(string branch, string solution)
     {
@@ -253,14 +246,30 @@ public partial class MainWindow : Window
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e) => await RunOpenAsync();
 
-    // Enter inside the branch/solution boxes opens directly. The AutoCompleteBox eats the first
-    // Enter just to close its MRU drop-down, so without this a pasted branch needs a second Enter
-    // to act. Close the drop-down, swallow the key so the default button can't also fire, then run
-    // the open flow — collapsing it back to a single press. Posted so any pending selection/binding
-    // settles before RunOpenAsync reads the branch name.
+    // Key handling for the branch/solution boxes.
+    //
+    // Ctrl+Space summons the MRU suggestions on demand. The boxes no longer drop the list down on
+    // focus (it looked permanently stuck open); instead the list appears when the user starts typing
+    // or asks for it with this gesture — but only when there's history to show.
+    //
+    // Enter opens directly. The AutoCompleteBox eats the first Enter just to close its MRU drop-down,
+    // so without this a pasted branch needs a second Enter to act. Close the drop-down, swallow the
+    // key so the default button can't also fire, then run the open flow — collapsing it back to a
+    // single press. Posted so any pending selection/binding settles before RunOpenAsync reads the
+    // branch name.
     private void OnInputBoxKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || sender is not AutoCompleteBox box) return;
+        if (sender is not AutoCompleteBox box) return;
+
+        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+        {
+            if (box.ItemsSource is not ICollection { Count: > 0 }) return;
+            e.Handled = true;
+            box.IsDropDownOpen = true;
+            return;
+        }
+
+        if (e.Key != Key.Enter) return;
         box.IsDropDownOpen = false;
         e.Handled = true;
         Dispatcher.UIThread.Post(() => _ = RunOpenAsync(), DispatcherPriority.Input);
