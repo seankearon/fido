@@ -4,8 +4,8 @@
         xmlns:sys="using:System"
         x:Class="Fido.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="600" Height="680"
-        MinWidth="520" MinHeight="520"
+        Width="600" Height="780"
+        MinWidth="520" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/fido-icon-256.png"
         Title="Fido"
@@ -40,8 +40,7 @@
                 <AutoCompleteBox x:Name="BranchBox" Classes="fido"
                                  Text="{Binding BranchName, Mode=TwoWay}"
                                  ItemsSource="{Binding RecentBranches}"
-                                 FilterMode="Contains" MinimumPrefixLength="0"
-                                 GotFocus="OnMruGotFocus">
+                                 FilterMode="Contains" MinimumPrefixLength="0">
                     <AutoCompleteBox.ItemTemplate>
                         <DataTemplate x:DataType="sys:String">
                             <Grid ColumnDefinitions="*,Auto" Background="Transparent">
@@ -67,7 +66,6 @@
                                  Text="{Binding SolutionName, Mode=TwoWay}"
                                  ItemsSource="{Binding RecentSolutions}"
                                  FilterMode="Contains" MinimumPrefixLength="0"
-                                 GotFocus="OnMruGotFocus"
                                  PlaceholderText="blank → find the branch's folder and list its solutions">
                     <AutoCompleteBox.ItemTemplate>
                         <DataTemplate x:DataType="sys:String">
@@ -172,7 +170,7 @@
                         VerticalAlignment="Center" Margin="8,0,0,0" />
             </Grid>
             <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="110">
+                    BorderThickness="1" CornerRadius="8" Padding="15,14" MinHeight="190">
                 <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Log}">
                         <ItemsControl.ItemTemplate>

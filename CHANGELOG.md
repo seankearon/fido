@@ -47,6 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default **10 seconds**; **0** closes immediately), and selecting **Never** turns auto-close
   off entirely.
 
+### Changed
+
+- **MRU suggestions no longer drop down on focus.** The Branch and Solution boxes used to open
+  their recently-used list the moment they were focused — so the window started up looking like it
+  had a list permanently stuck open. The list now appears only when you start typing or summon it
+  with **Ctrl+Space** (when there's history to show). The list also keeps the **10** most recent
+  entries per field (was 12).
+
 ### Fixed
 
 - **The chooser dialog is now fully keyboard-driven.** Up/Down arrows move the highlighted
