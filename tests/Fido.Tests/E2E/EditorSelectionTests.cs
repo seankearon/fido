@@ -76,11 +76,11 @@ public class EditorSelectionTests
             window.SetText("BranchBox", "main");
             window.SetText("SolutionBox", "Foo");
 
-            // Seeded editor order is [Rider, VS Code, Visual Studio, Zed]; Ctrl+2 → index 1 → VS Code.
+            // Seeded editor order is [Rider, WebStorm, VS Code, Visual Studio, Zed]; Ctrl+3 → index 2 → VS Code.
             window.RaiseEvent(new KeyEventArgs
             {
                 RoutedEvent = InputElement.KeyDownEvent,
-                Key = Key.D2,
+                Key = Key.D3,
                 KeyModifiers = KeyModifiers.Control,
             });
             Dispatcher.UIThread.RunJobs();
@@ -114,6 +114,63 @@ public class EditorSelectionTests
             var items = dialogs.LastChooser!.Items;
             await Assert.That(items.Any(i => i.Title == "Open this folder in VS Code")).IsTrue();
             await Assert.That(items.Any(i => i.Title == "Open this folder in Rider")).IsFalse();
+        });
+    }
+
+    [Test]
+    public async Task A_folder_only_editor_opens_the_folder_even_in_solution_mode()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var webStorm = new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm };
+
+            await Assert.That(window.Vm().IsSolutionMode).IsTrue();   // default mode would hand over the .sln
+
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");
+            await window.RunOpenAsync(editor: webStorm);
+
+            // WebStorm has no concept of a solution, so the folder is handed over despite solution mode.
+            await Assert.That(launcher.LastLaunch!.Value.Target).IsNotEmpty();
+            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+            await Assert.That(window.Vm().StatusText).Contains("folder");
+        });
+    }
+
+    [Test]
+    public async Task A_folder_only_editor_skips_the_branch_folder_target_chooser()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.CreateBranch(clone, "feature/x");
+
+        var launcher = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], launcher, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var webStorm = new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm };
+
+            window.SetText("BranchBox", "feature/x");
+            window.SetText("SolutionBox", "");   // branch-only flow → would normally offer solution-or-folder
+            await window.RunOpenAsync(editor: webStorm);
+
+            // A single folder on the branch and a folder-only editor → no chooser at all, folder handed over.
+            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(0);
+            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
         });
     }
 

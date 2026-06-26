@@ -1,7 +1,7 @@
 # Fido
 
 **Fido** is a launch manager for your IDE — [**JetBrains Rider**](https://www.jetbrains.com/rider/),
-[**VS Code**](https://code.visualstudio.com/), [**Visual Studio**](https://visualstudio.microsoft.com/), [**Zed**](https://zed.dev/), or any custom editor.
+[**WebStorm**](https://www.jetbrains.com/webstorm/), [**VS Code**](https://code.visualstudio.com/), [**Visual Studio**](https://visualstudio.microsoft.com/), [**Zed**](https://zed.dev/), or any custom editor.
 
 Give it a branch name; it locates the matching Git worktree on disk — switching or
 creating one when needed — and opens the solution or repo folder in your editor. Pick a default

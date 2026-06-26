@@ -22,7 +22,7 @@ Given a branch and a solution, Fido:
 2. Works out where the branch should be opened — reusing an existing checkout when one
    exists, or letting you switch the main tree / create a worktree when it doesn't.
 3. Opens the resolved `.sln`/`.slnx` (or the repo folder) in your chosen editor — Rider by default,
-   or VS Code / Visual Studio / Zed / a custom editor.
+   or WebStorm / VS Code / Visual Studio / Zed / a custom editor.
 
 Everything is keyboard-friendly, and a live log narrates each step.
 
@@ -112,6 +112,9 @@ When a choice is needed, Fido shows a keyboard-navigable list with rich, two-lin
   (the repo root). If solution mode can't find the file, it falls back to opening the folder.
 - **Branch-only mode:** the chooser lists each solution found in the folder plus an
   "open the folder" option.
+- **Folder-only editors:** some editors (e.g. **WebStorm**) only understand a project folder. When
+  one of those is the chosen editor, Fido always hands over the folder — it ignores the solution
+  toggle and skips the "which solution?" chooser.
 
 ### Editors / IDEs
 
@@ -122,12 +125,13 @@ and one editor is the **default**:
 - Every other editor gets a **secondary button** on the main window and a numbered keyboard
   shortcut, **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth editor in the list).
 
-Built-in editor kinds — **Rider**, **VS Code**, **Visual Studio**, **Zed** — auto-detect when their
-path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
+Built-in editor kinds — **Rider**, **WebStorm**, **VS Code**, **Visual Studio**, **Zed** — auto-detect
+when their path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
+**WebStorm** is **folder-only**: it's always handed the repo folder rather than a `.sln`/`.slnx`.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
-Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `vsc`,
-`vs`, `zed`) — so a specific editor can be picked when launching Fido from the command line (see
+Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `ws`,
+`vsc`, `vs`, `zed`) — so a specific editor can be picked when launching Fido from the command line (see
 **Command-line launch**). The slug is editable per editor in Settings; leave it blank to make that
 editor un-selectable from the CLI.
 
@@ -136,6 +140,8 @@ then common install locations:
 
 - **Rider** — `%LOCALAPPDATA%\Programs\Rider`, JetBrains **Toolbox** apps (newest) and shim,
   `Program Files\JetBrains\JetBrains Rider *`; macOS `/Applications`, `~/Applications`, Toolbox bundles/shim.
+- **WebStorm** *(folder-only)* — `%LOCALAPPDATA%\Programs\WebStorm`, JetBrains **Toolbox** apps (newest)
+  and shim, `Program Files\JetBrains\WebStorm *`; macOS `/Applications`, `~/Applications`, Toolbox bundles/shim.
 - **VS Code** — `code` on `PATH`; `%LOCALAPPDATA%\Programs\Microsoft VS Code\bin\code.cmd` or under
   `Program Files`; macOS `Visual Studio Code.app`.
 - **Visual Studio** *(Windows)* — `devenv` on `PATH`; `Program Files\Microsoft Visual Studio\<year>\<edition>\Common7\IDE\devenv.exe`.
@@ -218,8 +224,8 @@ silently falling back to the default editor.
 
 - **Search roots** — directories to scan for solutions / working trees (one per line).
 - **Editors** — the editors/IDEs Fido can open into. Each row has a name, an optional **slug** (the
-  command-line token that selects it, e.g. `rider`), a **kind** (Rider, VS Code, Visual Studio, Zed, or
-  Custom), and an optional path (blank = auto-detect for known kinds; required for Custom). Tick the
+  command-line token that selects it, e.g. `rider`), a **kind** (Rider, WebStorm, VS Code, Visual Studio,
+  Zed, or Custom), and an optional path (blank = auto-detect for known kinds; required for Custom). Tick the
   **●** radio to set the default (the Open button / Enter); the rest are reached by **Ctrl+1 … Ctrl+9**
   or by their slug on the command line. **Add** appends a new editor; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
@@ -259,7 +265,7 @@ the next save writes to the new location.
 | Cross-clone reuse | Never creates a second worktree for a branch already checked out |
 | Placement | Switch main tree **or** create a linked worktree |
 | Open target | `.sln` / `.slnx` solution, or the repo folder |
-| Editors | Rider / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
+| Editors | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | Commit links | Short HEAD hash, clickable to the GitHub commit |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

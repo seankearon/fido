@@ -21,6 +21,12 @@ public sealed class Editor
     /// <summary>Which editor family this is — selects the auto-detection strategy.</summary>
     public EditorKind Kind { get; set; } = EditorKind.Custom;
 
+    /// <summary>
+    /// True when this editor understands only a project folder, never a <c>.sln</c>/<c>.slnx</c> (e.g. WebStorm).
+    /// Fido forces folder mode for these and skips the "which solution?" chooser, always handing over the folder.
+    /// </summary>
+    public bool OpensFolderOnly => Kind == EditorKind.WebStorm;
+
     /// <summary>Explicit path to the executable/app bundle; auto-detected from <see cref="Kind"/> when null/empty.</summary>
     public string? Path { get; set; }
 
@@ -34,6 +40,7 @@ public sealed class Editor
     public static List<Editor> Defaults() => new()
     {
         new Editor { Name = "Rider", Kind = EditorKind.Rider, Slug = "rider" },
+        new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm, Slug = "ws" },
         new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Slug = "vsc" },
         new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio, Slug = "vs" },
         new Editor { Name = "Zed", Kind = EditorKind.Zed, Slug = "zed" },

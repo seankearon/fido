@@ -31,7 +31,7 @@ public sealed class EditorChoice : ObservableObject
     /// <summary>The editor kinds offered in the row's drop-down.</summary>
     public static IReadOnlyList<EditorKind> Kinds { get; } = new[]
     {
-        EditorKind.Rider, EditorKind.VsCode, EditorKind.VisualStudio, EditorKind.Zed, EditorKind.Custom,
+        EditorKind.Rider, EditorKind.WebStorm, EditorKind.VsCode, EditorKind.VisualStudio, EditorKind.Zed, EditorKind.Custom,
     };
 
     /// <summary>Instance view of <see cref="Kinds"/> for the row's compiled-binding ComboBox.</summary>
