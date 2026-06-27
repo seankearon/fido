@@ -161,9 +161,10 @@ macOS, and Linux**:
   OS default: **Windows** — Windows Terminal (`wt`), else PowerShell (`pwsh`/`powershell`), else `cmd`;
   **macOS** — the **Terminal** app (via `open -a`); **Linux** — the first of `x-terminal-emulator`,
   `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty`, `tilix`, `xterm` on `PATH`.
-  **The terminal is configurable:** set the Console row's **path** to a specific terminal program (and add
-  arguments if needed). Most terminals open in the folder because Fido sets it as their working directory;
-  Windows Terminal is pointed at it explicitly with `-d`.
+  **The terminal is configurable:** set the Console row's **path** to a specific terminal program — a full
+  path *or* just a command name like `wt`, `pwsh`, or `gnome-terminal` (resolved on `PATH`, including Windows
+  Terminal's Store alias) — and add arguments if needed. Most terminals open in the folder because Fido sets
+  it as their working directory; Windows Terminal is pointed at it explicitly with `-d`.
 - **File Explorer** *(folder-only, slug `files`)* — reveals the folder in the OS file manager: **Windows**
   `explorer.exe`, **macOS** Finder (via `open`), **Linux** `xdg-open` (honouring your default file manager),
   else `nautilus` / `dolphin` / `thunar` / `nemo` / `pcmanfm`. The file manager is configurable via the
@@ -251,7 +252,8 @@ silently falling back to the default.
   command-line token that selects it, e.g. `rider`), a **kind** (Rider, WebStorm, VS Code, Visual Studio,
   Zed, **Console**, **File Explorer**, or Custom), and an optional path (blank = auto-detect for known kinds;
   required for Custom). For **Console** the path is the **terminal program** and for **File Explorer** the
-  **file manager** (blank = the OS default), so you can point Fido at the terminal you prefer. Tick the
+  **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
+  so you can point Fido at the terminal you prefer. Tick the
   **●** radio to set the default (the Open button / Enter); the rest are reached by **Ctrl+1 … Ctrl+9**
   or by their slug on the command line. **Add** appends a new row; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.

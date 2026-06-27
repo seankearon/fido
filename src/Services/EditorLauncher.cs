@@ -15,9 +15,16 @@ public sealed class EditorLauncher : IEditorLauncher
     /// <summary>Returns the editor's executable/app-bundle path, or null if none is found.</summary>
     public string? Locate(Editor editor)
     {
-        // An explicit, existing path always wins — for any kind, including Custom.
-        if (!string.IsNullOrWhiteSpace(editor.Path) && PathExists(editor.Path))
-            return editor.Path;
+        if (!string.IsNullOrWhiteSpace(editor.Path))
+        {
+            // An explicit, existing path always wins — for any kind, including Custom.
+            if (PathExists(editor.Path)) return editor.Path;
+
+            // A bare command name the user typed into the path field — e.g. "wt", "pwsh",
+            // "gnome-terminal" — rather than a full path: resolve it on PATH (and the Windows
+            // Store-app aliases) so a name, not just a full path, can be configured for a terminal.
+            if (ResolveCommandName(editor.Path) is { } resolved) return resolved;
+        }
 
         return editor.Kind switch
         {
@@ -417,16 +424,23 @@ public sealed class EditorLauncher : IEditorLauncher
             if (!string.IsNullOrEmpty(dir)) yield return dir;
     }
 
-    private static string? FindOnPath(string[] names)
+    /// <summary>
+    /// Finds the first of <paramref name="names"/> present in any <c>PATH</c> directory. Names are tried in the
+    /// caller's preference order <em>across all directories</em> before the next name — so a preferred name in a
+    /// later directory still wins over a less-preferred name in an earlier one (e.g. Windows Terminal in
+    /// <c>%LOCALAPPDATA%\Microsoft\WindowsApps</c> beats <c>cmd.exe</c> in <c>System32</c>, which sits earlier on PATH).
+    /// </summary>
+    internal static string? FindOnPath(string[] names)
     {
         var pathVar = Environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrEmpty(pathVar)) return null;
 
-        foreach (var dir in pathVar.Split(Path.PathSeparator))
+        var dirs = pathVar.Split(Path.PathSeparator);
+        foreach (var name in names)
         {
-            if (string.IsNullOrWhiteSpace(dir)) continue;
-            foreach (var name in names)
+            foreach (var dir in dirs)
             {
+                if (string.IsNullOrWhiteSpace(dir)) continue;
                 try
                 {
                     var candidate = Path.Combine(dir, name);
@@ -436,6 +450,31 @@ public sealed class EditorLauncher : IEditorLauncher
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Resolves a bare command name (no directory separator) — e.g. "wt", "pwsh", "gnome-terminal" — to a full
+    /// executable path via <c>PATH</c>, plus the Windows Store-app alias folder. Returns null when the value
+    /// looks like a (missing) full path, or can't be found, so the caller falls back to kind-based auto-detection.
+    /// </summary>
+    private static string? ResolveCommandName(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || name.Contains('/') || name.Contains('\\')) return null;   // a path, not a name
+
+        if (!OperatingSystem.IsWindows())
+            return FindOnPath([name]);
+
+        // On Windows, a bare name usually omits the extension; try the common executable extensions.
+        string[] candidates = Path.HasExtension(name)
+            ? [name]
+            : [name + ".exe", name + ".cmd", name + ".bat", name];
+        if (FindOnPath(candidates) is { } onPath) return onPath;
+
+        // Windows Terminal and other Store apps live here as execution aliases (which File.Exists sees).
+        var windowsApps = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps");
+        return FirstExisting([.. candidates.Select(c => Path.Combine(windowsApps, c))]);
     }
 
     private static string? NewestFile(string baseDir, string fileName)
