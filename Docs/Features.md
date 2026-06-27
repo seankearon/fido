@@ -21,8 +21,8 @@ Given a branch and a solution, Fido:
 1. Finds the git repository (or repositories) on your machine that contain the solution.
 2. Works out where the branch should be opened — reusing an existing checkout when one
    exists, or letting you switch the main tree / create a worktree when it doesn't.
-3. Opens the resolved `.sln`/`.slnx` (or the repo folder) in your chosen editor — Rider by default,
-   or WebStorm / VS Code / Visual Studio / Zed / a custom editor.
+3. Opens the resolved `.sln`/`.slnx`/`.slnf` (or the repo folder) in your chosen editor — Rider by
+   default, or WebStorm / VS Code / Visual Studio / Zed / a custom editor.
 
 Everything is keyboard-friendly, and a live log narrates each step.
 
@@ -55,7 +55,8 @@ the branch exists in none of your configured repos, Fido says so and does nothin
 
 ### Finding the repository
 
-- Matches both **`.sln`** and **`.slnx`** solution files.
+- Matches **`.sln`**, **`.slnx`**, and **`.slnf`** (Visual Studio solution filter) files. A full
+  solution wins over a same-named filter, so a repo's primary target stays the full solution.
 - Walks each configured **search root** to a limited depth, skipping noise directories
   (`.git`, `node_modules`, `bin`, `obj`, `.vs`, `.idea`, `packages`, `.svn`, `.hg`, and
   hidden folders).
@@ -108,7 +109,7 @@ When a choice is needed, Fido shows a keyboard-navigable list with rich, two-lin
 
 ### What gets opened: solution or folder
 
-- **Solution mode:** a radio toggle chooses **Solution** (the `.sln`/`.slnx`) or **Folder**
+- **Solution mode:** a radio toggle chooses **Solution** (the `.sln`/`.slnx`/`.slnf`) or **Folder**
   (the repo root). If solution mode can't find the file, it falls back to opening the folder.
 - **Branch-only mode:** the chooser lists each solution found in the folder plus an
   "open the folder" option.
@@ -127,7 +128,7 @@ and one editor is the **default**:
 
 Built-in editor kinds — **Rider**, **WebStorm**, **VS Code**, **Visual Studio**, **Zed** — auto-detect
 when their path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
-**WebStorm** is **folder-only**: it's always handed the repo folder rather than a `.sln`/`.slnx`.
+**WebStorm** is **folder-only**: it's always handed the repo folder rather than a `.sln`/`.slnx`/`.slnf`.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
 Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `ws`,
@@ -264,7 +265,7 @@ the next save writes to the new location.
 | Branch-only mode | Open from an existing checkout, or place the branch into a configured repo that already has it |
 | Cross-clone reuse | Never creates a second worktree for a branch already checked out |
 | Placement | Switch main tree **or** create a linked worktree |
-| Open target | `.sln` / `.slnx` solution, or the repo folder |
+| Open target | `.sln` / `.slnx` / `.slnf` solution, or the repo folder |
 | Editors | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | Commit links | Short HEAD hash, clickable to the GitHub commit |

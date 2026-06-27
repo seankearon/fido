@@ -100,6 +100,20 @@ public sealed class TestRepoWorld : IDisposable
         return path;
     }
 
+    /// <summary>
+    /// Writes a solution-style file (e.g. a <c>.slnx</c> or a <c>.slnf</c> filter) at
+    /// <paramref name="relativePath"/> under <paramref name="dir"/>, creating any parent
+    /// folders, and returns its full path. Contents are irrelevant to discovery — Fido
+    /// matches on the file name — so a placeholder is fine.
+    /// </summary>
+    public static string WriteSolutionFile(string dir, string relativePath, string contents = "")
+    {
+        var path = Path.Combine(dir, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, contents);
+        return path;
+    }
+
     /// <summary>Leaves an uncommitted file so <c>git status</c> reports the tree dirty.</summary>
     public void MakeDirty(string repoPath) =>
         File.WriteAllText(Path.Combine(repoPath, "uncommitted.txt"), "work in progress");
