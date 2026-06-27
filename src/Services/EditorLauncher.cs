@@ -26,27 +26,82 @@ public sealed class EditorLauncher : IEditorLauncher
             EditorKind.VsCode => LocateVsCode(),
             EditorKind.VisualStudio => LocateVisualStudio(),
             EditorKind.Zed => LocateZed(),
+            EditorKind.Console => LocateConsole(),
+            EditorKind.FileExplorer => LocateFileExplorer(),
             _ => null,   // Custom with no (or a missing) path → not found
         };
     }
 
     /// <summary>Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.</summary>
     public void Launch(Editor editor, string executable, string targetPath)
+        => Run(BuildLaunchSpec(editor, executable, targetPath));
+
+    /// <summary>
+    /// Resolves how to invoke <paramref name="executable"/> for <paramref name="targetPath"/>: editors take the
+    /// target as an argument, while <see cref="EditorKind.Console"/> / <see cref="EditorKind.FileExplorer"/>
+    /// open the folder via the platform's terminal / file-manager conventions. Pure (no process is started)
+    /// so the per-platform command construction can be unit-tested.
+    /// </summary>
+    internal static LaunchSpec BuildLaunchSpec(Editor editor, string executable, string targetPath) =>
+        editor.Kind switch
+        {
+            EditorKind.Console => BuildConsoleSpec(editor, executable, targetPath),
+            EditorKind.FileExplorer => BuildFileExplorerSpec(executable, targetPath),
+            _ => BuildEditorSpec(editor, executable, targetPath),
+        };
+
+    /// <summary>An editor: the target path is passed as the final argument (after any extra args).</summary>
+    private static LaunchSpec BuildEditorSpec(Editor editor, string executable, string targetPath)
     {
         var extra = SplitArguments(editor.Arguments);
 
         if (OperatingSystem.IsMacOS() && executable.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
-        {
-            Start("open", ["-na", executable, "--args", .. extra, targetPath]);
-            return;
-        }
+            return new LaunchSpec("open", ["-na", executable, "--args", .. extra, targetPath]);
 
         var ext = Path.GetExtension(executable).ToLowerInvariant();
-        if (ext is ".cmd" or ".bat")
-            Start("cmd.exe", ["/c", executable, .. extra, targetPath]);   // run the shim via the batch interpreter
-        else
-            Start(executable, [.. extra, targetPath]);                    // plain exe / unix binary
+        return ext is ".cmd" or ".bat"
+            ? new LaunchSpec("cmd.exe", ["/c", executable, .. extra, targetPath])   // shim via the batch interpreter
+            : new LaunchSpec(executable, [.. extra, targetPath]);                   // plain exe / unix binary
     }
+
+    /// <summary>
+    /// A terminal opened at <paramref name="folder"/>. Most terminals start in the inherited working directory,
+    /// so the folder is set as the process's working directory rather than passed as an argument — except
+    /// Windows Terminal (<c>wt</c>), which ignores the inherited directory and needs an explicit <c>-d</c>, and
+    /// macOS, where terminals are app bundles launched through <c>open -a</c>.
+    /// </summary>
+    private static LaunchSpec BuildConsoleSpec(Editor editor, string executable, string folder)
+    {
+        var extra = SplitArguments(editor.Arguments);
+
+        if (OperatingSystem.IsMacOS())
+            return executable.EndsWith(".app", StringComparison.OrdinalIgnoreCase) || !executable.Contains('/')
+                // `open -a <app> <folder>` opens the folder in the terminal; extra args go after `--args` (which
+                // forwards them to the app), mirroring the editor `.app` arm. Omit `--args` when there are none.
+                ? new LaunchSpec("open", extra.Length > 0 ? ["-a", executable, folder, "--args", .. extra] : ["-a", executable, folder])
+                : new LaunchSpec(executable, [.. extra], WorkingDirectory: folder);
+
+        // Windows: shell-execute so a console window opens (and the Windows Terminal Store alias resolves).
+        // Windows Terminal ignores the inherited directory, so it gets an explicit -d <folder>; cmd /
+        // PowerShell (or a custom shell) start in the folder via the working directory.
+        if (OperatingSystem.IsWindows())
+            return string.Equals(Path.GetFileNameWithoutExtension(executable), "wt", StringComparison.OrdinalIgnoreCase)
+                ? new LaunchSpec(executable, [.. extra, "-d", folder], WorkingDirectory: folder, UseShellExecute: true)
+                : new LaunchSpec(executable, [.. extra], WorkingDirectory: folder, UseShellExecute: true);
+
+        // Linux: virtually every terminal emulator opens in the inherited working directory.
+        return new LaunchSpec(executable, [.. extra], WorkingDirectory: folder);
+    }
+
+    /// <summary>
+    /// The OS file manager revealing <paramref name="folder"/>: <c>explorer.exe &lt;folder&gt;</c> on Windows,
+    /// <c>xdg-open</c> / a file manager on Linux, and Finder via <c>open</c> on macOS (a custom <c>.app</c>
+    /// file manager goes through <c>open -a</c>).
+    /// </summary>
+    private static LaunchSpec BuildFileExplorerSpec(string executable, string folder) =>
+        OperatingSystem.IsMacOS() && executable.EndsWith(".app", StringComparison.OrdinalIgnoreCase)
+            ? new LaunchSpec("open", ["-a", executable, folder])
+            : new LaunchSpec(executable, [folder]);
 
     /// <summary>Splits the user's extra-arguments string on whitespace; null/blank yields nothing.</summary>
     private static string[] SplitArguments(string? arguments) =>
@@ -54,16 +109,20 @@ public sealed class EditorLauncher : IEditorLauncher
             ? []
             : arguments.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    private static void Start(string fileName, string[] args)
+    /// <summary>Starts the planned process detached — we intentionally don't hold or await the handle.</summary>
+    private static void Run(LaunchSpec spec)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = fileName,
-            UseShellExecute = false,
-            CreateNoWindow = true,
+            FileName = spec.FileName,
+            UseShellExecute = spec.UseShellExecute,
+            // A shell-executed console must keep its window; everything else launches quietly.
+            CreateNoWindow = !spec.UseShellExecute,
         };
-        foreach (var arg in args) psi.ArgumentList.Add(arg);
-        _ = Process.Start(psi);   // detached — we intentionally don't hold or await the handle
+        if (!string.IsNullOrEmpty(spec.WorkingDirectory))
+            psi.WorkingDirectory = spec.WorkingDirectory;
+        foreach (var arg in spec.Arguments) psi.ArgumentList.Add(arg);
+        _ = Process.Start(psi);
     }
 
     // --- Rider --------------------------------------------------------------------------
@@ -273,9 +332,80 @@ public sealed class EditorLauncher : IEditorLauncher
         return null;
     }
 
+    // --- Console (terminal) -------------------------------------------------------------
+
+    private static string? LocateConsole()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // Prefer Windows Terminal, then PowerShell, falling back to cmd (which always exists).
+            if (FindOnPath(["wt.exe", "pwsh.exe", "powershell.exe", "cmd.exe"]) is { } onPath)
+                return onPath;
+
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var wt = Path.Combine(localAppData, "Microsoft", "WindowsApps", "wt.exe");
+            if (File.Exists(wt)) return wt;
+
+            var comSpec = Environment.GetEnvironmentVariable("ComSpec");
+            if (!string.IsNullOrEmpty(comSpec) && File.Exists(comSpec)) return comSpec;
+
+            var cmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
+            return File.Exists(cmd) ? cmd : null;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            foreach (var app in new[] { "/System/Applications/Utilities/Terminal.app", "/Applications/Utilities/Terminal.app" })
+                if (Directory.Exists(app)) return app;
+            return "Terminal";   // resolved by name through `open -a` even if the bundle lives elsewhere
+        }
+
+        // Linux: honour the Debian terminal alternative, then the common emulators. Both lookups derive from
+        // the one list so the PATH probe and the /usr/bin fallback can't drift apart.
+        return FindOnPath(LinuxTerminals)
+            ?? FirstExisting([.. LinuxTerminals.Select(t => "/usr/bin/" + t)]);
+    }
+
+    /// <summary>Linux terminal emulators probed for the Console target, in preference order.</summary>
+    private static readonly string[] LinuxTerminals =
+        ["x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "kitty", "alacritty", "tilix", "xterm"];
+
+    // --- File explorer ------------------------------------------------------------------
+
+    private static string? LocateFileExplorer()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var windows = Environment.GetEnvironmentVariable("WINDIR")
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorer = Path.Combine(windows, "explorer.exe");
+            return File.Exists(explorer) ? explorer : FindOnPath(["explorer.exe"]);
+        }
+
+        if (OperatingSystem.IsMacOS())
+            return File.Exists("/usr/bin/open") ? "/usr/bin/open" : "open";
+
+        // Linux: xdg-open honours the user's default file manager; fall back to common ones. Both lookups
+        // derive from the one list so the PATH probe and the /usr/bin fallback can't drift apart.
+        return FindOnPath(LinuxFileManagers)
+            ?? FirstExisting([.. LinuxFileManagers.Select(m => "/usr/bin/" + m)]);
+    }
+
+    /// <summary>Linux file managers probed for the File Explorer target; xdg-open (the default) first.</summary>
+    private static readonly string[] LinuxFileManagers =
+        ["xdg-open", "nautilus", "dolphin", "thunar", "nemo", "pcmanfm"];
+
     // --- Shared helpers -----------------------------------------------------------------
 
     private static bool PathExists(string path) => File.Exists(path) || Directory.Exists(path);
+
+    /// <summary>The first of <paramref name="paths"/> that exists as a file, or null.</summary>
+    private static string? FirstExisting(params string[] paths)
+    {
+        foreach (var path in paths)
+            if (File.Exists(path)) return path;
+        return null;
+    }
 
     private static IEnumerable<string> ProgramFilesDirs()
     {
@@ -344,3 +474,14 @@ public sealed class EditorLauncher : IEditorLauncher
         catch { return []; }
     }
 }
+
+/// <summary>
+/// A planned process launch: the program to run, its arguments, an optional working directory, and whether
+/// to shell-execute (used to give a terminal its own console window). Produced by
+/// <see cref="EditorLauncher.BuildLaunchSpec"/> so the per-platform command construction is unit-testable.
+/// </summary>
+internal readonly record struct LaunchSpec(
+    string FileName,
+    IReadOnlyList<string> Arguments,
+    string? WorkingDirectory = null,
+    bool UseShellExecute = false);

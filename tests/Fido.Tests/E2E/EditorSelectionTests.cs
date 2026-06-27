@@ -76,7 +76,7 @@ public class EditorSelectionTests
             window.SetText("BranchBox", "main");
             window.SetText("SolutionBox", "Foo");
 
-            // Seeded editor order is [Rider, WebStorm, VS Code, Visual Studio, Zed]; Ctrl+3 → index 2 → VS Code.
+            // Seeded order is [Rider, WebStorm, VS Code, Visual Studio, Zed, Console, File Explorer]; Ctrl+3 → index 2 → VS Code.
             window.RaiseEvent(new KeyEventArgs
             {
                 RoutedEvent = InputElement.KeyDownEvent,
@@ -171,6 +171,32 @@ public class EditorSelectionTests
             await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(0);
             await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
             await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Opening_with_the_console_hands_over_the_folder()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var console = new Editor { Name = "Console", Kind = EditorKind.Console };
+
+            window.SetText("BranchBox", "main");
+            window.SetText("SolutionBox", "Foo");   // solution mode, but a console only ever opens the folder
+            await window.RunOpenAsync(editor: console);
+
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Console);
+            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+            await Assert.That(window.Vm().StatusText).Contains("folder");
         });
     }
 

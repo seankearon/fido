@@ -22,10 +22,11 @@ public sealed class Editor
     public EditorKind Kind { get; set; } = EditorKind.Custom;
 
     /// <summary>
-    /// True when this editor understands only a project folder, never a <c>.sln</c>/<c>.slnx</c> (e.g. WebStorm).
-    /// Fido forces folder mode for these and skips the "which solution?" chooser, always handing over the folder.
+    /// True when this target understands only a project folder, never a <c>.sln</c>/<c>.slnx</c> — WebStorm,
+    /// or the non-editor <see cref="EditorKind.Console"/> / <see cref="EditorKind.FileExplorer"/> targets, which
+    /// always open the folder itself. Fido forces folder mode for these and skips the "which solution?" chooser.
     /// </summary>
-    public bool OpensFolderOnly => Kind == EditorKind.WebStorm;
+    public bool OpensFolderOnly => Kind is EditorKind.WebStorm or EditorKind.Console or EditorKind.FileExplorer;
 
     /// <summary>Explicit path to the executable/app bundle; auto-detected from <see cref="Kind"/> when null/empty.</summary>
     public string? Path { get; set; }
@@ -36,7 +37,8 @@ public sealed class Editor
     /// </summary>
     public string? Arguments { get; set; }
 
-    /// <summary>The built-in editors offered out of the box, in shortcut order; Rider is the default.</summary>
+    /// <summary>The built-in targets offered out of the box, in shortcut order; Rider is the default. The
+    /// last two — Console and File Explorer — open the folder in a terminal or the OS file manager.</summary>
     public static List<Editor> Defaults() => new()
     {
         new Editor { Name = "Rider", Kind = EditorKind.Rider, Slug = "rider" },
@@ -44,5 +46,7 @@ public sealed class Editor
         new Editor { Name = "VS Code", Kind = EditorKind.VsCode, Slug = "vsc" },
         new Editor { Name = "Visual Studio", Kind = EditorKind.VisualStudio, Slug = "vs" },
         new Editor { Name = "Zed", Kind = EditorKind.Zed, Slug = "zed" },
+        new Editor { Name = "Console", Kind = EditorKind.Console, Slug = "term" },
+        new Editor { Name = "File Explorer", Kind = EditorKind.FileExplorer, Slug = "files" },
     };
 }

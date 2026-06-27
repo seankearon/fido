@@ -61,7 +61,7 @@ public class ConfigServiceTests
     }
 
     [Test]
-    public async Task WebStorm_is_appended_to_a_config_that_predates_it()
+    public async Task The_newer_built_in_targets_are_appended_to_a_config_that_predates_them()
     {
         using var world = new TestRepoWorld();
         var svc = InTempDir(world);
@@ -80,26 +80,30 @@ public class ConfigServiceTests
 
         var loaded = svc.Load();
 
-        // WebStorm is appended (not inserted), so existing positions and the default pointer are preserved.
-        await Assert.That(loaded.Editors.Count).IsEqualTo(5);
-        await Assert.That(loaded.Editors[^1].Kind).IsEqualTo(EditorKind.WebStorm);
+        // WebStorm, then Console and File Explorer, are appended (not inserted), so existing positions
+        // and the default pointer are preserved.
+        await Assert.That(loaded.Editors.Count).IsEqualTo(7);
         await Assert.That(loaded.Editors[0].Kind).IsEqualTo(EditorKind.Rider);
+        await Assert.That(loaded.Editors[4].Kind).IsEqualTo(EditorKind.WebStorm);
+        await Assert.That(loaded.Editors[5].Kind).IsEqualTo(EditorKind.Console);
+        await Assert.That(loaded.Editors[6].Kind).IsEqualTo(EditorKind.FileExplorer);
         await Assert.That(loaded.DefaultEditor!.Kind).IsEqualTo(EditorKind.VsCode);
         await Assert.That(loaded.ConfigVersion).IsEqualTo(AppConfig.CurrentConfigVersion);
     }
 
     [Test]
-    public async Task The_webstorm_migration_does_not_add_a_duplicate()
+    public async Task The_built_in_target_migration_does_not_add_duplicates()
     {
         using var world = new TestRepoWorld();
         var svc = InTempDir(world);
         svc.Save(new AppConfig
         {
-            // Predates versioning, but the user already has a WebStorm editor → don't add a second.
+            // Predates versioning, but the user already has WebStorm and a Console → don't add a second of either.
             Editors = new()
             {
                 new Editor { Name = "Rider", Kind = EditorKind.Rider },
                 new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm },
+                new Editor { Name = "Console", Kind = EditorKind.Console },
             },
             DefaultEditorIndex = 0,
         });
@@ -107,7 +111,10 @@ public class ConfigServiceTests
         var loaded = svc.Load();
 
         await Assert.That(loaded.Editors.Count(e => e.Kind == EditorKind.WebStorm)).IsEqualTo(1);
-        await Assert.That(loaded.Editors.Count).IsEqualTo(2);
+        await Assert.That(loaded.Editors.Count(e => e.Kind == EditorKind.Console)).IsEqualTo(1);
+        // Only the still-missing File Explorer is appended → 3 originals + 1.
+        await Assert.That(loaded.Editors.Count).IsEqualTo(4);
+        await Assert.That(loaded.Editors[^1].Kind).IsEqualTo(EditorKind.FileExplorer);
     }
 
     [Test]

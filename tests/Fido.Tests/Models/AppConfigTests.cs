@@ -18,12 +18,16 @@ public class AppConfigTests
         await Assert.That(defaults.First(e => e.Kind == EditorKind.VsCode).Slug).IsEqualTo("vsc");
         await Assert.That(defaults.First(e => e.Kind == EditorKind.VisualStudio).Slug).IsEqualTo("vs");
         await Assert.That(defaults.First(e => e.Kind == EditorKind.Zed).Slug).IsEqualTo("zed");
+        await Assert.That(defaults.First(e => e.Kind == EditorKind.Console).Slug).IsEqualTo("term");
+        await Assert.That(defaults.First(e => e.Kind == EditorKind.FileExplorer).Slug).IsEqualTo("files");
     }
 
     [Test]
     [Arguments("zed", EditorKind.Zed)]
     [Arguments("VS", EditorKind.VisualStudio)]    // case-insensitive
     [Arguments("  rider  ", EditorKind.Rider)]    // trimmed
+    [Arguments("term", EditorKind.Console)]       // open the folder in a terminal
+    [Arguments("files", EditorKind.FileExplorer)] // open the folder in the file manager
     public async Task FindEditorBySlug_resolves_a_known_slug(string slug, EditorKind expected)
     {
         var match = WithDefaults().FindEditorBySlug(slug);

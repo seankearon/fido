@@ -31,7 +31,8 @@ public sealed class EditorChoice : ObservableObject
     /// <summary>The editor kinds offered in the row's drop-down.</summary>
     public static IReadOnlyList<EditorKind> Kinds { get; } = new[]
     {
-        EditorKind.Rider, EditorKind.WebStorm, EditorKind.VsCode, EditorKind.VisualStudio, EditorKind.Zed, EditorKind.Custom,
+        EditorKind.Rider, EditorKind.WebStorm, EditorKind.VsCode, EditorKind.VisualStudio, EditorKind.Zed,
+        EditorKind.Console, EditorKind.FileExplorer, EditorKind.Custom,
     };
 
     /// <summary>Instance view of <see cref="Kinds"/> for the row's compiled-binding ComboBox.</summary>
@@ -80,7 +81,13 @@ public sealed class EditorChoice : ObservableObject
     }
 
     /// <summary>Hint shown in the path box — names the field and notes auto-detect for known kinds, "required" for Custom.</summary>
-    public string PathPlaceholder => _kind == EditorKind.Custom ? "path to executable (required)" : "path (blank = auto-detect)";
+    public string PathPlaceholder => _kind switch
+    {
+        EditorKind.Custom => "path to executable (required)",
+        EditorKind.Console => "terminal program (blank = OS default)",
+        EditorKind.FileExplorer => "file manager (blank = OS default)",
+        _ => "path (blank = auto-detect)",
+    };
 
     /// <summary>Materialises the row back into a persisted <see cref="Editor"/>.</summary>
     public Editor ToEditor() => new()

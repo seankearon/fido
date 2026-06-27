@@ -13,7 +13,7 @@ public sealed class AppConfig
     /// Latest config schema version. Bumped when a one-time forward-migration is needed (e.g. seeding a
     /// newly-introduced built-in editor into existing lists); see <c>ConfigService.Normalize</c>.
     /// </summary>
-    public const int CurrentConfigVersion = 1;
+    public const int CurrentConfigVersion = 2;
 
     /// <summary>
     /// Schema version of the loaded config; <c>0</c> for files written before versioning. Drives the

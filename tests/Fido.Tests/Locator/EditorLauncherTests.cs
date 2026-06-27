@@ -100,4 +100,49 @@ public class EditorLauncherTests
 
         await Assert.That(found).IsNull();
     }
+
+    [Test]
+    public async Task A_console_with_an_explicit_existing_path_is_returned()
+    {
+        using var world = new TestRepoWorld();
+        var exe = Path.Combine(world.Root, OperatingSystem.IsWindows() ? "myterm.exe" : "myterm");
+        File.WriteAllText(exe, "");
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.Console, Path = exe });
+
+        await Assert.That(found).IsEqualTo(exe);
+    }
+
+    [Test]
+    public async Task A_file_explorer_with_an_explicit_existing_path_is_returned()
+    {
+        using var world = new TestRepoWorld();
+        var exe = Path.Combine(world.Root, OperatingSystem.IsWindows() ? "myfiles.exe" : "myfiles");
+        File.WriteAllText(exe, "");
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.FileExplorer, Path = exe });
+
+        await Assert.That(found).IsEqualTo(exe);
+    }
+
+    [Test]
+    public async Task A_console_auto_detects_a_terminal_on_windows()
+    {
+        // Windows always ships cmd.exe; a bare Linux runner may have no terminal emulator, so only assert here.
+        if (!OperatingSystem.IsWindows()) return;
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.Console });
+
+        await Assert.That(found).IsNotNull();
+    }
+
+    [Test]
+    public async Task A_file_explorer_auto_detects_on_windows()
+    {
+        if (!OperatingSystem.IsWindows()) return;   // explorer.exe always exists; xdg-open may not on a bare runner
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.FileExplorer });
+
+        await Assert.That(found).IsNotNull();
+    }
 }
