@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Solution filters (`.slnf`).** Fido now detects Visual Studio **solution filter** files alongside
+  `.sln`/`.slnx`, so a filtered subset of a solution shows up in the "which solution?" chooser and can
+  be handed straight to the editor (Rider, Visual Studio, etc. open `.slnf` directly). When a filter
+  sits beside a same-named full solution, the full `.sln`/`.slnx` still wins as the repository's primary
+  target — the filter is offered as an additional choice, never a replacement.
+
 - **Open in WebStorm.** [JetBrains **WebStorm**](https://www.jetbrains.com/webstorm/) is now a built-in
   editor kind (slug `ws`), auto-detected on `PATH`, in `%LOCALAPPDATA%\Programs\WebStorm`, the JetBrains
   **Toolbox** apps/shim, and `Program Files\JetBrains\WebStorm *` (macOS `/Applications`, `~/Applications`,

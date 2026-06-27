@@ -11,8 +11,16 @@ namespace Fido.Services;
 /// </summary>
 public sealed class OpenerService
 {
-    /// <summary>Solution file extensions recognised, in preference order.</summary>
-    private static readonly string[] SolutionExtensions = [".sln", ".slnx"];
+    /// <summary>
+    /// Solution file extensions recognised, in preference order: a full solution (<c>.sln</c>/<c>.slnx</c>)
+    /// or a Visual Studio solution filter (<c>.slnf</c>) — a subset view that editors such as Rider and
+    /// Visual Studio open directly. Full solutions are listed first so they win de-duplication over a
+    /// filter that shares the same base name.
+    /// </summary>
+    private static readonly string[] SolutionExtensions = [".sln", ".slnx", ".slnf"];
+
+    /// <summary>Glob patterns for the recognised <see cref="SolutionExtensions"/>, kept in sync with it.</summary>
+    private static readonly string[] SolutionGlobs = [.. SolutionExtensions.Select(ext => "*" + ext)];
 
     /// <summary>Project file extensions recognised when locating a repo, in preference order.</summary>
     private static readonly string[] ProjectExtensions = [".csproj", ".fsproj", ".vbproj"];
@@ -64,9 +72,9 @@ public sealed class OpenerService
         return matches;
     }
 
-    /// <summary>All solution files (.sln/.slnx) under a folder, depth-limited.</summary>
+    /// <summary>All solution files (.sln/.slnx/.slnf) under a folder, depth-limited.</summary>
     public IReadOnlyList<string> FindSolutionsInFolder(string folder, AppConfig config)
-        => _finder.Find([folder], ["*.sln", "*.slnx"], config.SearchDepth);
+        => _finder.Find([folder], SolutionGlobs, config.SearchDepth);
 
     /// <summary>
     /// Finds repositories whose tree contains a solution or project matching <paramref name="solutionName"/>,

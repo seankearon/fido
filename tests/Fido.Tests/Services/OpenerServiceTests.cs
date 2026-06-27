@@ -26,6 +26,53 @@ public class OpenerServiceTests
     }
 
     [Test]
+    public async Task FindSolutionsInFolder_offers_sln_slnx_and_slnf_files()
+    {
+        using var world = new TestRepoWorld();
+        var folder = world.SearchRoot("repo");
+        TestRepoWorld.WriteSolutionFile(folder, "App.sln");
+        TestRepoWorld.WriteSolutionFile(folder, "App.slnx");
+        TestRepoWorld.WriteSolutionFile(folder, "App.Backend.slnf");   // a solution filter
+
+        var found = NewOpener().FindSolutionsInFolder(folder, world.Config(folder));
+
+        await Assert.That(found.Any(p => Path.GetFileName(p) == "App.sln")).IsTrue();
+        await Assert.That(found.Any(p => Path.GetFileName(p) == "App.slnx")).IsTrue();
+        await Assert.That(found.Any(p => Path.GetFileName(p) == "App.Backend.slnf")).IsTrue();
+    }
+
+    [Test]
+    public async Task A_repo_with_only_a_solution_filter_is_discovered_by_name()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        File.Delete(Path.Combine(clone, "Foo.sln"));             // leave only a filter behind
+        TestRepoWorld.WriteSolutionFile(clone, "Foo.slnf");
+
+        var repos = await NewOpener().FindRepositoriesAsync("Foo", world.Config(root));
+
+        await Assert.That(repos.Count).IsEqualTo(1);
+        await Assert.That(repos[0].SolutionFileName).IsEqualTo("Foo.slnf");
+    }
+
+    [Test]
+    public async Task A_full_solution_beats_a_same_named_filter_as_the_repo_target()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        TestRepoWorld.WriteSolutionFile(clone, "Foo.slnf");      // filter sits beside Foo.sln
+
+        var repos = await NewOpener().FindRepositoriesAsync("Foo", world.Config(root));
+
+        await Assert.That(repos.Count).IsEqualTo(1);
+        await Assert.That(repos[0].SolutionFileName).IsEqualTo("Foo.sln");   // full solution wins de-dup
+    }
+
+    [Test]
     public async Task Worktrees_of_one_clone_collapse_to_a_single_repository()
     {
         using var world = new TestRepoWorld();
