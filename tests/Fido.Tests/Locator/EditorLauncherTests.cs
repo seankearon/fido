@@ -100,4 +100,100 @@ public class EditorLauncherTests
 
         await Assert.That(found).IsNull();
     }
+
+    [Test]
+    public async Task A_console_with_an_explicit_existing_path_is_returned()
+    {
+        using var world = new TestRepoWorld();
+        var exe = Path.Combine(world.Root, OperatingSystem.IsWindows() ? "myterm.exe" : "myterm");
+        File.WriteAllText(exe, "");
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.Console, Path = exe });
+
+        await Assert.That(found).IsEqualTo(exe);
+    }
+
+    [Test]
+    public async Task A_file_explorer_with_an_explicit_existing_path_is_returned()
+    {
+        using var world = new TestRepoWorld();
+        var exe = Path.Combine(world.Root, OperatingSystem.IsWindows() ? "myfiles.exe" : "myfiles");
+        File.WriteAllText(exe, "");
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.FileExplorer, Path = exe });
+
+        await Assert.That(found).IsEqualTo(exe);
+    }
+
+    [Test]
+    public async Task A_console_auto_detects_a_terminal_on_windows()
+    {
+        // Windows always ships cmd.exe; a bare Linux runner may have no terminal emulator, so only assert here.
+        if (!OperatingSystem.IsWindows()) return;
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.Console });
+
+        await Assert.That(found).IsNotNull();
+    }
+
+    [Test]
+    public async Task A_file_explorer_auto_detects_on_windows()
+    {
+        if (!OperatingSystem.IsWindows()) return;   // explorer.exe always exists; xdg-open may not on a bare runner
+
+        var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.FileExplorer });
+
+        await Assert.That(found).IsNotNull();
+    }
+
+    [Test]
+    public async Task A_console_configured_by_a_bare_command_name_is_resolved_on_path()
+    {
+        using var world = new TestRepoWorld();
+        var binDir = Path.Combine(world.Root, "bin");
+        Directory.CreateDirectory(binDir);
+        var exe = Path.Combine(binDir, OperatingSystem.IsWindows() ? "myterm.exe" : "myterm");
+        File.WriteAllText(exe, "");
+
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        Environment.SetEnvironmentVariable("PATH", binDir + Path.PathSeparator + originalPath);
+        try
+        {
+            // The user typed the bare command name "myterm" (no directory, no extension) into the Console row.
+            var found = new EditorLauncher().Locate(new Editor { Kind = EditorKind.Console, Path = "myterm" });
+            await Assert.That(found).IsEqualTo(exe);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+        }
+    }
+
+    [Test]
+    public async Task FindOnPath_prefers_an_earlier_name_over_an_earlier_directory()
+    {
+        using var world = new TestRepoWorld();
+        var earlyDir = Path.Combine(world.Root, "early");
+        var lateDir = Path.Combine(world.Root, "late");
+        Directory.CreateDirectory(earlyDir);
+        Directory.CreateDirectory(lateDir);
+
+        // The less-preferred name sits in the earlier PATH dir; the preferred name in the later dir.
+        File.WriteAllText(Path.Combine(earlyDir, "bbb"), "");
+        var preferred = Path.Combine(lateDir, "aaa");
+        File.WriteAllText(preferred, "");
+
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        Environment.SetEnvironmentVariable("PATH", earlyDir + Path.PathSeparator + lateDir + Path.PathSeparator + originalPath);
+        try
+        {
+            // "aaa" is preferred, so it must win even though "bbb" lives in an earlier directory.
+            var found = EditorLauncher.FindOnPath(["aaa", "bbb"]);
+            await Assert.That(found).IsEqualTo(preferred);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+        }
+    }
 }

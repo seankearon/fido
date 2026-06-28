@@ -113,28 +113,28 @@ When a choice is needed, Fido shows a keyboard-navigable list with rich, two-lin
   (the repo root). If solution mode can't find the file, it falls back to opening the folder.
 - **Branch-only mode:** the chooser lists each solution found in the folder plus an
   "open the folder" option.
-- **Folder-only editors:** some editors (e.g. **WebStorm**) only understand a project folder. When
-  one of those is the chosen editor, Fido always hands over the folder — it ignores the solution
-  toggle and skips the "which solution?" chooser.
+- **Folder-only targets:** some targets only understand a project folder — **WebStorm**, and the
+  **Console** / **File Explorer** targets that open the folder itself. When one of those is chosen, Fido
+  always hands over the folder — it ignores the solution toggle and skips the "which solution?" chooser.
 
 ### Editors / IDEs
 
-Fido can open the resolved target into any of several editors. The list is configured in Settings,
-and one editor is the **default**:
+Fido can open the resolved target into any of several editors — plus the **Console** and **File Explorer**
+targets below. The list is configured in Settings, and one entry is the **default**:
 
-- The **default** editor is launched by the **Open** button and **Enter**.
-- Every other editor gets a **secondary button** on the main window and a numbered keyboard
-  shortcut, **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth editor in the list).
+- The **default** target is launched by the **Open** button and **Enter**.
+- Every other one gets a **secondary button** on the main window and a numbered keyboard
+  shortcut, **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth entry in the list).
 
 Built-in editor kinds — **Rider**, **WebStorm**, **VS Code**, **Visual Studio**, **Zed** — auto-detect
 when their path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
 **WebStorm** is **folder-only**: it's always handed the repo folder rather than a `.sln`/`.slnx`/`.slnf`.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
-Each editor also carries a **slug** — a short command-line token (built-in defaults: `rider`, `ws`,
-`vsc`, `vs`, `zed`) — so a specific editor can be picked when launching Fido from the command line (see
-**Command-line launch**). The slug is editable per editor in Settings; leave it blank to make that
-editor un-selectable from the CLI.
+Each entry also carries a **slug** — a short command-line token (built-in defaults: `rider`, `ws`,
+`vsc`, `vs`, `zed`, `term`, `files`) — so a specific one can be picked when launching Fido from the command
+line (see **Command-line launch**). The slug is editable per entry in Settings; leave it blank to make that
+entry un-selectable from the CLI.
 
 **Auto-detection** for each known kind looks, in order, at an explicit path, then your **`PATH`**,
 then common install locations:
@@ -150,6 +150,29 @@ then common install locations:
 
 The editor is launched **detached** (Fido doesn't wait on it). If the chosen editor can't be found,
 Fido says so and points you to its path setting.
+
+### Console & file explorer
+
+Beyond editors, Fido can open the resolved **folder** directly — handy when you just want a shell on the
+branch or to browse its files. Two built-in targets, present out of the box and working on **Windows,
+macOS, and Linux**:
+
+- **Console** *(folder-only, slug `term`)* — opens a terminal **at the folder**. Auto-detection picks the
+  OS default: **Windows** — Windows Terminal (`wt`), else PowerShell (`pwsh`/`powershell`), else `cmd`;
+  **macOS** — the **Terminal** app (via `open -a`); **Linux** — the first of `x-terminal-emulator`,
+  `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty`, `tilix`, `xterm` on `PATH`.
+  **The terminal is configurable:** set the Console row's **path** to a specific terminal program — a full
+  path *or* just a command name like `wt`, `pwsh`, or `gnome-terminal` (resolved on `PATH`, including Windows
+  Terminal's Store alias) — and add arguments if needed. Most terminals open in the folder because Fido sets
+  it as their working directory; Windows Terminal is pointed at it explicitly with `-d`.
+- **File Explorer** *(folder-only, slug `files`)* — reveals the folder in the OS file manager: **Windows**
+  `explorer.exe`, **macOS** Finder (via `open`), **Linux** `xdg-open` (honouring your default file manager),
+  else `nautilus` / `dolphin` / `thunar` / `nemo` / `pcmanfm`. The file manager is configurable via the
+  row's **path** too.
+
+Both behave like any other target — a secondary button, a **Ctrl+N** shortcut, and a CLI slug — so
+`fido feature/new-ui term` opens a terminal on that branch and `fido feature/new-ui files` opens its folder.
+They always hand over the **folder**, ignoring the Solution/Folder toggle and the "which solution?" chooser.
 
 ### Mission-control console
 
@@ -204,7 +227,7 @@ chooser/decision dialogs still appear when a choice is genuinely needed:
 | Argument | Effect |
 | --- | --- |
 | `<name>` (bare, first) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
-| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the editor whose **slug** matches (e.g. `rider`, `vsc`, `vs`, `zed`) instead of the default |
+| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the target whose **slug** matches (e.g. `rider`, `vsc`, `vs`, `zed`, or `term` / `files` for a terminal / file manager) instead of the default |
 | `--solution` / `-s` `<name>` | Set the solution name |
 | `--folder` | Start in Folder open-mode |
 
@@ -212,10 +235,11 @@ For example, `fido feature/new-ui -s MyApp` opens that branch's `MyApp` solution
 by default, closes Fido a few seconds after Rider is launched (see **Close after opening** and
 **Close delay** below).
 
-To pick a non-default editor, give its slug as the **second bare argument** — `fido feature/new-ui zed`
-opens in Zed — or pass it explicitly with `--editor` / `-e`: `fido -b feature/new-ui -s MyApp -e vs`.
+To pick a non-default target, give its slug as the **second bare argument** — `fido feature/new-ui zed`
+opens in Zed, `fido feature/new-ui term` opens a terminal on the branch, `fido feature/new-ui files` opens
+its folder — or pass it explicitly with `--editor` / `-e`: `fido -b feature/new-ui -s MyApp -e vs`.
 An unrecognised slug stops with a **No-go** that names it (and lists the known slugs) rather than
-silently falling back to the default editor.
+silently falling back to the default.
 
 ---
 
@@ -224,11 +248,14 @@ silently falling back to the default editor.
 ### Settings (in the app's **Settings** panel)
 
 - **Search roots** — directories to scan for solutions / working trees (one per line).
-- **Editors** — the editors/IDEs Fido can open into. Each row has a name, an optional **slug** (the
+- **Editors** — the targets Fido can open into. Each row has a name, an optional **slug** (the
   command-line token that selects it, e.g. `rider`), a **kind** (Rider, WebStorm, VS Code, Visual Studio,
-  Zed, or Custom), and an optional path (blank = auto-detect for known kinds; required for Custom). Tick the
+  Zed, **Console**, **File Explorer**, or Custom), and an optional path (blank = auto-detect for known kinds;
+  required for Custom). For **Console** the path is the **terminal program** and for **File Explorer** the
+  **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
+  so you can point Fido at the terminal you prefer. Tick the
   **●** radio to set the default (the Open button / Enter); the rest are reached by **Ctrl+1 … Ctrl+9**
-  or by their slug on the command line. **Add** appends a new editor; **✕** removes one.
+  or by their slug on the command line. **Add** appends a new row; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
 - **New-branch repos** — the repositories Fido may place a branch into in **branch-only mode**
   when the branch isn't checked out anywhere. Click **Detect** to scan your search roots for git
@@ -267,6 +294,7 @@ the next save writes to the new location.
 | Placement | Switch main tree **or** create a linked worktree |
 | Open target | `.sln` / `.slnx` / `.slnf` solution, or the repo folder |
 | Editors | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
+| Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | Commit links | Short HEAD hash, clickable to the GitHub commit |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

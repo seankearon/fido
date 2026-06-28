@@ -101,6 +101,15 @@ public sealed class ConfigService
             if (cfg.Editors.All(e => e.Kind != EditorKind.WebStorm))
                 cfg.Editors.Add(Editor.Defaults().First(e => e.Kind == EditorKind.WebStorm));
         }
+        if (cfg.ConfigVersion < 2)
+        {
+            // Console and File Explorer became built-in open targets. Append whichever a pre-v2 config is
+            // missing — appended, like WebStorm, so existing editor positions and the default index hold.
+            // The version stamp below stops this re-running, so removing them later makes the removal stick.
+            foreach (var kind in new[] { EditorKind.Console, EditorKind.FileExplorer })
+                if (cfg.Editors.All(e => e.Kind != kind))
+                    cfg.Editors.Add(Editor.Defaults().First(e => e.Kind == kind));
+        }
         cfg.ConfigVersion = AppConfig.CurrentConfigVersion;
 
         cfg.DefaultEditorIndex = Math.Clamp(cfg.DefaultEditorIndex, 0, cfg.Editors.Count - 1);

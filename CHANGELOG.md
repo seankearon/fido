@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Open the folder in a console or the file explorer.** Two new built-in open targets sit alongside the
+  editors: **Console** (slug `term`) opens a terminal at the resolved folder, and **File Explorer** (slug
+  `files`) reveals it in the OS file manager. Both work on **Windows, macOS, and Linux** — Console finds
+  Windows Terminal / PowerShell / `cmd`, macOS **Terminal**, or a Linux terminal emulator
+  (`x-terminal-emulator`, `gnome-terminal`, `konsole`, `xterm`, …); File Explorer uses Explorer, Finder
+  (`open`), or `xdg-open`. Like every other target they get a **secondary button**, a **Ctrl+1 … Ctrl+9**
+  shortcut, and a **command-line slug** — so `fido feature/new-ui term` drops you into a terminal on that
+  branch and `fido feature/new-ui files` opens its folder. Both always hand over the **folder** (never a
+  `.sln`), and the **terminal program is configurable**: pick the **Console** / **File Explorer** kind for an
+  editor row in Settings and set its path (blank = the OS default) to use a specific terminal or file manager.
+  Existing configs are migrated forward once on load — Console and File Explorer are **appended** to the
+  editor list, preserving your existing order and default.
+
 - **Solution filters (`.slnf`).** Fido now detects Visual Studio **solution filter** files alongside
   `.sln`/`.slnx`, so a filtered subset of a solution shows up in the "which solution?" chooser and can
   be handed straight to the editor (Rider, Visual Studio, etc. open `.slnf` directly). When a filter

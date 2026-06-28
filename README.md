@@ -5,7 +5,8 @@
 
 Give it a branch name; it locates the matching Git worktree on disk — switching or
 creating one when needed — and opens the solution or repo folder in your editor. Pick a default
-(opened with **Enter**); other editors are a **Ctrl+1 … Ctrl+9** away.
+(opened with **Enter**); other editors are a **Ctrl+1 … Ctrl+9** away. It can also drop you into a
+**terminal** or open the folder in your **file explorer** — on Windows, macOS, and Linux.
 
 <p align="center">
   <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
@@ -27,13 +28,15 @@ when a choice is genuinely needed):
 fido feature/new-ui                    # resolve the branch, open in the default editor
 fido feature/new-ui -s MyApp           # open MyApp's solution on that branch
 fido feature/new-ui zed                # open in a specific editor by its slug
+fido feature/new-ui term               # open a terminal on that branch (files = file explorer)
 fido -b feature/new-ui -s MyApp -e vs  # the same, with explicit options
 ```
 
-Each editor has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`) that you can pass as the
-**second argument** — or explicitly with `-e` / `--editor` — to open in that editor instead of the
-default. Slugs are editable per editor in **Settings**; an unknown slug stops with a clear **No-go**
-rather than silently using the default. See **[Features](Docs/Features.md)** for the full reference.
+Each target has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`, plus `term` for a terminal and
+`files` for the file explorer) that you can pass as the **second argument** — or explicitly with `-e` /
+`--editor` — to open in that target instead of the default. Slugs are editable in **Settings**; an unknown
+slug stops with a clear **No-go** rather than silently using the default. See
+**[Features](Docs/Features.md)** for the full reference.
 
 ---
 
