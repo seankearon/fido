@@ -8,6 +8,7 @@
         SizeToContent="Height" Width="580"
         MinWidth="480" MaxWidth="780"
         CanResize="False"
+        WindowDecorations="Full"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/fido-icon-256.png"
         FontFamily="{DynamicResource FidoMono}"
