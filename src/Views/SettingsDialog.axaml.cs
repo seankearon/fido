@@ -19,6 +19,7 @@ public partial class SettingsDialog : Window
     public SettingsDialog()
     {
         InitializeComponent();
+        SystemMenu.EnableAltSpace(this);   // Alt+Space → native system menu
     }
 
     public SettingsDialog(AppConfig config, ConfigService configService) : this()

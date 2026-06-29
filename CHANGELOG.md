@@ -76,12 +76,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Windows keep the OS system menu.** Every window now explicitly uses the operating system's
-  standard window decorations (`WindowDecorations="Full"`), so the native title bar and its **system
-  menu** — Move, Size, Minimize, Maximize, Close, reachable from the title-bar icon, a title-bar
-  right-click, or **Alt+Space** — are always present. Making the setting explicit means a future
-  custom title bar can't silently take the system menu away again. The leftover styles for an
-  application-drawn title bar's window-control buttons (never wired up) were removed.
+- **Windows keep the OS system menu, and `Alt+Space` opens it.** Every window now explicitly uses
+  the operating system's standard window decorations (`WindowDecorations="Full"`), so the native
+  title bar and its **system menu** — Move, Size, Minimize, Maximize, Close — are always present from
+  the title-bar icon or a title-bar right-click. The **`Alt+Space`** keyboard shortcut now opens it
+  too: Avalonia's Win32 backend swallows that gesture instead of forwarding it to Windows, so Fido
+  catches it and drops the menu itself (a no-op on other platforms). Making the decoration setting
+  explicit also means a future custom title bar can't silently take the system menu away again. The
+  leftover styles for an application-drawn title bar's window-control buttons (never wired up) were
+  removed.
 
 - **The chooser dialog is now fully keyboard-driven.** Up/Down arrows move the highlighted
   row, **Enter** opens it, and **Esc** cancels — previously the arrows didn't move the

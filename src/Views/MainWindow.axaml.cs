@@ -62,6 +62,9 @@ public partial class MainWindow : Window
         // handledEventsToo in case a child marks the keystroke handled on the way up.
         AddHandler(InputElement.KeyDownEvent, OnEditorShortcutKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
+        // Alt+Space drops the native system menu (Avalonia otherwise swallows the gesture).
+        SystemMenu.EnableAltSpace(this);
+
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
         _opener = new OpenerService(_git, _finder, _workingTreeFinder, _vm.AppendLog, _vm.AppendLiveLog);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
