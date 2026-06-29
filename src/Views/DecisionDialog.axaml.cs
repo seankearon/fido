@@ -11,6 +11,7 @@ public partial class DecisionDialog : Window
     public DecisionDialog()
     {
         InitializeComponent();
+        SystemMenu.EnableAltSpace(this);   // Alt+Space → native system menu
     }
 
     public DecisionDialog(RepositoryInfo repo, string branch, MainContext context) : this()

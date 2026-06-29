@@ -214,6 +214,8 @@ Failures call it straight — `[✗] …` lines and a **No-go** status; a cancel
   double-click) opens it, `Esc` cancels. The shortcuts work whatever holds focus, and a hint
   line along the bottom edge spells them out.
 - **Settings dialog:** `Enter` saves, `Esc` cancels.
+- **`Alt+Space`** opens the window's native **system menu** (Move, Size, Minimize, Maximize, Close)
+  on any window — the same menu reached from the title-bar icon or a title-bar right-click.
 
 Every dialog follows the same convention — `Enter` triggers the primary action and `Esc` dismisses —
 so the keyboard behaves consistently across the app.

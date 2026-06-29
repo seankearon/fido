@@ -13,6 +13,7 @@ public partial class ChooserDialog : Window
     public ChooserDialog()
     {
         InitializeComponent();
+        SystemMenu.EnableAltSpace(this);   // Alt+Space → native system menu
     }
 
     public ChooserDialog(string windowTitle, string prompt, IReadOnlyList<ChooserItem> items) : this()

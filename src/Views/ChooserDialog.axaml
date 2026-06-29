@@ -6,6 +6,7 @@
         Title="Select"
         Width="660" Height="600"
         MinWidth="480" MinHeight="360"
+        WindowDecorations="Full"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/fido-icon-256.png"
         FontFamily="{DynamicResource FidoMono}"

@@ -9,6 +9,7 @@
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/fido-icon-256.png"
         Title="Fido"
+        WindowDecorations="Full"
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">
 

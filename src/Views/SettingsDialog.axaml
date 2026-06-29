@@ -6,6 +6,7 @@
         Title="Settings"
         Width="600" SizeToContent="Height"
         MinWidth="520" CanResize="False"
+        WindowDecorations="Full"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/fido-icon-256.png"
         FontFamily="{DynamicResource FidoMono}"
