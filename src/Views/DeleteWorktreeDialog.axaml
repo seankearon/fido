@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Fido.ViewModels"
+        x:Class="Fido.Views.DeleteWorktreeDialog"
+        x:DataType="vm:DeleteWorktreeDialogViewModel"
+        Title="Delete worktree"
+        SizeToContent="Height" Width="580"
+        MinWidth="480" MaxWidth="780"
+        CanResize="False"
+        WindowDecorations="Full"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/fido-icon-256.png"
+        FontFamily="{DynamicResource FidoMono}"
+        Background="{DynamicResource FidoWindowBg}">
+
+    <StackPanel Margin="22,20" Spacing="14">
+
+        <TextBlock Text="Choose what to delete — ticked items are removed, untick to keep."
+                   FontFamily="{DynamicResource FidoMono}" FontSize="15" FontWeight="SemiBold"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoTextPrimary}" />
+
+        <StackPanel Spacing="10">
+
+            <!-- Worktree -->
+            <StackPanel Spacing="2">
+                <CheckBox x:Name="WorktreeCheck" Classes="fido" Content="Remove worktree"
+                          IsChecked="{Binding DeleteWorktree, Mode=TwoWay}" />
+                <TextBlock Text="{Binding WorktreePath}" TextWrapping="Wrap" Margin="28,0,0,0"
+                           FontSize="12" Foreground="{DynamicResource FidoTextSecondary}" />
+            </StackPanel>
+
+            <!-- Local branch (only deletable once the worktree is removed) -->
+            <StackPanel Spacing="2">
+                <CheckBox x:Name="LocalBranchCheck" Classes="fido"
+                          Content="{Binding Branch, StringFormat='Delete local branch \'{0}\''}"
+                          IsChecked="{Binding DeleteLocalBranch, Mode=TwoWay}"
+                          IsEnabled="{Binding CanDeleteLocalBranch}" />
+                <TextBlock Text="Remove the worktree to delete its branch." Margin="28,0,0,0"
+                           IsVisible="{Binding ShowLocalBranchCoupledHint}"
+                           FontSize="12" Foreground="{DynamicResource FidoTextMuted}" />
+            </StackPanel>
+
+            <!-- Origin branch (only when it exists) -->
+            <CheckBox x:Name="RemoteBranchCheck" Classes="fido"
+                      Content="{Binding Branch, StringFormat='Delete branch on origin (origin/{0})'}"
+                      IsChecked="{Binding DeleteRemoteBranch, Mode=TwoWay}"
+                      IsVisible="{Binding HasRemoteBranch}" />
+            <TextBlock Text="This branch isn't on origin — nothing to delete there."
+                       IsVisible="{Binding ShowNoRemoteNote}" Margin="28,0,0,0"
+                       FontSize="12" Foreground="{DynamicResource FidoTextMuted}" />
+
+        </StackPanel>
+
+        <TextBlock Text="{Binding OrphanedSummary}" IsVisible="{Binding HasOrphanedCommits}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoNoGoText}" />
+
+        <TextBlock Text="{Binding OutstandingSummary}" IsVisible="{Binding HasOutstandingChanges}"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoNoGoText}" />
+
+        <TextBlock Text="This can't be undone." TextWrapping="Wrap"
+                   Foreground="{DynamicResource FidoNoGoText}" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+            <Button x:Name="DeleteButton" Classes="danger" Content="Delete" Click="OnDeleteClick"
+                    IsEnabled="{Binding CanConfirm}" FontSize="13" Padding="24,9" />
+            <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick"
+                    IsCancel="True" IsDefault="True" />
+        </StackPanel>
+
+        <TextBlock Text="Shortcuts: Enter / Esc = cancel · click Delete to confirm"
+                   Foreground="{DynamicResource FidoTextDim}" FontSize="11" TextWrapping="Wrap" />
+
+    </StackPanel>
+</Window>

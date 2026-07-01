@@ -100,6 +100,27 @@ public sealed class TestRepoWorld : IDisposable
         return path;
     }
 
+    /// <summary>Adds a linked worktree that checks out an <em>existing</em> branch; returns the worktree path.</summary>
+    public string AddWorktreeExisting(string clonePath, string branch)
+    {
+        var path = Path.Combine(clonePath + ".worktrees", Sanitize(branch));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Git(clonePath, "worktree", "add", path, branch);
+        return path;
+    }
+
+    /// <summary>Pushes <paramref name="branch"/> from <paramref name="repoOrWorktreePath"/> to origin (sets upstream).</summary>
+    public void PushBranch(string repoOrWorktreePath, string branch) =>
+        Git(repoOrWorktreePath, "push", "-u", "origin", branch);
+
+    /// <summary>Adds a commit in <paramref name="dir"/> (a new file), leaving a real commit on its current branch.</summary>
+    public void CommitFile(string dir, string fileName, string contents = "x")
+    {
+        File.WriteAllText(Path.Combine(dir, fileName), contents);
+        Git(dir, "add", "-A");
+        Git(dir, "commit", "-m", $"add {fileName}");
+    }
+
     /// <summary>
     /// Writes a solution-style file (e.g. a <c>.slnx</c> or a <c>.slnf</c> filter) at
     /// <paramref name="relativePath"/> under <paramref name="dir"/>, creating any parent

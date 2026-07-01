@@ -8,6 +8,13 @@ namespace Fido.Views;
 /// <summary>Generic single-select dialog. Returns the chosen index (int) or null if cancelled.</summary>
 public partial class ChooserDialog : Window
 {
+    /// <summary>
+    /// Close value returned when the optional delete action is chosen. Negative so it can never collide
+    /// with a real selection (indices are ≥ 0) or a cancel (<c>null</c>): <see cref="Accept"/> only ever
+    /// closes with a non-negative index or null, so the delete button is the sole source of this value.
+    /// </summary>
+    public const int DeleteRequested = -1;
+
     private readonly ChooserViewModel? _vm;
 
     public ChooserDialog()
@@ -16,16 +23,17 @@ public partial class ChooserDialog : Window
         SystemMenu.EnableAltSpace(this);   // Alt+Space → native system menu
     }
 
-    public ChooserDialog(string windowTitle, string prompt, IReadOnlyList<ChooserItem> items) : this()
+    public ChooserDialog(string windowTitle, string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null) : this()
     {
         Title = windowTitle;
-        _vm = new ChooserViewModel(prompt, items);
+        _vm = new ChooserViewModel(prompt, items, deleteLabel);
         DataContext = _vm;
         Opened += (_, _) => Chooser.Focus();
     }
 
     private void OnOkClick(object? sender, RoutedEventArgs e) => Accept();
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(null);
+    private void OnDeleteClick(object? sender, RoutedEventArgs e) => Close(DeleteRequested);
     private void OnListDoubleTapped(object? sender, TappedEventArgs e) => Accept();
 
     // Raw key handling so the shortcuts work wherever focus sits (the list, a button, the window).

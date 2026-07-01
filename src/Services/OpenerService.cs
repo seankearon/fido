@@ -363,6 +363,94 @@ public sealed class OpenerService
         return path;
     }
 
+    // --- Worktree deletion --------------------------------------------------------------
+
+    /// <summary>
+    /// True when <paramref name="folder"/> is a <em>linked</em> worktree (not its clone's main working
+    /// tree). Only a linked worktree can be removed with <c>git worktree remove</c>, so this gates whether
+    /// the branch-folder chooser offers the delete action. Cheap, offline, and symlink-proof (it compares
+    /// git dirs, not paths — see <see cref="GitService.IsLinkedWorktreeAsync"/>).
+    /// </summary>
+    public Task<bool> IsLinkedWorktreeAsync(string folder, CancellationToken ct = default)
+        => _git.IsLinkedWorktreeAsync(folder, ct);
+
+    /// <summary>
+    /// Gathers what a "delete this worktree" action would remove: the clone's main tree (where the git steps
+    /// run), whether the branch is on <c>origin</c> (cached tracking ref, then a live check for a branch never
+    /// fetched), any outstanding changes in the worktree, and how many commits live only on the branch (so the
+    /// dialog can warn about losing unpushed, unmerged work). Returns null when <paramref name="folder"/> is
+    /// the clone's main tree — that can't be removed as a worktree.
+    /// </summary>
+    public async Task<WorktreeDeletion?> BuildWorktreeDeletionAsync(string folder, string branch, CancellationToken ct = default)
+    {
+        if (!await _git.IsLinkedWorktreeAsync(folder, ct))
+            return null;
+
+        var full = Path.GetFullPath(folder);
+        var worktrees = await _git.ListWorktreesAsync(folder, ct);
+        var mainPath = Path.GetFullPath(worktrees.FirstOrDefault(w => w.IsMain)?.Path ?? folder);
+
+        var remoteExists = await _git.RemoteBranchExistsAsync(mainPath, branch, ct)
+                           || await _git.RemoteHasBranchAsync(mainPath, branch, ct);
+        var changes = await _git.GetStatusAsync(full, ct);
+        var orphaned = await _git.CountOrphanedCommitsAsync(mainPath, branch, ct);
+        return new WorktreeDeletion(mainPath, full, branch, remoteExists, changes, orphaned);
+    }
+
+    /// <summary>
+    /// Carries out a <see cref="WorktreeDeletion"/> limited to the targets the user ticked in
+    /// <paramref name="choice"/>: removes the worktree (forcing when it's dirty), deletes the local branch, and
+    /// deletes the branch on <c>origin</c> — each only when selected (and the origin branch only when it exists).
+    /// Runs from the clone's main tree. A failed worktree removal or local-branch delete throws (nothing has
+    /// been lost yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is logged and
+    /// reflected in the returned outcome rather than throwing, because any local cleanup is already done and
+    /// re-running wouldn't undo it.
+    /// </summary>
+    public async Task<WorktreeDeletionOutcome> DeleteWorktreeAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
+    {
+        var dir = plan.MainWorktreePath;
+        bool worktreeRemoved = false, localDeleted = false, remoteDeleted = false, remoteFailed = false;
+
+        if (choice.Worktree)
+        {
+            _log($"Removing worktree at {plan.WorktreePath}…");
+            var remove = await _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, ct);
+            if (!remove.Success)
+                throw new InvalidOperationException($"git worktree remove failed: {remove.Message}");
+            _log("Worktree removed.");
+            worktreeRemoved = true;
+        }
+
+        if (choice.LocalBranch)
+        {
+            _log($"Deleting local branch '{plan.Branch}'…");
+            var branchResult = await _git.DeleteLocalBranchAsync(dir, plan.Branch, ct);
+            if (!branchResult.Success)
+                throw new InvalidOperationException($"git branch -D failed: {branchResult.Message}");
+            _log($"Local branch '{plan.Branch}' deleted.");
+            localDeleted = true;
+        }
+
+        if (choice.RemoteBranch && plan.RemoteBranchExists)
+        {
+            _log($"Deleting remote branch origin/{plan.Branch}…");
+            var remoteResult = await _git.DeleteRemoteBranchAsync(dir, plan.Branch, ct);
+            if (remoteResult.Success)
+            {
+                _log($"Remote branch origin/{plan.Branch} deleted.");
+                remoteDeleted = true;
+            }
+            else
+            {
+                _log($"[!] Remote branch origin/{plan.Branch} could not be deleted: {remoteResult.Message}");
+                remoteFailed = true;
+            }
+        }
+
+        return new WorktreeDeletionOutcome(worktreeRemoved, localDeleted, remoteDeleted, remoteFailed);
+    }
+
     /// <summary>
     /// Fetches <c>origin/&lt;branch&gt;</c> into the clone so a tracking branch or worktree can be created from
     /// a branch that exists on the remote but hadn't been fetched yet (see <see cref="MainContext.RequiresFetch"/>).

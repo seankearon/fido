@@ -39,11 +39,14 @@ public sealed class ChooserItem
 /// <summary>Backing data for the generic single-select chooser dialog.</summary>
 public sealed class ChooserViewModel
 {
-    public ChooserViewModel(string prompt, IReadOnlyList<ChooserItem> items)
+    public ChooserViewModel(string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null)
     {
         Prompt = prompt;
         Items = items;
         SelectedIndex = items.Count > 0 ? 0 : -1;
+
+        DeleteButtonText = deleteLabel ?? "";
+        CanDelete = !string.IsNullOrEmpty(deleteLabel);
     }
 
     public string Prompt { get; }
@@ -51,4 +54,10 @@ public sealed class ChooserViewModel
 
     /// <summary>Bound TwoWay to the ListBox; read back after the dialog closes.</summary>
     public int SelectedIndex { get; set; }
+
+    /// <summary>Caption of the optional destructive action button (e.g. "Delete worktree &amp; branch").</summary>
+    public string DeleteButtonText { get; }
+
+    /// <summary>True when a delete action was supplied, so the dialog shows its button.</summary>
+    public bool CanDelete { get; }
 }

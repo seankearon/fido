@@ -118,6 +118,24 @@
         <Setter Property="Stroke" Value="{DynamicResource FidoNoGo}" />
     </Style>
 
+    <!-- Mono checkbox (worktree/branch deletion selection) -->
+    <Style Selector="CheckBox.fido">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="CheckBox.fido:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource FidoAccent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoAccent}" />
+    </Style>
+    <Style Selector="CheckBox.fido:checked /template/ Path#CheckGlyph">
+        <Setter Property="Fill" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+    <Style Selector="CheckBox.fido:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
     <!-- Primary (amber) button -->
     <Style Selector="Button.primary">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
@@ -156,6 +174,30 @@
     </Style>
     <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
+    <!-- Destructive (red) button — worktree/branch deletion -->
+    <Style Selector="Button.danger">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoNoGoText}" />
+        <Setter Property="Background" Value="{DynamicResource FidoNoGoBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="18,9" />
+    </Style>
+    <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGoBg}" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+    <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource FidoButtonText}" />
     </Style>
 
     <!-- "Save settings" — amber outline + faint tint -->

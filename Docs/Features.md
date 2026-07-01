@@ -41,7 +41,8 @@ isn't on disk yet.
 
 Enter just a **branch**. Fido first scans your roots for a working tree that is **currently
 on that branch**, then lists the solution files in that folder (plus an "open the folder"
-option) for you to pick.
+option) for you to pick. When that folder is a **linked worktree**, the same dialog also offers to
+**delete it** — see [Deleting a worktree](#deleting-a-worktree).
 
 If the branch isn't checked out anywhere, Fido falls back to your **new-branch repos** — the
 repositories you tick in Settings. It keeps only those whose refs actually contain the branch
@@ -105,7 +106,34 @@ When a choice is needed, Fido shows a keyboard-navigable list with rich, two-lin
   the **short HEAD commit**. On GitHub remotes the commit is a **clickable link** to the commit
   page (plain text for other remotes) — handy for spotting when two checkouts have diverged.
 - **Pick what to open** (branch-only mode): the folder's solutions, plus an "open this folder"
-  entry.
+  entry. When the folder is a **linked worktree**, a **Delete worktree & branch** button appears too
+  (see [Deleting a worktree](#deleting-a-worktree)).
+
+### Deleting a worktree
+
+In branch-only mode, once Fido has located a **linked worktree** on the branch, the **"Open from branch
+folder"** chooser adds a **Delete worktree & branch** button alongside the open choices — reachable even when
+there's nothing to open (a folder-only editor, or a worktree with no solution file). It's a shortcut for
+tidying up a branch you're finished with, in one step:
+
+- A **confirmation dialog** offers a **checkbox for each present target** — the **worktree**, its **local
+  branch**, and the **branch on `origin`** — each **ticked by default**. Untick any to keep it, so you can (say)
+  drop just the remote branch, or remove the worktree while keeping its branches. Because a branch that stays
+  checked out can't be deleted, **keeping the worktree disables deleting its local branch**. The dialog adds
+  explicit **data-loss warnings** when the worktree has **uncommitted changes**, or when the branch carries
+  **commits that exist nowhere else** — unpushed and unmerged work that a force-delete would orphan. Nothing
+  happens unless you click **Delete** (disabled when nothing is ticked); **Cancel**, **Enter**, and **Esc** all
+  back out, and the destructive button sits outside the keyboard tab order so it can't be fired by a stray keypress.
+- On confirmation Fido carries out **exactly the ticked targets**: it **removes the linked worktree**,
+  **deletes the local branch**, and — when it exists — **deletes the branch on `origin`**. The git steps run
+  from the clone's **main working tree**, so the worktree is dropped cleanly; a dirty worktree is
+  force-removed after the warning.
+- If the remote delete fails (say you're offline), the completed **local** cleanup stays done and the
+  failure is reported in the flight log rather than rolled back.
+
+The button is offered **only for a linked worktree on a non-default branch** — a clone's **main working
+tree** can't be worktree-removed, and the default branches (`main`/`master`) are deliberately never offered
+for deletion. In those cases the button is hidden and a normal open proceeds.
 
 ### What gets opened: solution or folder
 
