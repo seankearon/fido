@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch-only mode locates a **linked worktree** on a branch, the **"Open from branch folder"** dialog now
   offers a **Delete worktree & branch** button beside the open choices (and it's reachable even when there's
   nothing to open — a folder-only editor, or a worktree with no solution file). Clicking it shows a
-  confirmation dialog that spells out the worktree path, the local branch, and whether the branch exists on
-  `origin`, plus **explicit data-loss warnings** when the worktree has **uncommitted changes** or the branch
-  carries **commits that exist nowhere else** (unpushed and unmerged — `git branch -D` would orphan them).
-  Once confirmed, Fido **removes the linked worktree, deletes the local branch, and deletes the branch on
-  `origin`** when it's there. The work runs from the clone's main tree (so the worktree is dropped cleanly),
+  confirmation dialog with a **checkbox for each present target** — the worktree, its local branch, and the
+  branch on `origin` — **ticked by default**, so you can untick any to keep it (keeping the worktree disables
+  deleting its branch, since a checked-out branch can't be removed). The dialog adds **explicit data-loss
+  warnings** when the worktree has **uncommitted changes** or the branch carries **commits that exist nowhere
+  else** (unpushed and unmerged — `git branch -D` would orphan them). Once confirmed, Fido carries out exactly
+  the ticked targets — **removing the linked worktree, deleting the local branch, and deleting the branch on
+  `origin`**. The work runs from the clone's main tree (so the worktree is dropped cleanly),
   a dirty worktree is force-removed after the warning, and a failed remote delete leaves the completed local
   cleanup in place and reports it. The button is offered **only for a linked worktree on a non-default branch**
   — the clone's main working tree can't be worktree-removed, and `main`/`master` are deliberately never

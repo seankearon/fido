@@ -398,42 +398,57 @@ public sealed class OpenerService
     }
 
     /// <summary>
-    /// Carries out a <see cref="WorktreeDeletion"/>: removes the worktree (forcing when it's dirty), deletes
-    /// the now-free local branch, and — when the branch is on <c>origin</c> — deletes it there too. Runs from
-    /// the clone's main tree. A failed worktree removal or local-branch delete throws (nothing has been lost
-    /// yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is logged and reported as
-    /// a partial success (<c>false</c>) rather than throwing, because the local worktree and branch are
-    /// already gone and re-running wouldn't undo that.
+    /// Carries out a <see cref="WorktreeDeletion"/> limited to the targets the user ticked in
+    /// <paramref name="choice"/>: removes the worktree (forcing when it's dirty), deletes the local branch, and
+    /// deletes the branch on <c>origin</c> — each only when selected (and the origin branch only when it exists).
+    /// Runs from the clone's main tree. A failed worktree removal or local-branch delete throws (nothing has
+    /// been lost yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is logged and
+    /// reflected in the returned outcome rather than throwing, because any local cleanup is already done and
+    /// re-running wouldn't undo it.
     /// </summary>
-    public async Task<bool> DeleteWorktreeAsync(WorktreeDeletion plan, CancellationToken ct = default)
+    public async Task<WorktreeDeletionOutcome> DeleteWorktreeAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
     {
         var dir = plan.MainWorktreePath;
+        bool worktreeRemoved = false, localDeleted = false, remoteDeleted = false, remoteFailed = false;
 
-        _log($"Removing worktree at {plan.WorktreePath}…");
-        var remove = await _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, ct);
-        if (!remove.Success)
-            throw new InvalidOperationException($"git worktree remove failed: {remove.Message}");
-        _log("Worktree removed.");
-
-        _log($"Deleting local branch '{plan.Branch}'…");
-        var branchResult = await _git.DeleteLocalBranchAsync(dir, plan.Branch, ct);
-        if (!branchResult.Success)
-            throw new InvalidOperationException($"git branch -D failed: {branchResult.Message}");
-        _log($"Local branch '{plan.Branch}' deleted.");
-
-        if (!plan.RemoteBranchExists)
-            return true;
-
-        _log($"Deleting remote branch origin/{plan.Branch}…");
-        var remoteResult = await _git.DeleteRemoteBranchAsync(dir, plan.Branch, ct);
-        if (remoteResult.Success)
+        if (choice.Worktree)
         {
-            _log($"Remote branch origin/{plan.Branch} deleted.");
-            return true;
+            _log($"Removing worktree at {plan.WorktreePath}…");
+            var remove = await _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, ct);
+            if (!remove.Success)
+                throw new InvalidOperationException($"git worktree remove failed: {remove.Message}");
+            _log("Worktree removed.");
+            worktreeRemoved = true;
         }
 
-        _log($"[!] Remote branch origin/{plan.Branch} could not be deleted: {remoteResult.Message}");
-        return false;
+        if (choice.LocalBranch)
+        {
+            _log($"Deleting local branch '{plan.Branch}'…");
+            var branchResult = await _git.DeleteLocalBranchAsync(dir, plan.Branch, ct);
+            if (!branchResult.Success)
+                throw new InvalidOperationException($"git branch -D failed: {branchResult.Message}");
+            _log($"Local branch '{plan.Branch}' deleted.");
+            localDeleted = true;
+        }
+
+        if (choice.RemoteBranch && plan.RemoteBranchExists)
+        {
+            _log($"Deleting remote branch origin/{plan.Branch}…");
+            var remoteResult = await _git.DeleteRemoteBranchAsync(dir, plan.Branch, ct);
+            if (remoteResult.Success)
+            {
+                _log($"Remote branch origin/{plan.Branch} deleted.");
+                remoteDeleted = true;
+            }
+            else
+            {
+                _log($"[!] Remote branch origin/{plan.Branch} could not be deleted: {remoteResult.Message}");
+                remoteFailed = true;
+            }
+        }
+
+        return new WorktreeDeletionOutcome(worktreeRemoved, localDeleted, remoteDeleted, remoteFailed);
     }
 
     /// <summary>

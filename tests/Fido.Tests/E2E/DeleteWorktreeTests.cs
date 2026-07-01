@@ -1,3 +1,4 @@
+using Fido.Models;
 using Fido.Services;
 using Fido.Tests.Infrastructure;
 using Fido.ViewModels;
@@ -26,7 +27,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,   // click the delete button in the target chooser
-            OnConfirmDelete = _ => true,                      // confirm the destructive action
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,                      // confirm the destructive action
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -67,7 +68,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => false,   // back out at the confirmation
+            OnConfirmDelete = _ => null,   // back out at the confirmation
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -99,7 +100,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => true,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -135,7 +136,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => true,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -172,7 +173,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => true,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -235,7 +236,7 @@ public class DeleteWorktreeTests
         var dialogs = new FakeDialogService
         {
             OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => true,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
         };
         var services = world.BuildServices([root], rider, dialogs);
 
@@ -271,7 +272,7 @@ public class DeleteWorktreeTests
             OnChooser = req => req.Title.Contains("Open from branch folder")
                 ? ChooserDialog.DeleteRequested
                 : req.PickTitleContaining(betaWt),
-            OnConfirmDelete = _ => true,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
         };
         var services = world.BuildServices([root], rider, dialogs);
 

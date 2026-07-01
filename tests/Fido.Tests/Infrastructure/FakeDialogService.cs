@@ -21,8 +21,11 @@ public sealed class FakeDialogService : IDialogService
     /// <summary>Decision responder; defaults to "create worktree".</summary>
     public Func<DecisionRequest, OpenDecision?> OnDecision { get; set; } = _ => OpenDecision.Worktree;
 
-    /// <summary>Delete-confirmation responder; defaults to declining (the safe default for a destructive action).</summary>
-    public Func<WorktreeDeletion, bool> OnConfirmDelete { get; set; } = _ => false;
+    /// <summary>
+    /// Delete-confirmation responder; returns the chosen targets, or null to decline (the safe default for a
+    /// destructive action). Return <see cref="WorktreeDeletionChoice.All"/> to confirm every present target.
+    /// </summary>
+    public Func<WorktreeDeletion, WorktreeDeletionChoice?> OnConfirmDelete { get; set; } = _ => null;
 
     public List<ChooserRequest> ChooserRequests { get; } = new();
     public List<DecisionRequest> DecisionRequests { get; } = new();
@@ -38,7 +41,7 @@ public sealed class FakeDialogService : IDialogService
         return Task.FromResult(OnChooser(request));
     }
 
-    public Task<bool> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan)
+    public Task<WorktreeDeletionChoice?> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan)
     {
         DeleteConfirmations.Add(plan);
         return Task.FromResult(OnConfirmDelete(plan));

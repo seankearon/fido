@@ -30,6 +30,15 @@ public static class UiTestExtensions
         Dispatcher.UIThread.RunJobs();
     }
 
+    /// <summary>Sets a named CheckBox's state, driving its two-way binding to the VM.</summary>
+    public static void SetChecked(this Window window, string controlName, bool value)
+    {
+        var box = window.FindControl<CheckBox>(controlName)
+                  ?? throw new InvalidOperationException($"No CheckBox named '{controlName}'.");
+        box.IsChecked = value;
+        Dispatcher.UIThread.RunJobs();
+    }
+
     /// <summary>Raises a real Click on a named button, invoking its XAML Click handler.</summary>
     public static void ClickButton(this Window window, string controlName)
     {

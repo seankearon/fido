@@ -719,21 +719,36 @@ public partial class MainWindow : Window
             return TargetOutcome.Cancelled;
         }
 
-        if (!await _dialogs.ConfirmDeleteWorktreeAsync(plan))
-            return TargetOutcome.Cancelled;   // user backed out — no-op, status cleared by the caller
+        var choice = await _dialogs.ConfirmDeleteWorktreeAsync(plan);
+        if (choice is null || !choice.AnySelected)
+            return TargetOutcome.Cancelled;   // backed out or picked nothing — no-op, status cleared by the caller
 
-        var fullyDeleted = await _opener.DeleteWorktreeAsync(plan);
-        if (fullyDeleted)
+        var outcome = await _opener.DeleteWorktreeAsync(plan, choice);
+
+        var deleted = new List<string>();
+        if (outcome.WorktreeRemoved) deleted.Add("worktree");
+        if (outcome.LocalBranchDeleted) deleted.Add("local branch");
+        if (outcome.RemoteBranchDeleted) deleted.Add("remote branch");
+
+        if (outcome.RemoteDeleteFailed)
         {
-            var remotePart = plan.RemoteBranchExists ? " and remote branch" : "";
-            _vm.SetStatus($"deleted worktree, local branch{remotePart} '{branch}'", StatusKind.Go);
+            var prefix = deleted.Count > 0 ? $"deleted {JoinAnd(deleted)} for '{branch}'; " : "";
+            _vm.SetStatus($"{prefix}remote branch delete failed — see log", StatusKind.NoGo);
         }
         else
         {
-            _vm.SetStatus($"deleted worktree and local branch '{branch}'; remote delete failed — see log", StatusKind.NoGo);
+            _vm.SetStatus($"deleted {JoinAnd(deleted)} for '{branch}'", StatusKind.Go);
         }
         return TargetOutcome.Deleted;
     }
+
+    /// <summary>Joins a short list for display: "a", "a and b", or "a, b and c".</summary>
+    private static string JoinAnd(IReadOnlyList<string> parts) => parts.Count switch
+    {
+        0 => "nothing",
+        1 => parts[0],
+        _ => string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1],
+    };
 
     private async Task<OpenDecision> ShowDecisionDialogAsync(RepositoryInfo repo, string branch, MainContext ctx)
         => await _dialogs.ShowDecisionAsync(repo, branch, ctx) ?? OpenDecision.Cancel;

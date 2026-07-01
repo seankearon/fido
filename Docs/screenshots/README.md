@@ -45,6 +45,40 @@ out with **Esc**.
 
 ---
 
+## Delete a worktree
+
+For a **linked worktree** on a non-default branch, the branch-folder chooser adds a **Delete worktree &
+branch** button beside the open choices.
+
+<table>
+  <tr>
+    <td align="center"><strong>Dark</strong></td>
+    <td align="center"><strong>Light</strong></td>
+  </tr>
+  <tr>
+    <td><img src="open-dialog-delete-dark.png" alt="Branch-folder chooser with the delete button, dark theme" width="400"></td>
+    <td><img src="open-dialog-delete-light.png" alt="Branch-folder chooser with the delete button, light theme" width="400"></td>
+  </tr>
+</table>
+
+Clicking it opens a confirmation dialog with a **checkbox for each present target** — the worktree, its
+local branch, and the branch on `origin` — ticked by default. Untick any to keep it (keeping the worktree
+disables deleting its branch), and Fido warns in red about uncommitted changes or commits that exist only on
+the branch.
+
+<table>
+  <tr>
+    <td align="center"><strong>Dark</strong></td>
+    <td align="center"><strong>Light</strong></td>
+  </tr>
+  <tr>
+    <td><img src="delete-worktree-dialog-dark.png" alt="Delete-worktree confirmation dialog, dark theme" width="400"></td>
+    <td><img src="delete-worktree-dialog-light.png" alt="Delete-worktree confirmation dialog, light theme" width="400"></td>
+  </tr>
+</table>
+
+---
+
 ## Settings
 
 Configure **search roots**, your **editors** (each with a CLI slug, with the default marked

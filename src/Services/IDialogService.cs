@@ -17,8 +17,11 @@ public interface IDialogService
     /// </summary>
     Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null);
 
-    /// <summary>Confirms the destructive delete of a located worktree; returns true only when confirmed.</summary>
-    Task<bool> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan);
+    /// <summary>
+    /// Confirms the destructive delete of a located worktree. Returns the user's per-target selection (which
+    /// of the worktree, local branch, and origin branch to delete), or null if they backed out.
+    /// </summary>
+    Task<WorktreeDeletionChoice?> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan);
 
     /// <summary>Branch-not-checked-out decision; returns the chosen action, or null if dismissed.</summary>
     Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context);

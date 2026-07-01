@@ -118,6 +118,24 @@
         <Setter Property="Stroke" Value="{DynamicResource FidoNoGo}" />
     </Style>
 
+    <!-- Mono checkbox (worktree/branch deletion selection) -->
+    <Style Selector="CheckBox.fido">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="CheckBox.fido:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource FidoAccent}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoAccent}" />
+    </Style>
+    <Style Selector="CheckBox.fido:checked /template/ Path#CheckGlyph">
+        <Setter Property="Fill" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+    <Style Selector="CheckBox.fido:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+
     <!-- Primary (amber) button -->
     <Style Selector="Button.primary">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />

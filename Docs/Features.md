@@ -116,15 +116,18 @@ folder"** chooser adds a **Delete worktree & branch** button alongside the open 
 there's nothing to open (a folder-only editor, or a worktree with no solution file). It's a shortcut for
 tidying up a branch you're finished with, in one step:
 
-- A **confirmation dialog** first spells out exactly what will go: the **worktree path**, the **local
-  branch**, and whether the branch is **on `origin`**. It adds explicit **data-loss warnings** when the
-  worktree has **uncommitted changes**, or when the branch carries **commits that exist nowhere else** —
-  unpushed and unmerged work that a force-delete would orphan. Nothing happens unless you click **Delete**;
-  **Cancel**, **Enter**, and **Esc** all back out, and the destructive button sits outside the keyboard tab
-  order so it can't be fired by a stray keypress.
-- On confirmation Fido **removes the linked worktree**, **deletes the local branch**, and — when it exists —
-  **deletes the branch on `origin`**. The git steps run from the clone's **main working tree**, so the
-  worktree is dropped cleanly; a dirty worktree is force-removed after the warning.
+- A **confirmation dialog** offers a **checkbox for each present target** — the **worktree**, its **local
+  branch**, and the **branch on `origin`** — each **ticked by default**. Untick any to keep it, so you can (say)
+  drop just the remote branch, or remove the worktree while keeping its branches. Because a branch that stays
+  checked out can't be deleted, **keeping the worktree disables deleting its local branch**. The dialog adds
+  explicit **data-loss warnings** when the worktree has **uncommitted changes**, or when the branch carries
+  **commits that exist nowhere else** — unpushed and unmerged work that a force-delete would orphan. Nothing
+  happens unless you click **Delete** (disabled when nothing is ticked); **Cancel**, **Enter**, and **Esc** all
+  back out, and the destructive button sits outside the keyboard tab order so it can't be fired by a stray keypress.
+- On confirmation Fido carries out **exactly the ticked targets**: it **removes the linked worktree**,
+  **deletes the local branch**, and — when it exists — **deletes the branch on `origin`**. The git steps run
+  from the clone's **main working tree**, so the worktree is dropped cleanly; a dirty worktree is
+  force-removed after the warning.
 - If the remote delete fails (say you're offline), the completed **local** cleanup stays done and the
   failure is reported in the flight log rather than rolled back.
 
