@@ -169,6 +169,60 @@ public sealed class GitService
             ? Git(dir, ct, "worktree", "add", "-b", branch, path)
             : Git(dir, ct, "worktree", "add", "-b", branch, path, startPoint);
 
+    // --- Worktree / branch deletion -----------------------------------------------------
+
+    /// <summary>
+    /// True when <paramref name="dir"/> is a <em>linked</em> worktree rather than the clone's main tree.
+    /// Compares the worktree's own git dir with the shared common git dir — identical for the main tree, but
+    /// a linked worktree's git dir is <c>…/worktrees/&lt;name&gt;</c>. It never compares working-tree paths, so
+    /// it stays correct under a symlinked search root that would defeat a string path comparison. False on any
+    /// git error (so the destructive delete action is withheld when the topology can't be established).
+    /// </summary>
+    public async Task<bool> IsLinkedWorktreeAsync(string dir, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir");
+        if (!r.Success) return false;
+        var lines = r.StdOut.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToArray();
+        return lines.Length >= 2 && !string.Equals(lines[0], lines[1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Counts commits reachable from <paramref name="branch"/> but from no other ref — no other local branch,
+    /// no remote-tracking branch, no tag. These are the commits that would be <em>orphaned</em> (lost to normal
+    /// use) if the branch were force-deleted: unpushed, unmerged work that exists nowhere else. Zero when the
+    /// branch is fully pushed or already merged. Returns 0 on any git error — it drives an advisory warning,
+    /// not a gate.
+    /// </summary>
+    public async Task<int> CountOrphanedCommitsAsync(string dir, string branch, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "rev-list", "--count", branch,
+            "--not", "--exclude=" + branch, "--branches", "--tags", "--remotes");
+        return r.Success && int.TryParse(r.StdOut.Trim(), out var n) ? n : 0;
+    }
+
+    /// <summary>
+    /// Removes the linked worktree at <paramref name="worktreePath"/>. Run from the clone's main tree
+    /// so it can drop a worktree it isn't standing in. A clean worktree removes without
+    /// <paramref name="force"/>; a dirty one (uncommitted or untracked files) needs it, and forcing
+    /// discards those changes.
+    /// </summary>
+    public Task<ProcessResult> WorktreeRemoveAsync(string dir, string worktreePath, bool force, CancellationToken ct = default)
+        => force
+            ? Git(dir, ct, "worktree", "remove", "--force", worktreePath)
+            : Git(dir, ct, "worktree", "remove", worktreePath);
+
+    /// <summary>
+    /// Force-deletes the local branch (<c>git branch -D</c>) — used once its worktree is gone, so the
+    /// branch is no longer checked out. <c>-D</c> deletes even when the branch isn't merged, matching the
+    /// user's explicit intent to remove it.
+    /// </summary>
+    public Task<ProcessResult> DeleteLocalBranchAsync(string dir, string branch, CancellationToken ct = default)
+        => Git(dir, ct, "branch", "-D", branch);
+
+    /// <summary>Deletes the branch on <c>origin</c> (<c>git push origin --delete &lt;branch&gt;</c>).</summary>
+    public Task<ProcessResult> DeleteRemoteBranchAsync(string dir, string branch, CancellationToken ct = default)
+        => Git(dir, ct, "push", "origin", "--delete", branch);
+
     private static string StripRefsHeads(string reference)
         => reference.StartsWith(RefsHeads, StringComparison.Ordinal) ? reference[RefsHeads.Length..] : reference;
 }

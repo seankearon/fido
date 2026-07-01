@@ -1,3 +1,4 @@
+using System.IO;
 using Fido.Services;
 using Fido.Tests.Infrastructure;
 
@@ -63,5 +64,102 @@ public class GitServiceTests
         var fetch = await git.FetchBranchAsync(clone, "feature/x");
         await Assert.That(fetch.Success).IsTrue();
         await Assert.That(await git.RemoteBranchExistsAsync(clone, "feature/x")).IsTrue();
+    }
+
+    [Test]
+    public async Task Removes_a_worktree_then_deletes_its_local_and_remote_branch()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");        // main tree on main
+        var worktree = world.AddWorktree(clone, "feature/x"); // linked worktree on feature/x
+        world.PushBranch(worktree, "feature/x");              // publish it to origin
+
+        var git = new GitService();
+
+        // Preconditions: branch is local, checked out in the worktree, and present on origin.
+        await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsTrue();
+        await Assert.That(await git.RemoteBranchExistsAsync(clone, "feature/x")).IsTrue();
+        await Assert.That(Directory.Exists(worktree)).IsTrue();
+
+        // Remove the worktree — run from the main tree so git isn't standing inside it.
+        var removed = await git.WorktreeRemoveAsync(clone, worktree, force: false);
+        await Assert.That(removed.Success).IsTrue();
+        await Assert.That(Directory.Exists(worktree)).IsFalse();
+
+        // With the worktree gone the branch is free to delete locally…
+        var deletedLocal = await git.DeleteLocalBranchAsync(clone, "feature/x");
+        await Assert.That(deletedLocal.Success).IsTrue();
+        await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+
+        // …and on origin.
+        var deletedRemote = await git.DeleteRemoteBranchAsync(clone, "feature/x");
+        await Assert.That(deletedRemote.Success).IsTrue();
+        await Assert.That(await git.RemoteHasBranchAsync(clone, "feature/x")).IsFalse();
+    }
+
+    [Test]
+    public async Task Detects_linked_worktrees_versus_the_main_tree()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+
+        var git = new GitService();
+
+        await Assert.That(await git.IsLinkedWorktreeAsync(clone)).IsFalse();     // the main tree
+        await Assert.That(await git.IsLinkedWorktreeAsync(worktree)).IsTrue();   // a linked worktree
+    }
+
+    [Test]
+    public async Task Counts_commits_that_exist_only_on_the_branch()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");   // branches off main at its HEAD
+
+        var git = new GitService();
+
+        // A branch at the same commit as main has nothing unique to lose.
+        await Assert.That(await git.CountOrphanedCommitsAsync(clone, "feature/x")).IsEqualTo(0);
+
+        // Two commits made only on the worktree's branch are unique to it — not on origin, not on main.
+        File.WriteAllText(Path.Combine(worktree, "one.txt"), "1");
+        TestRepoWorld.Git(worktree, "add", "-A");
+        TestRepoWorld.Git(worktree, "commit", "-m", "local one");
+        File.WriteAllText(Path.Combine(worktree, "two.txt"), "2");
+        TestRepoWorld.Git(worktree, "add", "-A");
+        TestRepoWorld.Git(worktree, "commit", "-m", "local two");
+        await Assert.That(await git.CountOrphanedCommitsAsync(clone, "feature/x")).IsEqualTo(2);
+
+        // Once pushed to origin they exist elsewhere, so nothing would be orphaned.
+        world.PushBranch(worktree, "feature/x");
+        await Assert.That(await git.CountOrphanedCommitsAsync(clone, "feature/x")).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Forced_worktree_remove_discards_uncommitted_changes()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.MakeDirty(worktree);   // an uncommitted file — a plain remove would refuse
+
+        var git = new GitService();
+
+        var unforced = await git.WorktreeRemoveAsync(clone, worktree, force: false);
+        await Assert.That(unforced.Success).IsFalse();       // git refuses to drop a dirty worktree
+        await Assert.That(Directory.Exists(worktree)).IsTrue();
+
+        var forced = await git.WorktreeRemoveAsync(clone, worktree, force: true);
+        await Assert.That(forced.Success).IsTrue();
+        await Assert.That(Directory.Exists(worktree)).IsFalse();
     }
 }

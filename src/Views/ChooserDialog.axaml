@@ -20,12 +20,20 @@
         <TextBlock DockPanel.Dock="Bottom" Text="Shortcuts: ↑ ↓ = move · Enter / double-click = open · Esc = cancel"
                    Margin="0,12,0,0" Foreground="{DynamicResource FidoTextDim}" FontSize="11" TextWrapping="Wrap" />
 
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
-                    HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
-            <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
-            <Button x:Name="OkButton" Classes="primary" Content="Open" Click="OnOkClick" IsDefault="True"
-                    FontSize="13" Padding="24,9" />
-        </StackPanel>
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <!-- Optional destructive action (branch-folder mode): delete the located worktree + branch.
+                 Kept on the left, apart from Cancel/Open, so it isn't clicked by reflex; hidden otherwise.
+                 IsTabStop=False keeps it out of the tab order so Enter/Space can never fire it by accident —
+                 Enter still opens the highlighted item; deleting takes a deliberate mouse click. -->
+            <Button x:Name="DeleteButton" DockPanel.Dock="Left" Classes="danger" IsTabStop="False"
+                    Content="{Binding DeleteButtonText}" IsVisible="{Binding CanDelete}"
+                    Click="OnDeleteClick" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button x:Name="OkButton" Classes="primary" Content="Open" Click="OnOkClick" IsDefault="True"
+                        FontSize="13" Padding="24,9" />
+            </StackPanel>
+        </DockPanel>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <ListBox x:Name="Chooser" Classes="cards"

@@ -12,8 +12,11 @@ public sealed class AvaloniaDialogService : IDialogService
 
     public AvaloniaDialogService(Window owner) => _owner = owner;
 
-    public Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items)
-        => new ChooserDialog(title, prompt, items).ShowDialog<int?>(_owner);
+    public Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null)
+        => new ChooserDialog(title, prompt, items, deleteLabel).ShowDialog<int?>(_owner);
+
+    public Task<bool> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan)
+        => new DeleteWorktreeDialog(plan).ShowDialog<bool>(_owner);
 
     public Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context)
         => new DecisionDialog(repo, branch, context).ShowDialog<OpenDecision?>(_owner);

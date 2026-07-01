@@ -10,8 +10,15 @@ namespace Fido.Services;
 /// </summary>
 public interface IDialogService
 {
-    /// <summary>Single-select chooser; returns the chosen index, or null if cancelled.</summary>
-    Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items);
+    /// <summary>
+    /// Single-select chooser; returns the chosen index, or null if cancelled. When
+    /// <paramref name="deleteLabel"/> is supplied the dialog also shows a destructive action button, and a
+    /// result of <see cref="Views.ChooserDialog.DeleteRequested"/> means the user chose it.
+    /// </summary>
+    Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null);
+
+    /// <summary>Confirms the destructive delete of a located worktree; returns true only when confirmed.</summary>
+    Task<bool> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan);
 
     /// <summary>Branch-not-checked-out decision; returns the chosen action, or null if dismissed.</summary>
     Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context);

@@ -163,4 +163,40 @@ public class ChooserDialogTests
             await Assert.That(await resultTask).IsNull();
         });
     }
+
+    [Test]
+    public async Task No_delete_button_without_a_delete_label()
+    {
+        await Harness.OnUi(async owner =>
+        {
+            var dialog = new ChooserDialog("Pick one", "Choose a repository", ThreeItems());
+            var resultTask = dialog.ShowDialog<int?>(owner);
+            UiTestExtensions.Pump();
+
+            var delete = dialog.FindControl<Button>("DeleteButton")!;
+            await Assert.That(delete.IsVisible).IsFalse();
+
+            dialog.PressKey(Key.Escape);
+            await resultTask;
+        });
+    }
+
+    [Test]
+    public async Task Delete_button_shows_with_a_label_and_returns_the_delete_sentinel()
+    {
+        await Harness.OnUi(async owner =>
+        {
+            var dialog = new ChooserDialog("Pick one", "Choose what to open", ThreeItems(), "Delete worktree & branch");
+            var resultTask = dialog.ShowDialog<int?>(owner);
+            UiTestExtensions.Pump();
+
+            var delete = dialog.FindControl<Button>("DeleteButton")!;
+            await Assert.That(delete.IsVisible).IsTrue();
+            await Assert.That((string?)delete.Content).IsEqualTo("Delete worktree & branch");
+
+            dialog.ClickButton("DeleteButton");
+
+            await Assert.That(await resultTask).IsEqualTo(ChooserDialog.DeleteRequested);
+        });
+    }
 }

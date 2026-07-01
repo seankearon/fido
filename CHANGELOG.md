@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Delete a worktree, its branch, and the remote branch — from the branch-folder chooser.** When
+  branch-only mode locates a **linked worktree** on a branch, the **"Open from branch folder"** dialog now
+  offers a **Delete worktree & branch** button beside the open choices (and it's reachable even when there's
+  nothing to open — a folder-only editor, or a worktree with no solution file). Clicking it shows a
+  confirmation dialog that spells out the worktree path, the local branch, and whether the branch exists on
+  `origin`, plus **explicit data-loss warnings** when the worktree has **uncommitted changes** or the branch
+  carries **commits that exist nowhere else** (unpushed and unmerged — `git branch -D` would orphan them).
+  Once confirmed, Fido **removes the linked worktree, deletes the local branch, and deletes the branch on
+  `origin`** when it's there. The work runs from the clone's main tree (so the worktree is dropped cleanly),
+  a dirty worktree is force-removed after the warning, and a failed remote delete leaves the completed local
+  cleanup in place and reports it. The button is offered **only for a linked worktree on a non-default branch**
+  — the clone's main working tree can't be worktree-removed, and `main`/`master` are deliberately never
+  offered. Nothing is deleted unless you confirm; Cancel, Enter, and Esc all back out safely, and the
+  destructive button is out of the keyboard tab order so it can't be triggered by a stray keypress.
+
 - **Open the folder in a console or the file explorer.** Two new built-in open targets sit alongside the
   editors: **Console** (slug `term`) opens a terminal at the resolved folder, and **File Explorer** (slug
   `files`) reveals it in the OS file manager. Both work on **Windows, macOS, and Linux** — Console finds

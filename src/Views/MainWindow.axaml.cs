@@ -511,10 +511,15 @@ public partial class MainWindow : Window
         var folder = folders.Count == 1 ? folders[0].Path : await ChooseFolderAsync(folders, branch);
         if (folder is null) { _vm.SetStatus("", StatusKind.None); return null; }
 
-        var target = await ChooseOpenTargetAsync(folder, editor);
-        if (target is null) { _vm.SetStatus("", StatusKind.None); return null; }
+        // A located worktree on a real local branch: offer to delete it (worktree + branch + remote).
+        var outcome = await ChooseOpenTargetAsync(folder, editor, branch);
+        if (outcome.Target is null)
+        {
+            if (!outcome.Handled) _vm.SetStatus("", StatusKind.None);   // deletion sets its own status
+            return null;
+        }
 
-        return new OpenPlan(branch, folder, "Worktree located", target);
+        return new OpenPlan(branch, folder, "Worktree located", outcome.Target);
     }
 
     /// <summary>
@@ -572,10 +577,11 @@ public partial class MainWindow : Window
                 return null;
         }
 
-        var target = await ChooseOpenTargetAsync(workingDir, editor);
-        if (target is null) { _vm.SetStatus("", StatusKind.None); return null; }
+        // The branch was just placed here; deleting it again makes no sense, so no delete action.
+        var outcome = await ChooseOpenTargetAsync(workingDir, editor, branch: null);
+        if (outcome.Target is null) { _vm.SetStatus("", StatusKind.None); return null; }
 
-        return new OpenPlan(branch, workingDir, locatedAs, target);
+        return new OpenPlan(branch, workingDir, locatedAs, outcome.Target);
     }
 
     private async Task<RepositoryInfo?> ChooseRepoAsync(
@@ -633,21 +639,35 @@ public partial class MainWindow : Window
         return index is { } i && i >= 0 && i < folders.Count ? folders[i].Path : null;
     }
 
-    /// <summary>Presents the solutions in a folder (plus an "open the folder" option) and returns the choice.</summary>
-    private async Task<LaunchTarget?> ChooseOpenTargetAsync(string folder, Editor editor)
+    /// <summary>
+    /// Presents the solutions in a folder (plus an "open the folder" option) and returns the choice. In
+    /// branch-only mode (<paramref name="branch"/> non-null) a located <em>linked</em> worktree on a non-default
+    /// branch also gets a delete action that removes the worktree, its local branch, and any branch on origin —
+    /// handled here, so the flow stops without launching an editor (see <see cref="TargetOutcome"/>). The delete
+    /// action stays reachable even when there's nothing to "open" (a folder-only editor, or no solution files):
+    /// the chooser still shows, offering the folder plus the delete button.
+    /// </summary>
+    private async Task<TargetOutcome> ChooseOpenTargetAsync(string folder, Editor editor, string? branch)
     {
-        // Folder-only editors (e.g. WebStorm) can't open a .sln, so don't bother offering the choice.
-        if (editor.OpensFolderOnly)
-        {
-            _vm.AppendLog($"{editor.Name} opens folders only — opening the folder.");
-            return new LaunchTarget(folder, IsSolution: false);
-        }
+        // Offer delete for a located linked worktree on a real (non-default) branch. Resolved up front so it's
+        // available even when the chooser would otherwise be skipped. Default branches (main/master) are never
+        // offered — deleting them, locally or on origin, is not something this shortcut should make easy.
+        var deleteLabel = branch is not null && !IsProtectedBranch(branch) && await _opener.IsLinkedWorktreeAsync(folder)
+            ? "Delete worktree & branch"
+            : null;
 
-        var solutions = _opener.FindSolutionsInFolder(folder, _config);
-        if (solutions.Count == 0)
+        // Folder-only editors (e.g. WebStorm) can't open a .sln; skip solution discovery for them.
+        var solutions = editor.OpensFolderOnly
+            ? (IReadOnlyList<string>)[]
+            : _opener.FindSolutionsInFolder(folder, _config);
+
+        // Nothing to choose between and nothing to delete → open the folder without a dialog, as before.
+        if (solutions.Count == 0 && deleteLabel is null)
         {
-            _vm.AppendLog($"No solution files found under {folder}; opening the folder.");
-            return new LaunchTarget(folder, IsSolution: false);
+            _vm.AppendLog(editor.OpensFolderOnly
+                ? $"{editor.Name} opens folders only — opening the folder."
+                : $"No solution files found under {folder}; opening the folder.");
+            return TargetOutcome.Open(new LaunchTarget(folder, IsSolution: false));
         }
 
         var items = solutions
@@ -660,15 +680,59 @@ public partial class MainWindow : Window
             .ToList();
         items.Add(new ChooserItem($"Open this folder in {editor.Name}", folder));
 
-        var index = await _dialogs.ShowChooserAsync(
-            "Open from branch folder",
-            $"Found {solutions.Count} solution(s). Choose what to open:",
-            items);
+        var prompt = solutions.Count > 0
+            ? $"Found {solutions.Count} solution(s). Choose what to open:"
+            : "Choose what to open:";
 
-        if (index is not { } i || i < 0) return null;
-        return i < solutions.Count
+        var index = await _dialogs.ShowChooserAsync("Open from branch folder", prompt, items, deleteLabel);
+
+        // The sentinel only ever comes back when the button was shown, which requires a branch — but guard
+        // anyway so a stray sentinel without one degrades to a plain cancel rather than a null-deref.
+        if (index == ChooserDialog.DeleteRequested && branch is not null)
+            return await ConfirmAndDeleteWorktreeAsync(folder, branch);
+
+        if (index is not { } i || i < 0) return TargetOutcome.Cancelled;
+        var target = i < solutions.Count
             ? new LaunchTarget(solutions[i], IsSolution: true)
             : new LaunchTarget(folder, IsSolution: false);
+        return TargetOutcome.Open(target);
+    }
+
+    /// <summary>True when <paramref name="branch"/> is one of the configured default-branch names (e.g. main/master).</summary>
+    private bool IsProtectedBranch(string branch) =>
+        _config.MainBranchNames.Any(n => string.Equals(n, branch, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Confirms and carries out deleting a located worktree: builds the plan, asks for confirmation, then
+    /// removes the worktree, deletes its local branch, and — when present — the branch on origin. Sets the
+    /// GO/NO-GO status and returns a <em>handled</em> outcome so the open flow ends without launching an
+    /// editor. Backing out of the confirmation cancels quietly; a hard git failure propagates to
+    /// <see cref="RunOpenAsync"/>'s handler as a NO-GO.
+    /// </summary>
+    private async Task<TargetOutcome> ConfirmAndDeleteWorktreeAsync(string folder, string branch)
+    {
+        var plan = await _opener.BuildWorktreeDeletionAsync(folder, branch);
+        if (plan is null)
+        {
+            // Raced to the main tree somehow — nothing removable. Treat as a plain cancel.
+            _vm.AppendLog($"[!] {folder} is a main working tree and can't be removed as a worktree.");
+            return TargetOutcome.Cancelled;
+        }
+
+        if (!await _dialogs.ConfirmDeleteWorktreeAsync(plan))
+            return TargetOutcome.Cancelled;   // user backed out — no-op, status cleared by the caller
+
+        var fullyDeleted = await _opener.DeleteWorktreeAsync(plan);
+        if (fullyDeleted)
+        {
+            var remotePart = plan.RemoteBranchExists ? " and remote branch" : "";
+            _vm.SetStatus($"deleted worktree, local branch{remotePart} '{branch}'", StatusKind.Go);
+        }
+        else
+        {
+            _vm.SetStatus($"deleted worktree and local branch '{branch}'; remote delete failed — see log", StatusKind.NoGo);
+        }
+        return TargetOutcome.Deleted;
     }
 
     private async Task<OpenDecision> ShowDecisionDialogAsync(RepositoryInfo repo, string branch, MainContext ctx)
@@ -676,4 +740,17 @@ public partial class MainWindow : Window
 
     /// <summary>Resolved trajectory: where the branch lives and what to hand the editor.</summary>
     private sealed record OpenPlan(string Branch, string WorkingDir, string LocatedAs, LaunchTarget Target);
+
+    /// <summary>
+    /// Result of the branch-folder "what to open" step. <see cref="Target"/> non-null → open it.
+    /// <see cref="Target"/> null and <see cref="Handled"/> true → an action (a delete) already ran and set
+    /// the status, so the flow stops silently. Null and not handled → the user cancelled; the caller clears
+    /// the status.
+    /// </summary>
+    private sealed record TargetOutcome(LaunchTarget? Target, bool Handled)
+    {
+        public static TargetOutcome Open(LaunchTarget target) => new(target, Handled: false);
+        public static TargetOutcome Deleted => new(null, Handled: true);
+        public static TargetOutcome Cancelled => new(null, Handled: false);
+    }
 }

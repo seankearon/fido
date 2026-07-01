@@ -158,6 +158,30 @@
         <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
     </Style>
 
+    <!-- Destructive (red) button — worktree/branch deletion -->
+    <Style Selector="Button.danger">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoNoGoText}" />
+        <Setter Property="Background" Value="{DynamicResource FidoNoGoBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="18,9" />
+    </Style>
+    <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGoBg}" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+    <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoNoGo}" />
+        <Setter Property="TextElement.Foreground" Value="{DynamicResource FidoButtonText}" />
+    </Style>
+
     <!-- "Save settings" — amber outline + faint tint -->
     <Style Selector="Button.save">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
