@@ -23,6 +23,13 @@ public interface IDialogService
     /// </summary>
     Task<WorktreeDeletionChoice?> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan);
 
+    /// <summary>
+    /// After <c>git worktree remove</c> fails (typically a path too long for the OS), asks whether to
+    /// permanently delete the folder straight from disk — a recursive delete that bypasses the Recycle Bin.
+    /// Returns true to proceed, false to leave it in place.
+    /// </summary>
+    Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request);
+
     /// <summary>Branch-not-checked-out decision; returns the chosen action, or null if dismissed.</summary>
     Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context);
 

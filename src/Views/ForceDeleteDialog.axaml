@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Fido.Views.ForceDeleteDialog"
+        Title="Delete worktree folder"
+        SizeToContent="Height" Width="580"
+        MinWidth="480" MaxWidth="780"
+        CanResize="False"
+        WindowDecorations="Full"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/fido-icon-256.png"
+        FontFamily="{DynamicResource FidoMono}"
+        Background="{DynamicResource FidoWindowBg}">
+
+    <StackPanel Margin="22,20" Spacing="14">
+
+        <TextBlock Text="Git couldn't remove the worktree."
+                   FontFamily="{DynamicResource FidoMono}" FontSize="15" FontWeight="SemiBold"
+                   TextWrapping="Wrap" Foreground="{DynamicResource FidoTextPrimary}" />
+
+        <StackPanel Spacing="2">
+            <TextBlock Text="Worktree folder" Foreground="{DynamicResource FidoTextMuted}" />
+            <TextBlock x:Name="PathText" TextWrapping="Wrap"
+                       FontSize="12" Foreground="{DynamicResource FidoTextSecondary}" />
+        </StackPanel>
+
+        <Border BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
+                Background="{DynamicResource FidoLogBg}">
+            <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="ReasonText" Margin="12,10" TextWrapping="Wrap"
+                           FontFamily="{DynamicResource FidoMono}" FontSize="12"
+                           Foreground="{DynamicResource FidoTextMuted}" />
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource FidoNoGoText}"
+                   Text="Delete the folder directly from disk instead? This permanently removes it and everything inside — it bypasses the Recycle Bin and can't be undone. Git's worktree registration is pruned afterwards so the branch can still be deleted." />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+            <Button x:Name="DeleteButton" Classes="danger" Content="Delete folder" Click="OnDeleteClick"
+                    FontSize="13" Padding="24,9" />
+            <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick"
+                    IsCancel="True" IsDefault="True" />
+        </StackPanel>
+
+        <TextBlock Text="Shortcuts: Enter / Esc = cancel · click Delete folder to confirm"
+                   Foreground="{DynamicResource FidoTextDim}" FontSize="11" TextWrapping="Wrap" />
+
+    </StackPanel>
+</Window>

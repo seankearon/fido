@@ -706,8 +706,9 @@ public partial class MainWindow : Window
     /// Confirms and carries out deleting a located worktree: builds the plan, asks for confirmation, then
     /// removes the worktree, deletes its local branch, and — when present — the branch on origin. Sets the
     /// GO/NO-GO status and returns a <em>handled</em> outcome so the open flow ends without launching an
-    /// editor. Backing out of the confirmation cancels quietly; a hard git failure propagates to
-    /// <see cref="RunOpenAsync"/>'s handler as a NO-GO.
+    /// editor. Backing out of the confirmation cancels quietly. When git can't remove the worktree (typically a
+    /// path too long for the OS) the user is offered a permanent, Recycle-Bin-bypassing folder delete; declining
+    /// that is a NO-GO. Any other hard git failure propagates to <see cref="RunOpenAsync"/>'s handler as a NO-GO.
     /// </summary>
     private async Task<TargetOutcome> ConfirmAndDeleteWorktreeAsync(string folder, string branch)
     {
@@ -723,7 +724,23 @@ public partial class MainWindow : Window
         if (choice is null || !choice.AnySelected)
             return TargetOutcome.Cancelled;   // backed out or picked nothing — no-op, status cleared by the caller
 
-        var outcome = await _opener.DeleteWorktreeAsync(plan, choice);
+        WorktreeDeletionOutcome outcome;
+        try
+        {
+            outcome = await _opener.DeleteWorktreeAsync(plan, choice);
+        }
+        catch (WorktreeRemovalException ex)
+        {
+            // git gave up on the folder (usually a path too long). Offer to delete it straight from disk.
+            _vm.AppendLog($"[✗] git couldn't remove the worktree: {ex.Message}");
+            var force = await _dialogs.ConfirmForceDeleteWorktreeFolderAsync(new WorktreeForceDelete(ex.WorktreePath, ex.Message));
+            if (!force)
+            {
+                _vm.SetStatus($"couldn't remove worktree for '{branch}' — see log", StatusKind.NoGo);
+                return TargetOutcome.Deleted;   // handled: flow ends here, status already set
+            }
+            outcome = await _opener.ForceDeleteWorktreeAsync(plan, choice);
+        }
 
         var deleted = new List<string>();
         if (outcome.WorktreeRemoved) deleted.Add("worktree");

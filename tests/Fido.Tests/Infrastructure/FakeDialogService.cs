@@ -27,9 +27,16 @@ public sealed class FakeDialogService : IDialogService
     /// </summary>
     public Func<WorktreeDeletion, WorktreeDeletionChoice?> OnConfirmDelete { get; set; } = _ => null;
 
+    /// <summary>
+    /// Force-delete-folder responder used when git couldn't remove the worktree; defaults to declining (the
+    /// safe default for a Recycle-Bin-bypassing delete). Return true to accept the fallback.
+    /// </summary>
+    public Func<WorktreeForceDelete, bool> OnConfirmForceDelete { get; set; } = _ => false;
+
     public List<ChooserRequest> ChooserRequests { get; } = new();
     public List<DecisionRequest> DecisionRequests { get; } = new();
     public List<WorktreeDeletion> DeleteConfirmations { get; } = new();
+    public List<WorktreeForceDelete> ForceDeleteConfirmations { get; } = new();
     public int SettingsShownCount { get; private set; }
 
     public ChooserRequest? LastChooser => ChooserRequests.Count > 0 ? ChooserRequests[^1] : null;
@@ -45,6 +52,12 @@ public sealed class FakeDialogService : IDialogService
     {
         DeleteConfirmations.Add(plan);
         return Task.FromResult(OnConfirmDelete(plan));
+    }
+
+    public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
+    {
+        ForceDeleteConfirmations.Add(request);
+        return Task.FromResult(OnConfirmForceDelete(request));
     }
 
     public Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context)
