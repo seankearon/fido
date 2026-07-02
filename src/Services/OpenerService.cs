@@ -415,27 +415,64 @@ public sealed class OpenerService
     /// Runs from the clone's main tree. Each git step is wrapped in <see cref="GitRetry"/>, so a
     /// <em>transient</em> failure — a worktree file still locked by an editor, a racing ref <c>.lock</c>, a
     /// network blip on the origin delete — is retried a few times (narrated in the log) before it counts; a
-    /// permanent failure fails on the first attempt. A failed worktree removal or local-branch delete throws
-    /// (nothing has been lost yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is
-    /// logged and reflected in the returned outcome rather than throwing, because any local cleanup is already
-    /// done and re-running wouldn't undo it.
+    /// permanent failure fails on the first attempt. A failed worktree removal throws a
+    /// <see cref="WorktreeRemovalException"/> (so the caller can offer <see cref="ForceDeleteWorktreeAsync"/> as
+    /// a fallback); a failed local-branch delete throws (the local cleanup couldn't proceed); a failed
+    /// <em>remote</em> delete is logged and reflected in the returned outcome rather than throwing, because any
+    /// local cleanup is already done and re-running wouldn't undo it.
     /// </summary>
     public async Task<WorktreeDeletionOutcome> DeleteWorktreeAsync(
         WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
     {
-        var dir = plan.MainWorktreePath;
-        bool worktreeRemoved = false, localDeleted = false, remoteDeleted = false, remoteFailed = false;
+        var worktreeRemoved = false;
 
         if (choice.Worktree)
         {
             _log($"Removing worktree at {plan.WorktreePath}…");
             var remove = await GitRetry.ExecuteAsync(_deletionRetry, "worktree remove",
-                token => _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, token), ct);
+                token => _git.WorktreeRemoveAsync(plan.MainWorktreePath, plan.WorktreePath, force: plan.HasOutstandingChanges, token), ct);
             if (!remove.Success)
-                throw new InvalidOperationException($"git worktree remove failed: {remove.Message}");
+                throw new WorktreeRemovalException(plan.WorktreePath, remove.Message);
             _log("Worktree removed.");
             worktreeRemoved = true;
         }
+
+        return await DeleteBranchesAsync(plan, choice, worktreeRemoved, ct);
+    }
+
+    /// <summary>
+    /// Fallback for when <see cref="DeleteWorktreeAsync"/> raised a <see cref="WorktreeRemovalException"/> —
+    /// typically a path too long for the OS. Permanently deletes the worktree folder straight from disk (a
+    /// recursive delete that <em>bypasses the Recycle Bin</em> and, on Windows, uses an extended-length path so
+    /// it isn't defeated by the same limit that stopped git), then prunes git's now-dangling worktree
+    /// registration so the branch is free to delete, and finishes the ticked branch deletions. The caller must
+    /// have confirmed the destructive folder delete first.
+    /// </summary>
+    public async Task<WorktreeDeletionOutcome> ForceDeleteWorktreeAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
+    {
+        _log($"Force-deleting worktree folder {plan.WorktreePath} (bypassing the Recycle Bin)…");
+        await Task.Run(() => ForceDeleteFolder(plan.WorktreePath), ct);
+        _log("Worktree folder deleted; pruning git's worktree registration…");
+
+        var prune = await _git.PruneWorktreesAsync(plan.MainWorktreePath, ct);
+        if (!prune.Success)
+            _log($"[!] git worktree prune reported: {prune.Message}");
+
+        return await DeleteBranchesAsync(plan, choice, worktreeRemoved: true, ct);
+    }
+
+    /// <summary>
+    /// Deletes the local branch and the branch on <c>origin</c> per <paramref name="choice"/> (the shared tail
+    /// of both <see cref="DeleteWorktreeAsync"/> and <see cref="ForceDeleteWorktreeAsync"/>, run once the
+    /// worktree is gone). A failed local delete throws; a failed remote delete is logged and flagged in the
+    /// outcome rather than thrown. See <see cref="DeleteWorktreeAsync"/> for the retry semantics.
+    /// </summary>
+    private async Task<WorktreeDeletionOutcome> DeleteBranchesAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, bool worktreeRemoved, CancellationToken ct)
+    {
+        var dir = plan.MainWorktreePath;
+        bool localDeleted = false, remoteDeleted = false, remoteFailed = false;
 
         if (choice.LocalBranch)
         {
@@ -472,6 +509,40 @@ public sealed class OpenerService
         }
 
         return new WorktreeDeletionOutcome(worktreeRemoved, localDeleted, remoteDeleted, remoteFailed);
+    }
+
+    /// <summary>
+    /// Permanently deletes <paramref name="folder"/> and everything under it — a direct recursive delete, never
+    /// the Recycle Bin. Clears read-only attributes first (git marks pack files read-only) and, on Windows, runs
+    /// against an extended-length (<c>\\?\</c>) path so it isn't defeated by the same MAX_PATH limit that stopped
+    /// git. A folder that's already gone (git removed it partially before failing) is a no-op.
+    /// </summary>
+    private static void ForceDeleteFolder(string folder)
+    {
+        var full = Path.GetFullPath(folder);
+        if (!Directory.Exists(full)) return;
+
+        var target = ExtendedPath(full);
+        foreach (var file in Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories))
+        {
+            try { File.SetAttributes(file, FileAttributes.Normal); }
+            catch { /* best effort — a genuinely locked file will surface on the delete below */ }
+        }
+        Directory.Delete(target, recursive: true);
+    }
+
+    /// <summary>
+    /// On Windows, prefixes a full path with <c>\\?\</c> (or <c>\\?\UNC\</c> for a network share) so the Win32
+    /// file APIs skip MAX_PATH normalisation — the whole point of the fallback is to remove paths that were
+    /// already "too long" for git. A no-op on other platforms and when the prefix is already present.
+    /// </summary>
+    private static string ExtendedPath(string fullPath)
+    {
+        if (!OperatingSystem.IsWindows() || fullPath.StartsWith(@"\\?\", StringComparison.Ordinal))
+            return fullPath;
+        return fullPath.StartsWith(@"\\", StringComparison.Ordinal)
+            ? @"\\?\UNC\" + fullPath.TrimStart('\\')   // \\server\share\… → \\?\UNC\server\share\…
+            : @"\\?\" + fullPath;
     }
 
     /// <summary>

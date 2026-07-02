@@ -173,13 +173,18 @@ public sealed class GitService
 
     // --- Worktree creation --------------------------------------------------------------
 
+    // `-c core.longpaths=true` lets git's own file operations use the Windows extended-length API, so a
+    // worktree whose checked-out files cross the 260-char MAX_PATH limit (deep node_modules, generated output)
+    // can still be created and removed. Harmless on other platforms and when a shorter path is used.
+    private const string LongPaths = "core.longpaths=true";
+
     public Task<ProcessResult> WorktreeAddExistingAsync(string dir, string path, string branch, CancellationToken ct = default)
-        => Git(dir, ct, "worktree", "add", path, branch);
+        => Git(dir, ct, "-c", LongPaths, "worktree", "add", path, branch);
 
     public Task<ProcessResult> WorktreeAddNewAsync(string dir, string path, string branch, string? startPoint, CancellationToken ct = default)
         => startPoint is null
-            ? Git(dir, ct, "worktree", "add", "-b", branch, path)
-            : Git(dir, ct, "worktree", "add", "-b", branch, path, startPoint);
+            ? Git(dir, ct, "-c", LongPaths, "worktree", "add", "-b", branch, path)
+            : Git(dir, ct, "-c", LongPaths, "worktree", "add", "-b", branch, path, startPoint);
 
     // --- Worktree / branch deletion -----------------------------------------------------
 
@@ -220,8 +225,16 @@ public sealed class GitService
     /// </summary>
     public Task<ProcessResult> WorktreeRemoveAsync(string dir, string worktreePath, bool force, CancellationToken ct = default)
         => force
-            ? Git(dir, ct, "worktree", "remove", "--force", worktreePath)
-            : Git(dir, ct, "worktree", "remove", worktreePath);
+            ? Git(dir, ct, "-c", LongPaths, "worktree", "remove", "--force", worktreePath)
+            : Git(dir, ct, "-c", LongPaths, "worktree", "remove", worktreePath);
+
+    /// <summary>
+    /// Drops git's registration of any worktree whose directory has gone missing (<c>git worktree prune</c>).
+    /// Used after a worktree folder is deleted out-of-band — e.g. the force-delete fallback — so the branch it
+    /// held is no longer considered checked out and can be deleted.
+    /// </summary>
+    public Task<ProcessResult> PruneWorktreesAsync(string dir, CancellationToken ct = default)
+        => Git(dir, ct, "worktree", "prune");
 
     /// <summary>
     /// Force-deletes the local branch (<c>git branch -D</c>) — used once its worktree is gone, so the

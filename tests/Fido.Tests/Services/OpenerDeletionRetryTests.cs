@@ -33,12 +33,18 @@ public class OpenerDeletionRetryTests
         new(new GitService(runner), new SolutionFinder(), new WorkingTreeFinder(),
             log: log is null ? null : log.Add, deletionRetry: Fast);
 
-    private static bool Matches(IReadOnlyList<string> args, params string[] prefix)
+    // Finds the git subcommand as a consecutive run anywhere in the args — so it spots "worktree remove" even
+    // behind the leading "-c core.longpaths=true" flags that GitService now passes.
+    private static bool Matches(IReadOnlyList<string> args, params string[] sub)
     {
-        if (args.Count < prefix.Length) return false;
-        for (var i = 0; i < prefix.Length; i++)
-            if (args[i] != prefix[i]) return false;
-        return true;
+        for (var i = 0; i + sub.Length <= args.Count; i++)
+        {
+            var all = true;
+            for (var j = 0; j < sub.Length; j++)
+                if (args[i + j] != sub[j]) { all = false; break; }
+            if (all) return true;
+        }
+        return false;
     }
 
     [Test]
@@ -107,17 +113,18 @@ public class OpenerDeletionRetryTests
             return Task.FromResult(new ProcessResult(0, "", ""));
         };
 
-        InvalidOperationException? thrown = null;
+        WorktreeRemovalException? thrown = null;
         try
         {
             await Opener(runner).DeleteWorktreeAsync(Plan(), WorktreeDeletionChoice.All);
         }
-        catch (InvalidOperationException ex)
+        catch (WorktreeRemovalException ex)
         {
-            thrown = ex;   // a permanent worktree-remove failure still throws — nothing has been lost yet
+            thrown = ex;   // a permanent worktree-remove failure throws so the caller can offer a force-delete
         }
 
         await Assert.That(thrown).IsNotNull();
+        await Assert.That(thrown!.WorktreePath).IsEqualTo("/repo.worktrees/feature-x");
         await Assert.That(removeCalls).IsEqualTo(1);                // one attempt, no wasted retries
     }
 }

@@ -133,6 +133,14 @@ tidying up a branch you're finished with, in one step:
   left by a racing git process, or a network blip while deleting the branch on `origin`. Fido retries a few
   times with a short, backing-off wait — each attempt narrated in the flight log — while **permanent** refusals
   (`use --force to delete`, `remote ref does not exist`, "not fully merged") still fail fast on the first try.
+- **Long paths & a force-delete fallback.** Git's worktree commands run with **long-path support**
+  (`core.longpaths`), so a worktree whose files cross Windows' **260-character `MAX_PATH`** limit — deep
+  `node_modules`, generated output — can still be removed. If git **still** can't delete the folder (a path too
+  long even for that), Fido **offers to delete it straight from disk**: a recursive removal that **bypasses the
+  Recycle Bin** and uses an extended-length (`\\?\`) path so it isn't defeated by the same limit. Once the
+  folder is gone Fido **prunes** git's dangling worktree registration and carries on with the branch deletions.
+  It's an explicit, clearly-labelled confirmation — nothing is force-deleted unless you choose it, and backing
+  out leaves everything in place.
 - If the remote delete fails for good (say you're offline), the completed **local** cleanup stays done and the
   failure is reported in the flight log rather than rolled back.
 

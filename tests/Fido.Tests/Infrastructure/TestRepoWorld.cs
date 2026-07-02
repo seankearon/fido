@@ -157,7 +157,8 @@ public sealed class TestRepoWorld : IDisposable
         FakeDialogService dialogs,
         string? worktreeRoot = null,
         CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
-        int closeAfterOpenDelaySeconds = 0)
+        int closeAfterOpenDelaySeconds = 0,
+        GitService? git = null)
     {
         var config = new AppConfig
         {
@@ -179,6 +180,7 @@ public sealed class TestRepoWorld : IDisposable
             ConfigService = configService,
             Launcher = launcher,
             Dialogs = dialogs,
+            Git = git ?? new GitService(),
         };
     }
 

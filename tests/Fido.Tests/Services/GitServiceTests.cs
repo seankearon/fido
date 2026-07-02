@@ -143,6 +143,31 @@ public class GitServiceTests
     }
 
     [Test]
+    public async Task Worktree_add_and_remove_pass_gits_long_paths_flag()
+    {
+        // Long paths (deep node_modules, generated output) can cross Windows' 260-char MAX_PATH; `-c
+        // core.longpaths=true` lets git's own file ops handle them when adding or removing a worktree.
+        var captured = new List<IReadOnlyList<string>>();
+        var git = new GitService((_, args, _) =>
+        {
+            captured.Add(args);
+            return Task.FromResult(new ProcessResult(0, "", ""));
+        });
+
+        await git.WorktreeRemoveAsync("/repo", "/repo.worktrees/x", force: false);
+        await git.WorktreeRemoveAsync("/repo", "/repo.worktrees/x", force: true);
+        await git.WorktreeAddExistingAsync("/repo", "/repo.worktrees/x", "feature/x");
+        await git.WorktreeAddNewAsync("/repo", "/repo.worktrees/x", "feature/x", startPoint: null);
+
+        await Assert.That(captured.Count).IsEqualTo(4);
+        foreach (var args in captured)
+        {
+            await Assert.That(args[0]).IsEqualTo("-c");
+            await Assert.That(args[1]).IsEqualTo("core.longpaths=true");
+        }
+    }
+
+    [Test]
     public async Task Forced_worktree_remove_discards_uncommitted_changes()
     {
         using var world = new TestRepoWorld();
