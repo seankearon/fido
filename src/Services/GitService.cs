@@ -9,8 +9,20 @@ public sealed class GitService
 {
     private const string RefsHeads = "refs/heads/";
 
-    private static Task<ProcessResult> Git(string dir, CancellationToken ct, params string[] args)
+    /// <summary>Runs a git command in <paramref name="workingDir"/> and returns its captured result. The
+    /// default shells out to the real <c>git</c> CLI; tests inject a fake to script output (e.g. a transient
+    /// failure that then clears) without needing to provoke one from a real repository.</summary>
+    public delegate Task<ProcessResult> GitCommandRunner(string workingDir, IReadOnlyList<string> args, CancellationToken ct);
+
+    private readonly GitCommandRunner _run;
+
+    public GitService(GitCommandRunner? run = null) => _run = run ?? new GitCommandRunner(DefaultRun);
+
+    private static Task<ProcessResult> DefaultRun(string dir, IReadOnlyList<string> args, CancellationToken ct)
         => ProcessRunner.RunAsync("git", args, dir, ct);
+
+    private Task<ProcessResult> Git(string dir, CancellationToken ct, params string[] args)
+        => _run(dir, args, ct);
 
     public async Task<bool> IsInsideWorkTreeAsync(string dir, CancellationToken ct = default)
     {

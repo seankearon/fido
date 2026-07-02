@@ -128,7 +128,12 @@ tidying up a branch you're finished with, in one step:
   **deletes the local branch**, and — when it exists — **deletes the branch on `origin`**. The git steps run
   from the clone's **main working tree**, so the worktree is dropped cleanly; a dirty worktree is
   force-removed after the warning.
-- If the remote delete fails (say you're offline), the completed **local** cleanup stays done and the
+- Each git step is **retried on transient failures** so a fleeting hiccup doesn't leave a half-tidied branch:
+  a worktree file still held open by an editor or antivirus scan (common on Windows), a git ref/index `.lock`
+  left by a racing git process, or a network blip while deleting the branch on `origin`. Fido retries a few
+  times with a short, backing-off wait — each attempt narrated in the flight log — while **permanent** refusals
+  (`use --force to delete`, `remote ref does not exist`, "not fully merged") still fail fast on the first try.
+- If the remote delete fails for good (say you're offline), the completed **local** cleanup stays done and the
   failure is reported in the flight log rather than rolled back.
 
 The button is offered **only for a linked worktree on a non-default branch** — a clone's **main working

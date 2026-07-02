@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using Fido.Models;
+using Polly;
 
 namespace Fido.Services;
 
@@ -37,14 +38,24 @@ public sealed class OpenerService
     private readonly Action<string> _log;
     private readonly Action<string> _liveLog;
 
+    /// <summary>Retries the transient failures the worktree/branch deletion commands hit (locked files, ref
+    /// <c>.lock</c> races, network blips), narrating each retry into the flight log. See <see cref="GitRetry"/>.</summary>
+    private readonly ResiliencePipeline<ProcessResult> _deletionRetry;
+
     public OpenerService(GitService git, SolutionFinder finder, WorkingTreeFinder workingTreeFinder,
-        Action<string>? log = null, Action<string>? liveLog = null)
+        Action<string>? log = null, Action<string>? liveLog = null, GitRetryOptions? deletionRetry = null)
     {
         _git = git;
         _finder = finder;
         _workingTreeFinder = workingTreeFinder;
         _log = log ?? (_ => { });
         _liveLog = liveLog ?? (_ => { });
+
+        var retryOptions = deletionRetry ?? GitRetryOptions.Default;
+        _deletionRetry = GitRetry.BuildPipeline(retryOptions, attempt =>
+            _log($"[!] {attempt.Operation} failed (transient) — retrying "
+                + $"{attempt.AttemptNumber + 1}/{retryOptions.MaxRetryAttempts} in "
+                + $"{attempt.RetryDelay.TotalSeconds:0.#}s: {attempt.Failure?.Message}"));
     }
 
     /// <summary>
@@ -401,10 +412,13 @@ public sealed class OpenerService
     /// Carries out a <see cref="WorktreeDeletion"/> limited to the targets the user ticked in
     /// <paramref name="choice"/>: removes the worktree (forcing when it's dirty), deletes the local branch, and
     /// deletes the branch on <c>origin</c> — each only when selected (and the origin branch only when it exists).
-    /// Runs from the clone's main tree. A failed worktree removal or local-branch delete throws (nothing has
-    /// been lost yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is logged and
-    /// reflected in the returned outcome rather than throwing, because any local cleanup is already done and
-    /// re-running wouldn't undo it.
+    /// Runs from the clone's main tree. Each git step is wrapped in <see cref="GitRetry"/>, so a
+    /// <em>transient</em> failure — a worktree file still locked by an editor, a racing ref <c>.lock</c>, a
+    /// network blip on the origin delete — is retried a few times (narrated in the log) before it counts; a
+    /// permanent failure fails on the first attempt. A failed worktree removal or local-branch delete throws
+    /// (nothing has been lost yet, or the local cleanup couldn't proceed); a failed <em>remote</em> delete is
+    /// logged and reflected in the returned outcome rather than throwing, because any local cleanup is already
+    /// done and re-running wouldn't undo it.
     /// </summary>
     public async Task<WorktreeDeletionOutcome> DeleteWorktreeAsync(
         WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
@@ -415,7 +429,8 @@ public sealed class OpenerService
         if (choice.Worktree)
         {
             _log($"Removing worktree at {plan.WorktreePath}…");
-            var remove = await _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, ct);
+            var remove = await GitRetry.ExecuteAsync(_deletionRetry, "worktree remove",
+                token => _git.WorktreeRemoveAsync(dir, plan.WorktreePath, force: plan.HasOutstandingChanges, token), ct);
             if (!remove.Success)
                 throw new InvalidOperationException($"git worktree remove failed: {remove.Message}");
             _log("Worktree removed.");
@@ -425,7 +440,8 @@ public sealed class OpenerService
         if (choice.LocalBranch)
         {
             _log($"Deleting local branch '{plan.Branch}'…");
-            var branchResult = await _git.DeleteLocalBranchAsync(dir, plan.Branch, ct);
+            var branchResult = await GitRetry.ExecuteAsync(_deletionRetry, "local branch delete",
+                token => _git.DeleteLocalBranchAsync(dir, plan.Branch, token), ct);
             if (!branchResult.Success)
                 throw new InvalidOperationException($"git branch -D failed: {branchResult.Message}");
             _log($"Local branch '{plan.Branch}' deleted.");
@@ -435,7 +451,8 @@ public sealed class OpenerService
         if (choice.RemoteBranch && plan.RemoteBranchExists)
         {
             _log($"Deleting remote branch origin/{plan.Branch}…");
-            var remoteResult = await _git.DeleteRemoteBranchAsync(dir, plan.Branch, ct);
+            var remoteResult = await GitRetry.ExecuteAsync(_deletionRetry, "remote branch delete",
+                token => _git.DeleteRemoteBranchAsync(dir, plan.Branch, token), ct);
             if (remoteResult.Success)
             {
                 _log($"Remote branch origin/{plan.Branch} deleted.");
