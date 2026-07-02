@@ -28,17 +28,25 @@ public class GitRetryTests
     [Arguments("fatal: could not remove worktree: 'a.txt': being used by another process")]
     [Arguments("error: unable to unlink old 'src/x': Permission denied")]
     [Arguments("error: unable to delete 'x': Access is denied")]
+    [Arguments("fatal: could not remove worktree directory '/repo.worktrees/feature-x': Directory not empty")]
+    [Arguments("error: unable to unlink old 'src/x': Device or resource busy")]
     [Arguments("fatal: Unable to create '/repo/.git/worktrees/x/HEAD.lock': File exists")]
+    [Arguments("fatal: Unable to create '/repo/.git/index.lock': File exists.\n\nAnother git process seems to be running in this repository")]
     [Arguments("error: cannot lock ref 'refs/heads/feature/x': is at 0000 but expected 1111")]
     [Arguments("fatal: unable to access 'https://github.com/o/r.git/': Could not resolve host: github.com")]
+    [Arguments("fatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 503")]
     [Arguments("ssh: connect to host github.com port 22: Connection timed out")]
     [Arguments("error: RPC failed; curl 56 Recv failure: Connection reset by peer")]
     [Arguments("fatal: the remote end hung up unexpectedly")]
+    [Arguments("error: RPC failed; curl 92 HTTP/2 stream 5 was reset\nfatal: unexpected disconnect while reading sideband packet")]
     public async Task Classifies_lock_and_network_failures_as_transient(string stderr)
         => await Assert.That(GitRetry.IsTransient(Fail(stderr))).IsTrue();
 
     [Test]
     [Arguments("fatal: 'feature/x' contains modified or untracked files, use --force to delete it")]
+    // The permanent "use --force" failure echoes the worktree path; a branch whose name contains ".lock"
+    // must NOT be misread as lock contention (regression guard for the over-broad bare ".lock" marker).
+    [Arguments("fatal: '/repo.worktrees/fix.lockfile-bug' contains modified or untracked files, use --force to delete it")]
     [Arguments("error: unable to delete 'feature/x': remote ref does not exist\nerror: failed to push some refs to 'origin'")]
     [Arguments("error: The branch 'feature/x' is not fully merged.")]
     [Arguments("error: branch 'feature/x' not found.")]

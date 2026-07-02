@@ -451,6 +451,12 @@ public sealed class OpenerService
         if (choice.RemoteBranch && plan.RemoteBranchExists)
         {
             _log($"Deleting remote branch origin/{plan.Branch}…");
+            // Retrying the push is safe — deleting an already-gone branch is a no-op in effect. One rare,
+            // non-destructive wrinkle: if a transient drop happens *after* origin deleted the ref but before
+            // git reads the ack, the retry sees "remote ref does not exist" (permanent) and reports failure
+            // though the branch is in fact gone. We don't infer success from that message — on a first attempt
+            // it legitimately means the ref was already gone, which callers surface as a NO-GO — so we accept
+            // the occasional misleading report over guessing.
             var remoteResult = await GitRetry.ExecuteAsync(_deletionRetry, "remote branch delete",
                 token => _git.DeleteRemoteBranchAsync(dir, plan.Branch, token), ct);
             if (remoteResult.Success)

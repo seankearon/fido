@@ -121,16 +121,23 @@ public static class GitRetry
     /// <summary>
     /// Substrings that flag a retryable failure. Two families:
     /// <list type="bullet">
-    /// <item>Filesystem / lock contention — a worktree file still held open (an editor, an antivirus scan) or a
-    /// git ref/index <c>.lock</c> left by a racing git process. On Windows a locked unlink surfaces as
-    /// "Permission denied" / "Access is denied" / "being used by another process"; these clear on their own,
-    /// so a brief retry usually wins. (An SSH auth "Permission denied (publickey)" would also match, but that's
-    /// a non-fatal remote-delete whose retry merely costs a second before the same report — an acceptable trade
-    /// for catching the far more common file-lock case.)</item>
+    /// <item>Filesystem / lock contention — a worktree file still held open (an editor, an antivirus scan), a
+    /// file the OS still reports busy, or a git ref/index <c>.lock</c> left by a racing git process. On Windows
+    /// a locked unlink surfaces as "Permission denied" / "Access is denied" / "being used by another process";
+    /// these clear on their own, so a brief retry usually wins.</item>
     /// <item>Network — deleting the branch on <c>origin</c> over a flaky connection.</item>
     /// </list>
     /// Deliberately narrow so permanent refusals ("use --force to delete", "remote ref does not exist",
-    /// "not fully merged") are <em>not</em> matched and fail fast on the first attempt.
+    /// "not fully merged") are <em>not</em> matched and fail fast on the first attempt. In particular, lock
+    /// contention is matched by git's lock-<em>creation</em> phrasing ("cannot lock ref", "unable to create …
+    /// … .lock", "another git process seems to be running") rather than a bare "<c>.lock</c>" — which would
+    /// also match a permanent failure that merely <em>echoes a worktree path</em> containing ".lock" (a branch
+    /// like <c>fix.lockfile-bug</c>).
+    /// <para>Known over-matches, all bounded and non-fatal: a permanent remote <em>auth</em> failure — HTTP 403
+    /// ("unable to access" / "could not read from remote repository") or SSH "Permission denied (publickey)" —
+    /// is retried the full budget before the same report. Accepted: remote-delete failures don't roll back the
+    /// local cleanup, and the cost is a couple of seconds against catching the far more common file-lock and
+    /// transient-network cases.</para>
     /// </summary>
     private static readonly string[] TransientMarkers =
     [
@@ -139,10 +146,13 @@ public static class GitRetry
         "access is denied",
         "permission denied",
         "resource temporarily unavailable",
-        ".lock",
+        "device or resource busy",
+        "directory not empty",
         "cannot lock ref",
+        "unable to lock",
         "unable to create",
         "could not lock",
+        "another git process seems to be running",
         // Network.
         "could not resolve host",
         "couldn't resolve host",
@@ -155,10 +165,15 @@ public static class GitRetry
         "the remote end hung up unexpectedly",
         "rpc failed",
         "early eof",
+        "unexpected disconnect while reading sideband packet",
         "operation timed out",
         "temporary failure in name resolution",
         "network is unreachable",
         "no route to host",
         "ssh: connect to host",
+        "the requested url returned error: 5",
+        "gnutls_handshake",
+        "openssl ssl_read",
+        "schannel: failed",
     ];
 }
