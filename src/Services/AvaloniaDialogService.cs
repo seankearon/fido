@@ -18,6 +18,9 @@ public sealed class AvaloniaDialogService : IDialogService
     public Task<WorktreeDeletionChoice?> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan)
         => new DeleteWorktreeDialog(plan).ShowDialog<WorktreeDeletionChoice?>(_owner);
 
+    public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
+        => new ForceDeleteDialog(request).ShowDialog<bool>(_owner);
+
     public Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context)
         => new DecisionDialog(repo, branch, context).ShowDialog<OpenDecision?>(_owner);
 

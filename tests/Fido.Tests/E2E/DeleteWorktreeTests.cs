@@ -294,6 +294,95 @@ public class DeleteWorktreeTests
     }
 
     [Test]
+    public async Task When_git_cant_remove_the_worktree_an_accepted_force_delete_completes_it()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.PushBranch(worktree, "feature/x");
+
+        // Make `git worktree remove` fail as if a path were too long; everything else runs against real git.
+        var git = new GitService((dir, args, ct) =>
+            HasSubcommand(args, "worktree", "remove")
+                ? Task.FromResult(new ProcessResult(128, "", $"error: unable to unlink '{worktree}/a/very/long/path': Filename too long"))
+                : ProcessRunner.RunAsync("git", args, dir, ct));
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService
+        {
+            OnChooser = _ => ChooserDialog.DeleteRequested,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
+            OnConfirmForceDelete = _ => true,   // accept the disk-level delete
+        };
+        var services = world.BuildServices([root], rider, dialogs, git: git);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Open("feature/x");
+            Screenshots.Save(window, "D-force-delete-worktree");
+
+            // The fallback was offered (with the worktree path) and accepted.
+            await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(1);
+            await Assert.That(dialogs.ForceDeleteConfirmations[0].WorktreePath).IsEqualTo(Path.GetFullPath(worktree));
+
+            // The folder, the local branch, and the origin branch are all gone; the flow reports GO.
+            var check = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await check.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(await check.RemoteHasBranchAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+        });
+    }
+
+    [Test]
+    public async Task When_git_cant_remove_the_worktree_declining_the_force_delete_is_a_no_go()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+
+        var git = new GitService((dir, args, ct) =>
+            HasSubcommand(args, "worktree", "remove")
+                ? Task.FromResult(new ProcessResult(128, "", "error: unable to unlink: Filename too long"))
+                : ProcessRunner.RunAsync("git", args, dir, ct));
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService
+        {
+            OnChooser = _ => ChooserDialog.DeleteRequested,
+            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
+            OnConfirmForceDelete = _ => false,   // back out of the disk-level delete
+        };
+        var services = world.BuildServices([root], rider, dialogs, git: git);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Open("feature/x");
+
+            await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(1);   // it asked…
+
+            // …and, declined, nothing was deleted — the worktree and its branch remain, status is NO-GO.
+            var check = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+            await Assert.That(await check.LocalBranchExistsAsync(clone, "feature/x")).IsTrue();
+            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
+        });
+    }
+
+    /// <summary>True when <paramref name="args"/> contains <paramref name="first"/> immediately followed by
+    /// <paramref name="second"/> — used to spot the git subcommand under any leading <c>-c key=value</c> flags.</summary>
+    private static bool HasSubcommand(IReadOnlyList<string> args, string first, string second)
+    {
+        for (var i = 0; i + 1 < args.Count; i++)
+            if (args[i] == first && args[i + 1] == second) return true;
+        return false;
+    }
+
+    [Test]
     public async Task No_delete_action_is_offered_when_the_branch_sits_in_the_main_tree()
     {
         using var world = new TestRepoWorld();

@@ -21,7 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the ticked targets — **removing the linked worktree, deleting the local branch, and deleting the branch on
   `origin`**. The work runs from the clone's main tree (so the worktree is dropped cleanly),
   a dirty worktree is force-removed after the warning, and a failed remote delete leaves the completed local
-  cleanup in place and reports it. The button is offered **only for a linked worktree on a non-default branch**
+  cleanup in place and reports it. Each git step is **retried on transient failures** — a worktree file still
+  held by an editor or antivirus scan, a racing git ref `.lock`, or a network blip deleting the branch on
+  `origin` — a few times with backoff (narrated in the flight log) before it counts; permanent refusals
+  (`use --force`, `remote ref does not exist`) still fail fast. Git's worktree commands run with **long-path
+  support** (`core.longpaths`) so a deep tree that crosses Windows' 260-character `MAX_PATH` limit (deep
+  `node_modules`, generated output) can still be created and removed. If git **still** can't delete the folder,
+  Fido **offers to delete it permanently from disk** — a recursive removal that **bypasses the Recycle Bin**
+  (using an extended-length path so it isn't stopped by the same limit) — and then prunes git's now-dangling
+  worktree registration so the branch can be deleted too. The button is offered **only for a linked worktree on a non-default branch**
   — the clone's main working tree can't be worktree-removed, and `main`/`master` are deliberately never
   offered. Nothing is deleted unless you confirm; Cancel, Enter, and Esc all back out safely, and the
   destructive button is out of the keyboard tab order so it can't be triggered by a stray keypress.

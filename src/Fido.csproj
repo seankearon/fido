@@ -39,6 +39,10 @@
         <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+        <!-- Polly.Core is the lean, Native-AOT/trim-safe core (no DI/reflection) — used to retry the
+             transient failures git's deletion commands hit (a still-locked worktree file, a racing ref
+             .lock, a network blip deleting the origin branch). -->
+        <PackageReference Include="Polly.Core" Version="8.7.0" />
     </ItemGroup>
 
 </Project>
