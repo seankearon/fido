@@ -133,14 +133,16 @@ tidying up a branch you're finished with, in one step:
   left by a racing git process, or a network blip while deleting the branch on `origin`. Fido retries a few
   times with a short, backing-off wait — each attempt narrated in the flight log — while **permanent** refusals
   (`use --force to delete`, `remote ref does not exist`, "not fully merged") still fail fast on the first try.
-- **Long paths & a force-delete fallback.** Git's worktree commands run with **long-path support**
-  (`core.longpaths`), so a worktree whose files cross Windows' **260-character `MAX_PATH`** limit — deep
-  `node_modules`, generated output — can still be removed. If git **still** can't delete the folder (a path too
-  long even for that), Fido **offers to delete it straight from disk**: a recursive removal that **bypasses the
-  Recycle Bin** and uses an extended-length (`\\?\`) path so it isn't defeated by the same limit. Once the
-  folder is gone Fido **prunes** git's dangling worktree registration and carries on with the branch deletions.
-  It's an explicit, clearly-labelled confirmation — nothing is force-deleted unless you choose it, and backing
-  out leaves everything in place.
+- **Long filenames & a force-delete fallback.** Deep worktrees can trip Windows' **260-character `MAX_PATH`**
+  limit — a `node_modules` tree or generated output whose paths are too long — and a delete then fails with
+  **`filename too long`** / **`unable to unlink … Filename too long`**, leaving the worktree stuck. Fido guards
+  against this two ways. First, git's worktree commands run with **long-path support** (`core.longpaths`) so
+  git's own file operations use the Windows extended-length API and can remove those files. Second, if git
+  **still** can't delete the folder (a path too long even for that), Fido **offers to delete it straight from
+  disk**: a recursive removal that **bypasses the Recycle Bin** and uses an extended-length (`\\?\`) path so it
+  isn't defeated by the same limit. Once the folder is gone Fido **prunes** git's dangling worktree registration
+  and carries on with the branch deletions. It's an explicit, clearly-labelled confirmation — nothing is
+  force-deleted unless you choose it, and backing out leaves everything in place.
 - If the remote delete fails for good (say you're offline), the completed **local** cleanup stays done and the
   failure is reported in the flight log rather than rolled back.
 
@@ -335,6 +337,7 @@ the next save writes to the new location.
 | Branch-only mode | Open from an existing checkout, or place the branch into a configured repo that already has it |
 | Cross-clone reuse | Never creates a second worktree for a branch already checked out |
 | Placement | Switch main tree **or** create a linked worktree |
+| Delete worktree | Remove worktree + local/`origin` branch; retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
 | Open target | `.sln` / `.slnx` / `.slnf` solution, or the repo folder |
 | Editors | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
