@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;}
+    input,button,textarea{font-family:inherit;color:inherit;}
+    button{border:none;background:none;padding:0;cursor:pointer;}
+    input{outline:none;}
+    ::placeholder{color:#B7AF9D;opacity:1;}
+    a{color:#DE7F17;text-decoration:none;} a:hover{color:#B96712;}
+    @keyframes fido-spin{to{transform:rotate(360deg);}}
+  </style>
+</helmet>
+<div style="min-height:100vh;background:#EAE7DE;display:flex;flex-direction:column;align-items:center;gap:20px;padding:40px 24px;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;color:#211E17;">
+
+  <div style="width:720px;max-width:100%;background:#FBF9F3;border:1px solid #E2DBCA;border-radius:12px;box-shadow:0 24px 60px -20px rgba(35,28,14,.45),0 6px 18px -8px rgba(35,28,14,.22);overflow:hidden;">
+
+    <div style="height:44px;display:flex;align-items:center;padding:0 12px;background:linear-gradient(#F1EFE8,#F7F5EF);border-bottom:1px solid #E7E0D0;">
+      <div style="width:20px;height:20px;border-radius:5px;background:#1B1712;display:flex;align-items:center;justify-content:center;margin-right:9px;flex:none;">
+        <svg viewBox="0 0 32 32" width="13" height="13" style="display:block"><path d="M5 22 L13 14 L18 18.5 L27 8.5" style="fill:none;stroke:#F4A62A;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round"></path><path d="M20.5 8.5 H27 V15" style="fill:none;stroke:#F4A62A;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round"></path></svg>
+      </div>
+      <span style="font-size:12.5px;font-weight:500;color:#57513F;">Fido</span>
+      <div style="flex:1;"></div>
+      <div style="display:flex;gap:2px;">
+        <button title="Minimize" style="width:30px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#8A8271;font-size:12px;" style-hover="background:#E9E3D5;">&#8211;</button>
+        <button title="Maximize" style="width:30px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#8A8271;font-size:11px;" style-hover="background:#E9E3D5;">&#9723;</button>
+        <button title="Close" style="width:30px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#8A8271;font-size:12px;" style-hover="background:#E5534B;color:#fff;">&#10005;</button>
+      </div>
+    </div>
+
+    <div style="padding:26px 30px 24px;display:flex;flex-direction:column;gap:22px;">
+
+      <div style="display:flex;align-items:flex-start;gap:15px;">
+        <div style="width:52px;height:52px;border-radius:13px;background:#1B1712;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 3px 8px -3px rgba(0,0,0,.5);">
+          <svg viewBox="0 0 32 32" width="30" height="30" style="display:block"><path d="M5 22 L13 14 L18 18.5 L27 8.5" style="fill:none;stroke:#F4A62A;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round"></path><path d="M20.5 8.5 H27 V15" style="fill:none;stroke:#F4A62A;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round"></path></svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;padding-top:2px;">
+          <div style="font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1;">fido</div>
+          <div style="font-size:12.5px;font-weight:400;color:#8A8271;">Flight Dynamics Officer &#8212; guiding Rider to a safe landing</div>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="position:relative;">
+          <button onClick="{{ toggleSettings }}" title="Settings" style="width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#8A8271;" style-hover="background:#F1ECE0;color:#57513F;">
+            <svg viewBox="0 0 24 24" width="19" height="19" style="display:block"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" style="fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round"></path><circle cx="12" cy="12" r="3.1" style="fill:none;stroke:currentColor;stroke-width:1.7"></circle></svg>
+          </button>
+          <sc-if value="{{ settingsOpen }}">
+            <div style="position:absolute;top:44px;right:0;width:252px;background:#fff;border:1px solid #E2DBCA;border-radius:12px;box-shadow:0 16px 36px -12px rgba(35,28,14,.4);padding:12px;z-index:30;display:flex;flex-direction:column;gap:3px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#8A8271;padding:3px 5px 8px;">DEFAULT OPEN TOOL</div>
+              <sc-for list="{{ settingsTools }}" as="st" hint-placeholder-count="8">
+                <button onClick="{{ st.onClick }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:8px;text-align:left;font-size:13px;color:#57513F;" style-hover="background:#F5F1E8;">
+                  <sc-if value="{{ st.selected }}"><div style="width:15px;height:15px;border-radius:50%;box-shadow:0 0 0 1.5px #E3A643 inset;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:7px;height:7px;border-radius:50%;background:#E89A1C;"></div></div></sc-if>
+                  <sc-if value="{{ st.unselected }}"><div style="width:15px;height:15px;border-radius:50%;box-shadow:0 0 0 1.5px #D9D1BE inset;flex:none;"></div></sc-if>
+                  <span>{{ st.name }}</span>
+                </button>
+              </sc-for>
+              <div style="font-size:11.5px;color:#A79E8B;line-height:1.55;padding:9px 5px 3px;border-top:1px solid #EFE9DB;margin-top:5px;">A launch flag like <b style="color:#8A6A2E;">--tool rider</b> overrides this for a single run.</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="font-size:12px;font-weight:600;letter-spacing:.03em;color:#8A8271;">Branch name</label>
+          <input value="{{ branch }}" onChange="{{ setBranch }}" onKeyDown="{{ onBranchKey }}" placeholder="type a branch to discover" spellcheck="false" style="height:52px;border:1.5px solid #E2DBCA;border-radius:10px;background:#fff;padding:0 16px;font-size:15.5px;font-weight:500;color:#211E17;" style-focus="border-color:#E3A643;box-shadow:0 0 0 3px rgba(244,166,42,.18);"></input>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="font-size:12px;font-weight:600;letter-spacing:.03em;color:#8A8271;">Solution &#183; optional</label>
+          <input value="{{ solutionFilter }}" onChange="{{ setSolFilter }}" placeholder="filter solutions" spellcheck="false" style="height:52px;border:1.5px solid #E2DBCA;border-radius:10px;background:#fff;padding:0 16px;font-size:15.5px;font-weight:500;color:#211E17;" style-focus="border-color:#E3A643;box-shadow:0 0 0 3px rgba(244,166,42,.18);"></input>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.03em;color:#8A8271;flex:none;">Discovery</span>
+          <div style="flex:1;height:1px;background:#EAE3D3;"></div>
+          <sc-if value="{{ isScanning }}"><div style="display:flex;align-items:center;gap:7px;background:#F3EEE2;color:#8A8271;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;flex:none;"><div style="width:12px;height:12px;border-radius:50%;border:2px solid #E7DEC9;border-top-color:#DE7F17;animation:fido-spin .8s linear infinite;"></div>scanning</div></sc-if>
+          <sc-if value="{{ isFound }}"><div style="background:#FBEFCF;color:#9A6412;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;flex:none;">&#10003; {{ statusFoundText }}</div></sc-if>
+          <sc-if value="{{ isEmpty }}"><div style="background:#FBECEA;color:#C0392B;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;flex:none;">not found</div></sc-if>
+          <sc-if value="{{ isIdle }}"><div style="background:#F1ECE0;color:#A79E8B;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;flex:none;">idle</div></sc-if>
+        </div>
+
+        <sc-if value="{{ isIdle }}">
+          <div style="border:1.5px dashed #DDD5C2;border-radius:11px;padding:22px 20px;text-align:center;font-size:13px;line-height:1.6;color:#A79E8B;">Enter a branch name above. Fido scans every configured working tree and clone to find where that branch is checked out &#8212; nothing opens until it does.</div>
+        </sc-if>
+        <sc-if value="{{ isScanning }}">
+          <div style="display:flex;align-items:center;gap:13px;background:#F5F1E8;border:1px solid #EBE4D4;border-radius:11px;padding:16px 18px;"><div style="width:16px;height:16px;border-radius:50%;border:2.5px solid #E7DEC9;border-top-color:#DE7F17;animation:fido-spin .8s linear infinite;flex:none;"></div><span style="font-size:13.5px;color:#6F6858;font-weight:500;">{{ scanText }}</span></div>
+        </sc-if>
+        <sc-if value="{{ isEmpty }}">
+          <div style="display:flex;align-items:flex-start;gap:12px;background:#FCF2F0;box-shadow:0 0 0 1px #F0D6D0 inset;border-radius:11px;padding:16px 18px;"><span style="font-size:15px;line-height:1.4;">&#9888;</span><div style="font-size:13.5px;line-height:1.55;color:#8A4A40;"><b>{{ emptyText }}</b><br></br><span style="color:#B08A82;">Double-check the name, or fetch the remote first &#8212; then try again.</span></div></div>
+        </sc-if>
+        <sc-if value="{{ isFound }}">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-if value="{{ multiple }}">
+              <div style="font-size:12.5px;color:#8A6A2E;background:#FBF3DE;border-radius:8px;padding:9px 13px;line-height:1.5;">This branch is checked out in more than one place &#8212; choose which to act on:</div>
+            </sc-if>
+            <sc-for list="{{ targets }}" as="t" hint-placeholder-count="2">
+              <button onClick="{{ t.onClick }}" style="position:relative;overflow:hidden;display:block;width:100%;text-align:left;background:#fff;box-shadow:0 0 0 1.5px #E5DECE inset;border-radius:11px;padding:14px 15px;" style-hover="box-shadow:0 0 0 1.5px #E3A643 inset;background:#FEFCF5;">
+                <sc-if value="{{ t.selected }}"><div style="position:absolute;inset:0;border-radius:11px;background:#FCEFCF;box-shadow:0 0 0 1.5px #E3A643 inset;z-index:0;"></div></sc-if>
+                <div style="position:relative;z-index:1;display:flex;align-items:center;gap:13px;width:100%;">
+                  <sc-if value="{{ t.isWorktree }}"><div style="width:38px;height:38px;border-radius:9px;background:#F1EAD8;display:flex;align-items:center;justify-content:center;flex:none;"><svg viewBox="0 0 24 24" width="18" height="18" style="display:block"><line x1="6" y1="4" x2="6" y2="15" style="stroke:#8A6A2E;stroke-width:1.9;stroke-linecap:round"></line><circle cx="6" cy="18.5" r="2.6" style="fill:none;stroke:#8A6A2E;stroke-width:1.9"></circle><circle cx="18" cy="6" r="2.6" style="fill:none;stroke:#8A6A2E;stroke-width:1.9"></circle><path d="M18 8.6a9 9 0 0 1-9 9" style="fill:none;stroke:#8A6A2E;stroke-width:1.9;stroke-linecap:round"></path></svg></div></sc-if>
+                  <sc-if value="{{ t.isClone }}"><div style="width:38px;height:38px;border-radius:9px;background:#E6EDEF;display:flex;align-items:center;justify-content:center;flex:none;"><svg viewBox="0 0 24 24" width="18" height="18" style="display:block"><path d="M3.5 11 12 4l8.5 7" style="fill:none;stroke:#4E6A72;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"></path><path d="M5.5 9.6V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.6" style="fill:none;stroke:#4E6A72;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"></path></svg></div></sc-if>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;">
+                    <div style="font-size:13.5px;font-weight:600;color:#211E17;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.path }}</div>
+                    <div style="font-size:12px;color:#9A9280;">{{ t.meta }}</div>
+                  </div>
+                  <sc-if value="{{ t.isWorktree }}"><span style="font-size:11px;font-weight:600;color:#8A6A2E;background:#F0E7D2;border-radius:6px;padding:4px 9px;flex:none;">worktree</span></sc-if>
+                  <sc-if value="{{ t.isClone }}"><span style="font-size:11px;font-weight:600;color:#4E6A72;background:#E1EAEC;border-radius:6px;padding:4px 9px;flex:none;">main clone</span></sc-if>
+                  <sc-if value="{{ t.selected }}"><div style="width:17px;height:17px;border-radius:50%;box-shadow:0 0 0 1.5px #E3A643 inset;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:8px;height:8px;border-radius:50%;background:#E89A1C;"></div></div></sc-if>
+                  <sc-if value="{{ t.selectedNot }}"><div style="width:17px;height:17px;border-radius:50%;box-shadow:0 0 0 1.5px #D9D1BE inset;flex:none;"></div></sc-if>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:13px;position:relative;">
+        <sc-if value="{{ isFound }}">
+          <div style="display:flex;flex-direction:column;gap:9px;background:#F5F1E8;border:1px solid #EBE4D4;border-radius:10px;padding:11px 13px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#8A8271;">OPEN</span>
+              <span style="font-size:12.5px;font-weight:600;color:#57513F;background:#fff;box-shadow:0 0 0 1px #E5DECE inset;border-radius:6px;padding:4px 9px;max-width:430px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ selectedPath }}</span>
+              <span style="font-size:11.5px;color:#9A9280;">{{ selectedKindLabel }}</span>
+            </div>
+            <sc-if value="{{ hasSolutions }}">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #EAE3D3;padding-top:9px;">
+                <span style="font-size:11px;font-weight:600;color:#8A8271;">Rider / Visual&#160;Studio open</span>
+                <sc-for list="{{ solChips }}" as="sc" hint-placeholder-count="2">
+                  <button onClick="{{ sc.onClick }}" style="{{ sc.chipStyle }}">{{ sc.name }}</button>
+                </sc-for>
+                <button onClick="{{ selectFolder }}" style="{{ folderChipStyle }}">Folder</button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hasHero }}">
+          <button onClick="{{ openHero }}" style="position:relative;display:flex;flex-wrap:nowrap;white-space:nowrap;align-items:center;gap:11px;background:linear-gradient(#F6B23C,#EF9E1C);box-shadow:0 2px 0 #D5870F,0 8px 16px -7px rgba(224,133,20,.6);border-radius:10px;padding:14px 20px;color:#2C2206;" style-hover="background:linear-gradient(#F8BA4D,#F2A526);" style-active="transform:translateY(1px);box-shadow:0 1px 0 #D5870F,0 4px 10px -6px rgba(224,133,20,.55);">
+            <span style="font-size:13px;flex:none;">&#9654;</span>
+            <span style="font-size:15.5px;font-weight:700;white-space:nowrap;flex:none;">{{ heroLabel }}</span>
+            <span style="font-size:10.5px;font-weight:600;color:#7A5A10;background:rgba(255,255,255,.55);border-radius:5px;padding:2px 7px;flex:none;">default</span>
+            <span style="font-size:12px;font-weight:600;color:#8A6412;opacity:.85;margin-left:auto;flex:none;">{{ heroAccel }}</span>
+          </button>
+        </sc-if>
+
+        <sc-if value="{{ noHero }}">
+          <div style="font-size:12px;color:#9A9280;line-height:1.5;">No default tool set &#8212; every option is equal weight. Pick one, set a default in &#9881;, or pass <b style="color:#8A6A2E;">--tool</b> on launch.</div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <sc-for list="{{ gridTools }}" as="g" hint-placeholder-count="6">
+            <button onClick="{{ g.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;box-shadow:0 0 0 1.5px #E5DECE inset;border-radius:10px;padding:13px 15px;color:#3A3527;" style-hover="background:#FBEFCF;box-shadow:0 0 0 1.5px #E3A643 inset;">
+              <span style="font-size:14px;font-weight:600;">{{ g.name }}</span>
+              <span style="font-size:11.5px;font-weight:500;color:#A79E8B;">{{ g.accel }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ notReady }}">
+          <div style="position:absolute;inset:-8px;border-radius:14px;background:rgba(251,249,243,.74);display:flex;align-items:center;justify-content:center;text-align:center;padding:0 28px;cursor:not-allowed;z-index:8;">
+            <span style="font-size:13px;color:#A79E8B;font-weight:500;">&#128274;&#160; {{ notReadyHint }}</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ deleteVisible }}">
+        <div style="border-top:1px solid #EDE7D8;padding-top:16px;">
+          <sc-if value="{{ delDisabled }}">
+            <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;">
+              <span style="display:inline-flex;white-space:nowrap;align-items:center;gap:9px;background:#F4F1EA;box-shadow:0 0 0 1.5px #E6E0D0 inset;border-radius:9px;padding:11px 16px;color:#BCB4A2;font-size:13.5px;font-weight:600;"><span style="opacity:.6;">&#128465;</span> Delete&#160;worktree&#160;&amp;&#160;branch</span>
+              <span style="font-size:12px;color:#A79E8B;">only worktrees can be deleted &#8212; the main clone stays put</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ delReady }}">
+            <button onClick="{{ startDelete }}" style="display:inline-flex;white-space:nowrap;align-items:center;gap:9px;background:#FCF1EF;box-shadow:0 0 0 1.5px #E6B7B0 inset;border-radius:9px;padding:11px 16px;color:#BC392C;font-size:13.5px;font-weight:600;" style-hover="background:#FAE7E3;box-shadow:0 0 0 1.5px #D98A80 inset;">
+              <span>&#128465;</span> Delete&#160;worktree&#160;&amp;&#160;branch
+            </button>
+          </sc-if>
+          <sc-if value="{{ delConfirm }}">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#FCF1EF;box-shadow:0 0 0 1.5px #E6B7B0 inset;border-radius:10px;padding:13px 15px;">
+              <div style="flex:1;min-width:240px;font-size:13px;line-height:1.55;color:#7A4038;">Remove the worktree at <b style="color:#9A2C20;">{{ deletePath }}</b> and delete local branch <b style="color:#9A2C20;">{{ deleteBranch }}</b>? This can&#8217;t be undone.</div>
+              <div style="display:flex;gap:9px;">
+                <button onClick="{{ cancelDelete }}" style="background:#fff;box-shadow:0 0 0 1.5px #E1D7C6 inset;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;color:#57513F;" style-hover="background:#F5F1E8;">Cancel</button>
+                <button onClick="{{ confirmDelete }}" style="background:#C0392B;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;color:#fff;" style-hover="background:#AC2E22;">Delete</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.03em;color:#8A8271;flex:none;">Flight log</span>
+          <div style="flex:1;height:1px;background:#EAE3D3;"></div>
+        </div>
+        <div ref="{{ logRef }}" style="background:#F5F1E8;border:1px solid #EBE4D4;border-radius:10px;padding:14px 16px;min-height:104px;max-height:150px;overflow:auto;font-size:13.5px;line-height:1.7;color:#57513F;">
+          <sc-for list="{{ log }}" as="ln" hint-placeholder-count="3">
+            <div style="{{ ln.style }}">{{ ln.text }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="width:720px;max-width:100%;display:flex;flex-direction:column;gap:10px;">
+    <div style="font-size:11.5px;color:#9A9280;letter-spacing:.02em;">Demo shortcuts &#8212; pick a branch, then watch the open actions unlock once discovery finishes:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <sc-for list="{{ presets }}" as="p" hint-placeholder-count="4">
+        <button onClick="{{ p.onClick }}" style="display:flex;flex:none;white-space:nowrap;flex-direction:column;gap:2px;align-items:flex-start;background:#F6F3EB;box-shadow:0 0 0 1px #E2DBCA inset;border-radius:9px;padding:8px 12px;" style-hover="background:#fff;box-shadow:0 0 0 1px #E3A643 inset;">
+          <span style="font-size:12.5px;font-weight:600;color:#57513F;white-space:nowrap;">{{ p.label }}</span>
+          <span style="font-size:11px;color:#A79E8B;white-space:nowrap;">{{ p.sub }}</span>
+        </button>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:800,&quot;height&quot;:1180},&quot;initialBranch&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;claude/snag-fixes-e0t2z6&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;defaultTool&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;rider&quot;,&quot;options&quot;:[&quot;rider&quot;,&quot;webstorm&quot;,&quot;vscode&quot;,&quot;vs&quot;,&quot;zed&quot;,&quot;console&quot;,&quot;explorer&quot;,&quot;none&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.scanCount = 24;
+    this.tools = [
+      { id: 'rider', name: 'Rider', accel: 'Ctrl+1', kind: 'ide' },
+      { id: 'webstorm', name: 'WebStorm', accel: 'Ctrl+2', kind: 'ide' },
+      { id: 'vscode', name: 'VS Code', accel: 'Ctrl+3', kind: 'ide' },
+      { id: 'vs', name: 'Visual Studio', accel: 'Ctrl+4', kind: 'ide' },
+      { id: 'zed', name: 'Zed', accel: 'Ctrl+5', kind: 'ide' },
+      { id: 'console', name: 'Console', accel: 'Ctrl+6', kind: 'shell' },
+      { id: 'explorer', name: 'File Explorer', accel: 'Ctrl+7', kind: 'files' },
+    ];
+    this.logRef = React.createRef();
+    const branch = props.initialBranch || 'claude/snag-fixes-e0t2z6';
+    const res = this.compute(branch);
+    this.state = {
+      branch,
+      solutionFilter: '',
+      phase: res.phase,
+      targets: res.targets,
+      selectedId: res.targets[0] ? res.targets[0].id : null,
+      sol: res.targets[0] ? (res.targets[0].solutions[0] || '__folder__') : '__folder__',
+      defaultTool: props.defaultTool || 'rider',
+      settingsOpen: false,
+      confirmingDelete: false,
+      log: this.freshLog(branch, res),
+    };
+  }
+
+  mkWorktree(repo, path, sols) { return { id: 'wt:' + path, kind: 'worktree', repo, path, solutions: sols }; }
+  mkClone(repo, path, sols) { return { id: 'cl:' + path, kind: 'clone', repo, path, solutions: sols }; }
+
+  compute(branch) {
+    const b = (branch || '').trim();
+    if (!b) return { phase: 'idle', targets: [] };
+    const lower = b.toLowerCase();
+    const slug = b.replace(/[\\/]+/g, '-');
+    if (/(xyz|unknown|nope|missing|foobar)/.test(lower)) return { phase: 'empty', targets: [] };
+    if (lower === 'main' || lower === 'master' || lower === 'develop' || lower.startsWith('release/'))
+      return { phase: 'found', targets: [this.mkClone('platform', 'D:\\shine\\platform', ['Platform.sln'])] };
+    if (lower.includes('quick'))
+      return { phase: 'found', targets: [this.mkWorktree('platform', 'D:\\shine\\platform.worktrees\\' + slug, ['Platform.sln'])] };
+    if (lower.includes('snag') || lower.includes('fix') || lower.includes('claude'))
+      return { phase: 'found', targets: [
+        this.mkWorktree('platform', 'D:\\shine\\platform.worktrees\\' + slug, ['Platform.sln', 'Platform.Tools.slnx']),
+        this.mkClone('platform', 'D:\\shine\\platform', ['Platform.sln']),
+      ] };
+    return { phase: 'found', targets: [this.mkWorktree('platform', 'D:\\shine\\platform.worktrees\\' + slug, ['Platform.sln'])] };
+  }
+
+  freshLog(branch, res) {
+    const b = (branch || '').trim();
+    const L = [
+      { k: 'accent', t: '\uD83D\uDE80 Going around the horn\u2026' },
+      { k: 'muted', t: `Scanning ${this.scanCount} working tree(s) for branch '${b}'\u2026` },
+    ];
+    if (res.phase === 'found') L.push({ k: 'ok', t: `\u2713 Found ${res.targets.length} location(s) for '${b}'.` });
+    else if (res.phase === 'empty') L.push({ k: 'warn', t: `\u26A0 No working tree or clone has '${b}'.` });
+    return L;
+  }
+
+  componentDidMount() {
+    this._key = this.onKey.bind(this);
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._key);
+    clearTimeout(this._t);
+  }
+  componentDidUpdate(_, prev) {
+    if (prev.log !== this.state.log && this.logRef.current) {
+      this.logRef.current.scrollTop = this.logRef.current.scrollHeight;
+    }
+  }
+
+  onKey(e) {
+    if (e.key === 'Escape') {
+      if (this.state.confirmingDelete) this.setState({ confirmingDelete: false });
+      else if (this.state.settingsOpen) this.setState({ settingsOpen: false });
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '7') {
+      e.preventDefault();
+      const t = this.tools[parseInt(e.key, 10) - 1];
+      if (t) this.openWith(t.id);
+    }
+  }
+
+  scheduleScan(branch) {
+    clearTimeout(this._t);
+    if (!branch.trim()) { this.setState({ phase: 'idle', targets: [], selectedId: null, confirmingDelete: false, log: [] }); return; }
+    this.setState({
+      phase: 'scanning', confirmingDelete: false,
+      log: [
+        { k: 'accent', t: '\uD83D\uDE80 Going around the horn\u2026' },
+        { k: 'muted', t: `Scanning ${this.scanCount} working tree(s) for branch '${branch.trim()}'\u2026` },
+      ],
+    });
+    this._t = setTimeout(() => this.runScan(branch), 1050);
+  }
+
+  runScan(branch) {
+    const res = this.compute(branch);
+    const first = res.targets[0];
+    this.setState({
+      phase: res.phase,
+      targets: res.targets,
+      selectedId: first ? first.id : null,
+      sol: first ? (first.solutions[0] || '__folder__') : '__folder__',
+      confirmingDelete: false,
+      log: this.freshLog(branch, res),
+    });
+  }
+
+  setBranch(e) { const branch = e.target.value; this.setState({ branch }); this.scheduleScan(branch); }
+  onBranchKey(e) { if (e.key === 'Enter') { clearTimeout(this._t); this.runScan(this.state.branch); } }
+  setSolFilter(e) { this.setState({ solutionFilter: e.target.value }); }
+
+  selectTarget(id) {
+    const t = this.state.targets.find(x => x.id === id);
+    this.setState({ selectedId: id, sol: t && t.solutions[0] ? t.solutions[0] : '__folder__', confirmingDelete: false });
+  }
+  selectSol(name) { this.setState({ sol: name }); }
+
+  openWith(toolId) {
+    if (this.state.phase !== 'found') return;
+    const t = this.state.targets.find(x => x.id === this.state.selectedId);
+    if (!t) return;
+    const tool = this.tools.find(x => x.id === toolId);
+    if (!tool) return;
+    let action, ok;
+    if (tool.kind === 'files') { action = `\u25B8 Revealing ${t.path}`; ok = '\u2713 File Explorer opened.'; }
+    else if (tool.kind === 'shell') { action = `\u25B8 Opening a console at ${t.path}`; ok = '\u2713 Terminal ready \u2014 good luck out there.'; }
+    else {
+      const slnAware = (tool.id === 'rider' || tool.id === 'vs');
+      const useSol = slnAware && this.state.sol && this.state.sol !== '__folder__';
+      const label = useSol ? this.state.sol : 'the folder';
+      action = `\u25B8 Opening ${label} in ${tool.name}`;
+      ok = `\u2713 ${tool.name} on final approach.`;
+    }
+    this.setState(s => ({ log: [...s.log, { k: 'plain', t: action }, { k: 'ok', t: ok }] }));
+  }
+
+  startDelete() { this.setState({ confirmingDelete: true }); }
+  cancelDelete() { this.setState({ confirmingDelete: false }); }
+  confirmDelete() {
+    const t = this.state.targets.find(x => x.id === this.state.selectedId);
+    if (!t || t.kind !== 'worktree') return;
+    const rest = this.state.targets.filter(x => x.id !== t.id);
+    const first = rest[0];
+    this.setState(s => ({
+      targets: rest,
+      selectedId: first ? first.id : null,
+      sol: first ? (first.solutions[0] || '__folder__') : '__folder__',
+      phase: rest.length ? 'found' : 'empty',
+      confirmingDelete: false,
+      log: [...s.log,
+        { k: 'warn', t: `\uD83D\uDDD1 Deleting worktree ${t.path}\u2026` },
+        { k: 'ok', t: `\u2713 Removed worktree & branch '${s.branch.trim()}'.` },
+      ],
+    }));
+  }
+
+  toggleSettings() { this.setState(s => ({ settingsOpen: !s.settingsOpen })); }
+  setDefault(id) { this.setState({ defaultTool: id }); }
+  preset(b) { this.setState({ branch: b }); this.scheduleScan(b); }
+
+  solStyle(sel) {
+    return {
+      padding: '6px 11px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
+      background: sel ? '#FBEFCF' : '#fff',
+      color: sel ? '#9A6412' : '#6F6858',
+      boxShadow: sel ? '0 0 0 1.5px #E3A643 inset' : '0 0 0 1.5px #E7DFCB inset',
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const isFound = s.phase === 'found', isScanning = s.phase === 'scanning', isEmpty = s.phase === 'empty', isIdle = s.phase === 'idle';
+    const selected = s.targets.find(x => x.id === s.selectedId) || null;
+
+    const targets = s.targets.map(t => ({
+      id: t.id, path: t.path,
+      selected: t.id === s.selectedId,
+      selectedNot: t.id !== s.selectedId,
+      isWorktree: t.kind === 'worktree',
+      isClone: t.kind === 'clone',
+      meta: `${t.repo} \u00B7 ${t.solutions.length} solution${t.solutions.length > 1 ? 's' : ''} \u00B7 ${t.kind === 'worktree' ? 'updated 3d ago' : 'currently on this branch'}`,
+      onClick: () => this.selectTarget(t.id),
+    }));
+
+    const heroTool = s.defaultTool !== 'none' ? this.tools.find(x => x.id === s.defaultTool) : null;
+    const gridTools = this.tools.filter(x => !heroTool || x.id !== heroTool.id).map(x => ({ id: x.id, name: x.name, accel: x.accel, onClick: () => this.openWith(x.id) }));
+
+    const solChips = (isFound && selected) ? selected.solutions.map(name => ({ name, chipStyle: this.solStyle(s.sol === name), onClick: () => this.selectSol(name) })) : [];
+    const folderChipStyle = this.solStyle(s.sol === '__folder__');
+
+    const canDelete = isFound && !!selected && selected.kind === 'worktree';
+    const deleteVisible = isFound && !!selected;
+
+    const notReady = !isFound;
+    let notReadyHint = '';
+    if (isIdle) notReadyHint = 'Enter a branch name to begin discovery';
+    else if (isScanning) notReadyHint = 'Scanning\u2026 open actions unlock when discovery finishes';
+    else if (isEmpty) notReadyHint = 'No location found \u2014 nothing to open';
+
+    const logColors = {
+      accent: { color: '#DE7F17', fontWeight: 600 },
+      ok: { color: '#3E7C55', fontWeight: 600 },
+      warn: { color: '#C0392B', fontWeight: 600 },
+      muted: { color: '#9A9280', fontWeight: 400 },
+      plain: { color: '#57513F', fontWeight: 500 },
+    };
+
+    const settingsTools = [{ id: 'none', name: 'No default (equal weight)' }]
+      .concat(this.tools.map(t => ({ id: t.id, name: t.name })))
+      .map(x => ({ id: x.id, name: x.name, selected: s.defaultTool === x.id, unselected: s.defaultTool !== x.id, onClick: () => this.setDefault(x.id) }));
+
+    return {
+      branch: s.branch, solutionFilter: s.solutionFilter,
+      setBranch: e => this.setBranch(e), onBranchKey: e => this.onBranchKey(e), setSolFilter: e => this.setSolFilter(e),
+      isFound, isScanning, isEmpty, isIdle,
+      statusFoundText: isFound ? `${s.targets.length} location${s.targets.length > 1 ? 's' : ''}` : '',
+      scanText: `Scanning ${this.scanCount} working tree(s) for '${s.branch.trim()}'\u2026`,
+      emptyText: `No working tree or clone has '${s.branch.trim()}'.`,
+      multiple: isFound && s.targets.length > 1,
+      targets,
+      selectedPath: selected ? selected.path : '',
+      selectedKindLabel: selected ? (selected.kind === 'worktree' ? 'worktree' : 'main clone') : '',
+      hasHero: !!heroTool, noHero: !heroTool,
+      heroLabel: heroTool ? ('Open\u00A0in\u00A0' + heroTool.name.replace(/ /g, '\u00A0')) : '',
+      heroAccel: heroTool ? heroTool.accel : '',
+      openHero: () => { if (heroTool) this.openWith(heroTool.id); },
+      gridTools,
+      hasSolutions: solChips.length > 0, solChips, folderChipStyle, selectFolder: () => this.selectSol('__folder__'),
+      deleteVisible,
+      delDisabled: deleteVisible && !canDelete && !s.confirmingDelete,
+      delReady: deleteVisible && canDelete && !s.confirmingDelete,
+      delConfirm: deleteVisible && canDelete && s.confirmingDelete,
+      deletePath: selected ? selected.path : '',
+      deleteBranch: s.branch.trim(),
+      startDelete: () => this.startDelete(), cancelDelete: () => this.cancelDelete(), confirmDelete: () => this.confirmDelete(),
+      notReady, notReadyHint,
+      log: s.log.map((l, i) => ({ key: i, text: l.t, style: logColors[l.k] || logColors.plain })),
+      logRef: this.logRef,
+      settingsOpen: s.settingsOpen, toggleSettings: () => this.toggleSettings(), settingsTools,
+      presets: [
+        { label: 'claude/snag-fixes-e0t2z6', sub: 'worktree\u00A0+\u00A0main\u00A0clone', onClick: () => this.preset('claude/snag-fixes-e0t2z6') },
+        { label: 'feature/quick-win', sub: 'single\u00A0worktree', onClick: () => this.preset('feature/quick-win') },
+        { label: 'main', sub: 'main\u00A0clone\u00A0only', onClick: () => this.preset('main') },
+        { label: 'experiment/unknown-xyz', sub: 'not\u00A0found', onClick: () => this.preset('experiment/unknown-xyz') },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
