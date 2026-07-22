@@ -8,10 +8,11 @@ namespace Fido.Tests.E2E;
 /// <summary>
 /// Scenario D: a branch that is checked out nowhere. When one of the scanned clones has the branch —
 /// a local ref, the cached origin tracking ref, or (via a live <c>ls-remote</c> fallback) a branch
-/// pushed to origin that this machine never fetched — discovery offers it as a selectable
-/// <see cref="TargetKind.NewWorktree"/> card, and opening creates the worktree first, then launches.
-/// Only a branch that exists in no scanned clone at all lands on the locked
-/// <see cref="DiscoveryPhase.NotFound"/> state.
+/// pushed to origin that this machine never fetched — discovery offers two placement cards per clone:
+/// create a <see cref="TargetKind.NewWorktree"/> (leads, auto-selected), or
+/// <see cref="TargetKind.SwitchMainClone"/> the clone's main tree onto the branch. Opening performs
+/// the placement first, then launches. Only a branch that exists in no scanned clone at all lands on
+/// the locked <see cref="DiscoveryPhase.NotFound"/> state.
 /// </summary>
 [NotInParallel]
 public class NewWorktreeCandidateTests
@@ -36,21 +37,27 @@ public class NewWorktreeCandidateTests
         await Assert.That(window.LogText().Contains("✓ Found")).IsFalse();
     }
 
-    /// <summary>Asserts a single create-a-worktree offer landed for <paramref name="branch"/>.</summary>
+    /// <summary>Asserts a single clone's pair of placement offers landed for <paramref name="branch"/>:
+    /// the new-worktree card leading (auto-selected) and the switch-main-tree card behind it.</summary>
     private static async Task AssertSingleCandidate(MainWindow window, string branch, bool remoteOnly)
     {
         var vm = window.Vm();
         await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
         await Assert.That(vm.CanOpen).IsTrue();
-        await Assert.That(vm.Targets.Count).IsEqualTo(1);
+        await Assert.That(vm.Targets.Count).IsEqualTo(2);
 
-        var card = vm.Targets[0];
-        await Assert.That(card.IsNewWorktree).IsTrue();
-        await Assert.That(card.KindLabel).IsEqualTo("new worktree");
-        await Assert.That(card.Target.BranchOnOriginOnly).IsEqualTo(remoteOnly);
-        await Assert.That(vm.SelectedTarget).IsEqualTo(card);
+        var worktreeCard = vm.Targets[0];
+        await Assert.That(worktreeCard.IsNewWorktree).IsTrue();
+        await Assert.That(worktreeCard.KindLabel).IsEqualTo("new worktree");
+        await Assert.That(worktreeCard.Target.BranchOnOriginOnly).IsEqualTo(remoteOnly);
+        await Assert.That(vm.SelectedTarget).IsEqualTo(worktreeCard);   // the safer offer leads
 
-        // A candidate is never deletable — there's nothing on disk yet.
+        var switchCard = vm.Targets[1];
+        await Assert.That(switchCard.IsSwitchClone).IsTrue();
+        await Assert.That(switchCard.KindLabel).IsEqualTo("switch clone");
+        await Assert.That(switchCard.Meta).Contains("opening switches it here");
+
+        // Neither placement offer is deletable — nothing of the branch exists on disk yet.
         await Assert.That(vm.CanDelete).IsFalse();
         await Assert.That(vm.DeleteDisabledNote).Contains("opening creates this worktree");
         await Assert.That(window.LogText()).Contains($"'{branch}' isn't checked out anywhere");
@@ -183,6 +190,49 @@ public class NewWorktreeCandidateTests
             await Assert.That(vm.Targets.Count).IsEqualTo(1);
             await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
             await Assert.That(vm.CanDelete).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Opening_the_switch_card_moves_the_main_tree_onto_the_branch()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        AddLocalBranch(clone, "feature/x");   // exists locally, not checked out
+        world.MakeDirty(clone);               // uncommitted work — must ride along, and the card must warn
+
+        var rider = new FakeEditorLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vm = window.Vm();
+            await window.Discover("feature/x");
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: false);
+
+            // Pick the switch offer; its meta carries the decision dialog's old dirty-tree warning.
+            vm.SelectedTarget = vm.Targets[1];
+            await Assert.That(vm.SelectedTarget!.IsSwitchClone).IsTrue();
+            await Assert.That(vm.SelectedTarget!.Meta).Contains("uncommitted change(s) ride along");
+            await Assert.That(vm.SelectedTarget!.Meta).Contains("main tree on 'main'");
+
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+
+            // The clone's main tree switched, kept the dirty file, and Rider opened its solution.
+            await Assert.That(await services.Git.GetCurrentBranchAsync(clone)).IsEqualTo("feature/x");
+            await Assert.That(File.Exists(Path.Combine(clone, "uncommitted.txt"))).IsTrue();
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            var target = rider.LastLaunch!.Value.Target;
+            await Assert.That(Paths.StartsWith(target, clone)).IsTrue();
+            await Assert.That(target).EndsWith("Foo.sln");
+            await Assert.That(window.LogText()).Contains("Fido? GO!");
+
+            // A rescan now finds a real checkout: the main clone, on this branch.
+            await window.RunDiscoveryAsync();
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Targets[0].IsMainClone).IsTrue();
         });
     }
 

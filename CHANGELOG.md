@@ -16,13 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     **inline as selectable cards** — each labelled **worktree** or **main clone** (worktrees first, the
     first auto-selected) with its repo, solution count, and last-updated age. The separate "Open from
     branch folder" window and the multi-checkout chooser dialog are gone.
-  - **A branch checked out nowhere is offered as a *new worktree* card.** When no working tree has the
-    branch, discovery consults the scanned clones' refs — a local branch, the cached `origin` tracking
-    ref, or (as a last resort) one live `ls-remote` sweep, so a branch a teammate or cloud session
-    pushed after your last fetch is still found. Each clone that has it appears as a clearly-labelled
-    **new worktree** card showing where the worktree would be created; **opening it creates the
-    worktree first** (fetching and tracking the remote ref when needed) and then launches, exactly
-    like the old decision-dialog flow — minus the dialog. Candidates preview the clone's solutions as
+  - **A branch checked out nowhere is offered as inline placement cards.** When no working tree has
+    the branch, discovery consults the scanned clones' refs — a local branch, the cached `origin`
+    tracking ref, or (as a last resort) one live `ls-remote` sweep, so a branch a teammate or cloud
+    session pushed after your last fetch is still found. Each clone that has it offers **two cards**:
+    a **new worktree** (leads, auto-selected) showing where the worktree would be created, and a
+    **switch clone** that moves the clone's main tree onto the branch — with the old decision dialog's
+    dirty-tree warning right on the card when uncommitted changes would ride along. **Opening performs
+    the placement first** (fetching and tracking the remote ref when needed) and then launches —
+    the decision-dialog flow, minus the dialog. Placement cards preview the clone's solutions as
     chips and are never deletable.
   - **Open actions stay locked until discovery succeeds.** The hero button and tool grid are always on
     show but enabled only when the branch was **found** — with a one-line reason (idle / scanning /
@@ -59,11 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **The chooser, decision, and delete-worktree dialogs** — inline discovery, the target cards, and the
-  in-place delete confirm replace all three. Placing a not-checked-out branch lives on as the inline
-  **new worktree** card (above); the decision dialog's **check-out-in-main-tree** option and the
-  Settings section for **New-branch repos** are gone — candidates now come from the clones discovery
-  already scans, so there's no separate list to maintain (a configured list is preserved on disk,
-  unused).
+  in-place delete confirm replace all three. Both decision-dialog placement options live on as the
+  inline **new worktree** / **switch clone** cards (above). The Settings section for **New-branch
+  repos** is gone — placement candidates now come from the clones discovery already scans, so there's
+  no separate list to maintain (a configured list is preserved on disk, unused).
 
 ### Added
 

@@ -24,13 +24,18 @@ public sealed class TargetCard
     public bool IsWorktree => Target.Kind == TargetKind.Worktree;
     public bool IsMainClone => Target.Kind == TargetKind.MainClone;
     public bool IsNewWorktree => Target.Kind == TargetKind.NewWorktree;
+    public bool IsSwitchClone => Target.Kind == TargetKind.SwitchMainClone;
+
+    /// <summary>True for either placement offer — the branch isn't checked out anywhere yet.</summary>
+    public bool IsPlacement => IsNewWorktree || IsSwitchClone;
 
     /// <summary>The trailing kind chip's caption.</summary>
     public string KindLabel => Target.Kind switch
     {
         TargetKind.Worktree => "worktree",
         TargetKind.MainClone => "main clone",
-        _ => "new worktree",
+        TargetKind.NewWorktree => "new worktree",
+        _ => "switch clone",
     };
 
     /// <summary>The meta line, e.g. <c>platform · 2 solutions · updated 3d ago</c>.</summary>
@@ -38,17 +43,31 @@ public sealed class TargetCard
 
     private static string BuildMeta(DiscoveredTarget t)
     {
-        if (t.Kind == TargetKind.NewWorktree)
+        switch (t.Kind)
         {
-            var source = t.BranchOnOriginOnly ? "branch on origin" : "local branch, not checked out";
-            return $"{t.RepoName} · {source} · opening creates this worktree";
+            case TargetKind.NewWorktree:
+            {
+                var source = t.BranchOnOriginOnly ? "branch on origin" : "local branch, not checked out";
+                return $"{t.RepoName} · {source} · opening creates this worktree";
+            }
+            case TargetKind.SwitchMainClone:
+            {
+                // Switching drags any uncommitted changes onto the branch — the one warning the old
+                // decision dialog gave before mutating the main tree, kept front and centre here.
+                var warning = t.UncommittedChanges > 0
+                    ? $" · ⚠ {t.UncommittedChanges} uncommitted change(s) ride along"
+                    : "";
+                return $"{t.RepoName} · main tree on '{t.CurrentBranch}' · opening switches it here{warning}";
+            }
+            default:
+            {
+                var solutions = t.Solutions.Count == 1 ? "1 solution" : $"{t.Solutions.Count} solutions";
+                var tail = t.Kind == TargetKind.MainClone
+                    ? "currently on this branch"
+                    : $"updated {RelativeAge(t.UpdatedUtc)}";
+                return $"{t.RepoName} · {solutions} · {tail}";
+            }
         }
-
-        var solutions = t.Solutions.Count == 1 ? "1 solution" : $"{t.Solutions.Count} solutions";
-        var tail = t.Kind == TargetKind.MainClone
-            ? "currently on this branch"
-            : $"updated {RelativeAge(t.UpdatedUtc)}";
-        return $"{t.RepoName} · {solutions} · {tail}";
     }
 
     /// <summary>Compact "3d ago"-style age; "recently" when the timestamp couldn't be read.</summary>

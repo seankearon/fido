@@ -130,32 +130,51 @@ public sealed class OpenerService
         }
 
         if (targets.Count == 0)
-            targets.AddRange(await FindWorktreeCandidatesAsync(clones.Keys, branch, config, ct));
+            targets.AddRange(await FindPlacementCandidatesAsync(clones.Keys, branch, config, ct));
 
-        // Stable sort: worktrees keep their scan order ahead of the main clones.
-        return [.. targets.OrderBy(t => t.Kind == TargetKind.MainClone ? 1 : 0)];
+        // Stable sort: worktrees ahead of main clones; among placement offers, the safer
+        // create-a-worktree card leads and the switch-the-main-tree card follows.
+        return [.. targets.OrderBy(t => t.Kind switch
+        {
+            TargetKind.Worktree => 0,
+            TargetKind.MainClone => 1,
+            TargetKind.NewWorktree => 2,
+            _ => 3,
+        })];
     }
 
     /// <summary>
-    /// The create-a-worktree offers for a branch checked out nowhere: each clone whose refs contain
-    /// <paramref name="branch"/>. Cached refs (local branch, <c>refs/remotes/origin</c>) are consulted
-    /// first — fast and offline, so the keystroke-debounced scan stays cheap. Only when no clone has a
-    /// cached ref does it fall back to one live <c>ls-remote</c> sweep, narrated per repo, which finds
-    /// branches pushed to origin that this machine never fetched. The actual fetch happens at open
-    /// time (<see cref="BuildMainContextAsync"/>/<see cref="CreateWorktreeAsync"/>), not here.
+    /// The placement offers for a branch checked out nowhere: each clone whose refs contain
+    /// <paramref name="branch"/> yields two cards — create a linked worktree (safe, leads), or switch
+    /// the clone's main tree onto the branch (mutates a tree the user may be working in; the card
+    /// carries the current branch and any uncommitted-change count so the UI can warn). Cached refs
+    /// (local branch, <c>refs/remotes/origin</c>) are consulted first — fast and offline, so the
+    /// keystroke-debounced scan stays cheap. Only when no clone has a cached ref does it fall back to
+    /// one live <c>ls-remote</c> sweep, narrated per repo, which finds branches pushed to origin that
+    /// this machine never fetched. The actual fetch/switch/worktree-add happens at open time
+    /// (<see cref="BuildMainContextAsync"/> and friends), not here.
     /// </summary>
-    private async Task<List<DiscoveredTarget>> FindWorktreeCandidatesAsync(
+    private async Task<List<DiscoveredTarget>> FindPlacementCandidatesAsync(
         IEnumerable<string> clonePaths, string branch, AppConfig config, CancellationToken ct)
     {
         var candidates = new List<DiscoveredTarget>();
 
-        async Task AddCandidateAsync(string mainPath, bool remoteOnly)
+        async Task AddCandidatesAsync(string mainPath, bool remoteOnly)
         {
+            var repoName = RepoNameOf(mainPath);
             var solutions = await Task.Run(() => FindSolutionsInFolder(mainPath, config), ct);
+
             candidates.Add(new DiscoveredTarget(
                 BuildWorktreePath(new RepositoryInfo(mainPath, ""), branch, config),
-                TargetKind.NewWorktree, RepoNameOf(mainPath), mainPath, solutions,
+                TargetKind.NewWorktree, repoName, mainPath, solutions,
                 UpdatedUtc: null, BranchOnOriginOnly: remoteOnly));
+
+            var currentBranch = await _git.GetCurrentBranchAsync(mainPath, ct);
+            var changes = await _git.GetStatusAsync(mainPath, ct);
+            candidates.Add(new DiscoveredTarget(
+                mainPath, TargetKind.SwitchMainClone, repoName, mainPath, solutions,
+                UpdatedUtc: null, BranchOnOriginOnly: remoteOnly,
+                CurrentBranch: currentBranch, UncommittedChanges: changes.Count));
         }
 
         var misses = new List<string>();
@@ -163,9 +182,9 @@ public sealed class OpenerService
         {
             ct.ThrowIfCancellationRequested();
             if (await _git.LocalBranchExistsAsync(mainPath, branch, ct))
-                await AddCandidateAsync(mainPath, remoteOnly: false);
+                await AddCandidatesAsync(mainPath, remoteOnly: false);
             else if (await _git.RemoteBranchExistsAsync(mainPath, branch, ct))
-                await AddCandidateAsync(mainPath, remoteOnly: true);
+                await AddCandidatesAsync(mainPath, remoteOnly: true);
             else
                 misses.Add(mainPath);
         }
@@ -179,7 +198,7 @@ public sealed class OpenerService
             ct.ThrowIfCancellationRequested();
             _liveLog($"Checking origin of {RepoNameOf(mainPath)} for '{branch}'…");
             if (await _git.RemoteHasBranchAsync(mainPath, branch, ct))
-                await AddCandidateAsync(mainPath, remoteOnly: true);
+                await AddCandidatesAsync(mainPath, remoteOnly: true);
         }
 
         return candidates;

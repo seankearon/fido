@@ -188,10 +188,13 @@ public partial class MainWindow : Window
             if (cts.IsCancellationRequested) return;
 
             _vm.CompleteScan(targets, IsProtectedBranch(branch));
+            var placementRepos = targets.Count > 0 && targets.All(IsPlacementKind)
+                ? targets.Select(t => t.MainPath).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+                : 0;
             _vm.AppendLog(targets.Count == 0
                 ? $"⚠ No working tree or clone has '{branch}'."
-                : targets.All(t => t.Kind == TargetKind.NewWorktree)
-                    ? $"✓ '{branch}' isn't checked out anywhere — {targets.Count} repo(s) can host it as a new worktree."
+                : placementRepos > 0
+                    ? $"✓ '{branch}' isn't checked out anywhere — {placementRepos} repo(s) can place it (new worktree, or switch the main tree)."
                     : $"✓ Found {targets.Count} location(s) for '{branch}'.");
 
             // Starting a scan wipes the log, so a bad CLI tool id is reported here — after the first
@@ -239,6 +242,10 @@ public partial class MainWindow : Window
     private bool IsProtectedBranch(string branch) =>
         _config.MainBranchNames.Any(n => string.Equals(n, branch, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>True for either placement offer (new worktree / switch the main tree).</summary>
+    private static bool IsPlacementKind(DiscoveredTarget t) =>
+        t.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone;
+
     // --- Opening ------------------------------------------------------------------------
 
     private async void OnHeroClick(object? sender, RoutedEventArgs e)
@@ -280,20 +287,34 @@ public partial class MainWindow : Window
                 _vm.AppendLog($"▸ Creating a worktree for '{branch}' in {card.Target.RepoName}…");
                 var ctx = await _opener.BuildMainContextAsync(repo, branch, _config);
                 folder = await _opener.CreateWorktreeAsync(repo, branch, ctx);
-
-                // The chips previewed the clone's solutions; find the same-named file in the new tree.
-                if (solution is not null)
-                {
-                    var name = Path.GetFileName(solution);
-                    solution = await Task.Run(() =>
-                        Directory.EnumerateFiles(folder, name, SearchOption.AllDirectories).FirstOrDefault());
-                    if (solution is null)
-                        _vm.AppendLog($"[!] {name} isn't in the new worktree — opening the folder instead.");
-                }
+            }
+            else if (card.Target.Kind == TargetKind.SwitchMainClone)
+            {
+                // The other placement offer: move the clone's main tree onto the branch. Any
+                // uncommitted changes ride along — the card warned; git refuses on conflicts.
+                var repo = new RepositoryInfo(card.Target.MainPath, "");
+                _vm.AppendLog($"▸ Switching {card.Target.RepoName}'s main tree to '{branch}'…");
+                var ctx = await _opener.BuildMainContextAsync(repo, branch, _config);
+                folder = await _opener.CheckoutInMainAsync(repo, branch, ctx);
             }
             else
             {
                 folder = card.Target.Path;
+            }
+
+            // A placement card's chips previewed the clone's files before the branch was placed;
+            // re-resolve the chosen solution against what's actually in the tree now.
+            if (solution is not null && card.Target.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone)
+            {
+                var name = Path.GetFileName(solution);
+                // A switch keeps the same paths (chip globbed under this very tree); a new worktree
+                // gets fresh ones. Either way the file may not exist on this branch — verify, else re-find.
+                solution = File.Exists(solution) && solution.StartsWith(folder, StringComparison.OrdinalIgnoreCase)
+                    ? solution
+                    : await Task.Run(() =>
+                        Directory.EnumerateFiles(folder, name, SearchOption.AllDirectories).FirstOrDefault());
+                if (solution is null)
+                    _vm.AppendLog($"[!] {name} isn't on this branch — opening the folder instead.");
             }
 
             var targetPath = solution ?? folder;

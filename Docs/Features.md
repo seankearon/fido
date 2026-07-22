@@ -45,9 +45,12 @@ chooser, and no second window:
 - **Checked out nowhere, but a repo has it:** the scanned clones' refs are consulted —
   a local branch, the cached `origin` tracking ref, or (as a last resort) one live
   `ls-remote` sweep, so a branch pushed after your last fetch is still found. Each
-  clone that has the branch appears as a **new worktree** card (plus icon) showing
-  where the worktree *would* be created; **opening it creates the worktree first**
-  (fetching and tracking the remote ref when needed) and then launches into it.
+  clone that has the branch offers **two placement cards**: a **new worktree** card
+  (plus icon, leads and is auto-selected) showing where the worktree *would* be
+  created, and a **switch clone** card (arrows icon) that moves the clone's **main
+  tree** onto the branch instead — warning right on the card when uncommitted changes
+  would ride along. **Opening performs the placement first** (fetching and tracking
+  the remote ref when needed) and then launches.
 - **Not found:** a warning card says no working tree or clone has the branch —
   double-check the name. Fido never switches an existing checkout; the only thing it
   will create is a worktree you explicitly selected.
@@ -73,9 +76,12 @@ search input or a mode switch.
   branch count. Both **linked worktrees** and a clone's **main tree** qualify.
 - Labels every hit: a **worktree** card (git-branch icon, deletable), a **main
   clone** card (home icon, never deletable), or — when the branch is checked out
-  nowhere — a **new worktree** card (plus icon, created on open, never deletable),
-  with a meta line like `platform · 2 solutions · updated 3d ago` or
-  `platform · branch on origin · opening creates this worktree`.
+  nowhere — a **new worktree** card (plus icon, created on open) and a **switch
+  clone** card (arrows icon, switches the main tree on open), neither deletable.
+  Meta lines read like `platform · 2 solutions · updated 3d ago`,
+  `platform · branch on origin · opening creates this worktree`, or
+  `platform · main tree on 'main' · opening switches it here · ⚠ 3 uncommitted
+  change(s) ride along`.
 - Detects the **solution files** inside each target — **`.sln`**, **`.slnx`**, and
   **`.slnf`** (Visual Studio solution filter) — for the solution chips.
 

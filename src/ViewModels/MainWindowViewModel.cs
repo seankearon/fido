@@ -125,10 +125,10 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>True when there's more than one place to act on — shows the helper strip.</summary>
     public bool HasMultipleTargets => Targets.Count > 1;
 
-    /// <summary>The helper strip's copy — phrased for checkouts, or for create-a-worktree offers.</summary>
+    /// <summary>The helper strip's copy — phrased for checkouts, or for placement offers.</summary>
     public string MultiTargetHelperText =>
-        Targets.Count > 0 && Targets.All(t => t.IsNewWorktree)
-            ? "This branch isn't checked out anywhere, but more than one repo has it — choose where to create its worktree:"
+        Targets.Count > 0 && Targets.All(t => t.IsPlacement)
+            ? "This branch isn't checked out anywhere — choose how to place it: a fresh worktree, or switch a clone's main tree:"
             : "This branch is checked out in more than one place — choose which to act on:";
 
     public string SelectedPath => _selectedTarget?.Path ?? "";

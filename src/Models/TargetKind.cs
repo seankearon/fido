@@ -16,4 +16,12 @@ public enum TargetKind
     /// nothing on disk yet.
     /// </summary>
     NewWorktree,
+
+    /// <summary>
+    /// The same placement offer via the clone's <em>main</em> working tree: opening switches it onto
+    /// the branch (<c>git switch</c>, creating/tracking as needed) and launches there. Offered second
+    /// — it mutates a tree the user may be working in, and any uncommitted changes ride along, which
+    /// the card warns about. Never deletable.
+    /// </summary>
+    SwitchMainClone,
 }

@@ -16,8 +16,12 @@ namespace Fido.Models;
 /// solution-capable tools. For a creatable worktree this previews the clone's own solutions.</param>
 /// <param name="UpdatedUtc">Last write time of the folder — the "updated 3d ago" meta line; null when
 /// unreadable or when nothing exists on disk yet.</param>
-/// <param name="BranchOnOriginOnly">For a creatable worktree: true when the branch exists only on
-/// <c>origin</c> (creation will fetch and track it), false when a local branch already carries it.</param>
+/// <param name="BranchOnOriginOnly">For a placement offer: true when the branch exists only on
+/// <c>origin</c> (placing it will fetch and track), false when a local branch already carries it.</param>
+/// <param name="CurrentBranch">For a <see cref="TargetKind.SwitchMainClone"/> offer: what the main
+/// tree is on right now — the branch the switch would move it off.</param>
+/// <param name="UncommittedChanges">For a <see cref="TargetKind.SwitchMainClone"/> offer: how many
+/// uncommitted changes sit in the main tree — a switch carries them onto the branch, so the card warns.</param>
 public sealed record DiscoveredTarget(
     string Path,
     TargetKind Kind,
@@ -25,4 +29,6 @@ public sealed record DiscoveredTarget(
     string MainPath,
     IReadOnlyList<string> Solutions,
     DateTime? UpdatedUtc,
-    bool BranchOnOriginOnly = false);
+    bool BranchOnOriginOnly = false,
+    string? CurrentBranch = null,
+    int UncommittedChanges = 0);

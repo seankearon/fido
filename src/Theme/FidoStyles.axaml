@@ -388,6 +388,12 @@
     <Style Selector="Border.kindchip.newwt TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource FidoWorktreeText}" />
     </Style>
+    <Style Selector="Border.kindchip.switchwt">
+        <Setter Property="Background" Value="{DynamicResource FidoCloneChipBg}" />
+    </Style>
+    <Style Selector="Border.kindchip.switchwt TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource FidoCloneText}" />
+    </Style>
 
     <!-- Solution chips (horizontal pick-one row; the Folder chip rides along at the end) -->
     <Style Selector="ListBox.chips">
