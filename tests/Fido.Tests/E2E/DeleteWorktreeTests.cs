@@ -1,261 +1,246 @@
+using Avalonia.Input;
 using Fido.Models;
 using Fido.Services;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
-using Fido.Views;
 
 namespace Fido.Tests.E2E;
 
 /// <summary>
-/// Scenario D: the branch-folder chooser's delete action removes a located linked worktree together with
-/// its local branch and any branch on origin — driven end-to-end through the real window.
+/// Scenario D: the inline delete flow. Discovery renders the branch's locations as target cards; the
+/// delete button unlocks only for a linked worktree on an unprotected branch, arms an in-place confirm
+/// strip (with dirty/orphaned-work warnings), and a confirmed delete removes the worktree and its
+/// <em>local</em> branch — the remote is never touched. Driven end-to-end through the real window.
 /// </summary>
 [NotInParallel]
 public class DeleteWorktreeTests
 {
     [Test]
-    public async Task Delete_removes_the_worktree_its_local_branch_and_the_remote_branch()
+    public async Task Delete_unlocks_for_a_worktree_but_not_for_a_main_clone()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");          // main tree stays on main
-        var worktree = world.AddWorktree(clone, "feature/x");  // linked worktree on feature/x
-        world.PushBranch(worktree, "feature/x");               // publish it to origin
+        var alpha = world.Clone(origin, root, "Alpha");
+        var beta = world.Clone(origin, root, "Beta");
+        world.AddWorktree(alpha, "feature/x");     // Alpha holds the branch in a linked worktree…
+        world.CreateBranch(beta, "feature/x");     // …Beta holds it in its main working tree.
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,   // click the delete button in the target chooser
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,                      // confirm the destructive action
-        };
+        var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");   // branch-only flow → single worktree → target chooser
-            Screenshots.Save(window, "D-delete-worktree");
+            await window.Discover("feature/x");
+            var vm = window.Vm();
 
-            // The chooser offered the delete action (only shown for a linked worktree), and it was confirmed.
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(1);
-            await Assert.That(dialogs.ChooserRequests[0].Title).Contains("Open from branch folder");
-            await Assert.That(dialogs.ChooserRequests[0].DeleteLabel).IsNotNull();
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);
+            // Both locations were found; the worktree card sorts first and is auto-selected — deletable.
+            await Assert.That(vm.Targets.Count).IsEqualTo(2);
+            await Assert.That(vm.SelectedTarget!.IsWorktree).IsTrue();
+            await Assert.That(vm.CanDelete).IsTrue();
+            await Assert.That(vm.ShowDeleteButton).IsTrue();
+            await Assert.That(vm.ShowDeleteDisabledNote).IsFalse();
 
-            // Nothing was launched, and the deletion reported success.
-            await Assert.That(rider.LastLaunch).IsNull();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+            // Clicking Beta's card (the main clone) locks the delete but explains why; open stays live.
+            vm.SelectedTarget = window.CardWithPath("Beta");
+            await Assert.That(vm.SelectedTarget!.IsMainClone).IsTrue();
+            await Assert.That(vm.CanDelete).IsFalse();
+            await Assert.That(vm.CanOpen).IsTrue();
+            await Assert.That(vm.ShowDeleteDisabledNote).IsTrue();
+            await Assert.That(vm.DeleteDisabledNote).Contains("main clone");
 
-            // The worktree folder, the local branch, and the origin branch are all gone.
-            var git = new GitService();
-            await Assert.That(Directory.Exists(worktree)).IsFalse();
-            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
-            await Assert.That(await git.RemoteHasBranchAsync(clone, "feature/x")).IsFalse();
+            // The gate holds at the seam too: a delete request for a main clone is a no-op.
+            await window.RequestDeleteAsync();
+            await Assert.That(vm.IsConfirmingDelete).IsFalse();
+            await Assert.That(Directory.Exists(beta)).IsTrue();
         });
     }
 
     [Test]
-    public async Task Declining_the_confirmation_deletes_nothing_and_launches_nothing()
+    [Arguments("main")]
+    [Arguments("master")]
+    public async Task A_protected_branch_is_never_deletable_even_from_a_worktree(string branch)
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo", defaultBranch: branch);
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.CreateBranch(clone, "sidework");                          // free the default branch…
+        var worktree = world.AddWorktreeExisting(clone, branch);        // …and check it out in a worktree
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover(branch);
+            var vm = window.Vm();
+
+            // Found in a worktree — yet the delete stays locked with the protected-branch note.
+            await Assert.That(vm.IsFound).IsTrue();
+            await Assert.That(vm.SelectedTarget!.IsWorktree).IsTrue();
+            await Assert.That(vm.CanDelete).IsFalse();
+            await Assert.That(vm.ShowDeleteDisabledNote).IsTrue();
+            await Assert.That(vm.DeleteDisabledNote).Contains("default branches");
+
+            await window.RequestDeleteAsync();   // no-op against a protected branch
+            await Assert.That(vm.IsConfirmingDelete).IsFalse();
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+
+            // Opening the protected branch is still a normal, unlocked action.
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+            await Assert.That(rider.LastLaunch).IsNotNull();
+            await Assert.That(Paths.StartsWith(rider.LastLaunch!.Value.Target, worktree)).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Requesting_delete_arms_the_confirm_with_path_branch_and_warnings()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/x");
-        world.PushBranch(worktree, "feature/x");
+        world.CommitFile(worktree, "orphan.txt");   // a commit that lives only on this branch…
+        world.MakeDirty(worktree);                  // …plus an uncommitted file
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => null,   // back out at the confirmation
-        };
+        var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            Screenshots.Save(window, "D-delete-confirm-armed");
+            var vm = window.Vm();
 
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);   // it asked…
-            await Assert.That(rider.LastLaunch).IsNull();                        // …but nothing launched…
+            // The button swapped for the in-place confirm strip, spelling out exactly what goes.
+            await Assert.That(vm.IsConfirmingDelete).IsTrue();
+            await Assert.That(vm.ShowDeleteButton).IsFalse();
+            await Assert.That(vm.DeleteConfirmPath).IsEqualTo(Path.GetFullPath(worktree));
+            await Assert.That(vm.DeleteConfirmBranch).IsEqualTo("feature/x");
 
-            // …and nothing was deleted.
+            // Both safety warnings fold into the strip: dirty files and never-pushed commits.
+            await Assert.That(vm.HasDeleteConfirmWarnings).IsTrue();
+            await Assert.That(vm.DeleteConfirmWarnings).Contains("uncommitted");
+            await Assert.That(vm.DeleteConfirmWarnings).Contains("only on this branch");
+
+            // Arming alone deletes nothing.
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Confirming_a_dirty_forked_worktree_still_removes_it_end_to_end()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.CommitFile(worktree, "orphan.txt");   // an unpushed commit (needs `branch -D`)…
+        world.MakeDirty(worktree);                  // …and a dirty tree (needs `worktree remove --force`)
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
+
+            // Despite the warnings, a confirmed delete clears both — no modal fallback needed.
+            var git = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(window.LogText()).Contains("✓ Removed worktree & branch 'feature/x'.");
+            await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(0);
+        });
+    }
+
+    [Test]
+    public async Task Escape_cancels_the_pending_confirm_and_deletes_nothing()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            var vm = window.Vm();
+
+            // A clean, unforked worktree arms with no warnings at all.
+            await Assert.That(vm.IsConfirmingDelete).IsTrue();
+            await Assert.That(vm.HasDeleteConfirmWarnings).IsFalse();
+
+            window.PressKey(Key.Escape);   // back out of the confirm
+
+            await Assert.That(vm.IsConfirmingDelete).IsFalse();
+            await Assert.That(vm.ShowDeleteButton).IsTrue();
+
+            // Nothing was deleted — the worktree and its branch survive.
             var git = new GitService();
             await Assert.That(Directory.Exists(worktree)).IsTrue();
             await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Confirming_the_delete_removes_the_worktree_and_local_branch_but_never_the_remote()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.PushBranch(worktree, "feature/x");   // published — and the inline flow must leave origin alone
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
+            Screenshots.Save(window, "D-delete-worktree");
+            var vm = window.Vm();
+
+            // The worktree folder and the local branch are gone; the branch on origin is untouched.
+            var git = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
             await Assert.That(await git.RemoteHasBranchAsync(clone, "feature/x")).IsTrue();
-        });
-    }
 
-    [Test]
-    public async Task Deleting_a_branch_never_pushed_removes_it_locally_without_touching_origin()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/x");   // never pushed → not on origin
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-        };
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            // The confirmation was told the branch isn't on origin, so no remote delete is attempted…
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);
-            await Assert.That(dialogs.DeleteConfirmations[0].RemoteBranchExists).IsFalse();
-            await Assert.That(window.Vm().StatusText).DoesNotContain("remote");
-
-            // …and the worktree + local branch are still gone.
-            var git = new GitService();
-            await Assert.That(Directory.Exists(worktree)).IsFalse();
-            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-        });
-    }
-
-    [Test]
-    public async Task Deleting_a_dirty_worktree_force_removes_it_end_to_end()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/x");
-        world.PushBranch(worktree, "feature/x");
-        world.MakeDirty(worktree);   // an uncommitted file — a plain remove would refuse
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-        };
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            // The plan flagged the worktree dirty, and the forced removal still cleared it end to end.
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);
-            await Assert.That(dialogs.DeleteConfirmations[0].HasOutstandingChanges).IsTrue();
-
-            var git = new GitService();
-            await Assert.That(Directory.Exists(worktree)).IsFalse();
-            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-        });
-    }
-
-    [Test]
-    public async Task Delete_is_offered_even_when_the_worktree_has_no_solution()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/x");
-
-        // Strip the solution so the "what to open" chooser would otherwise be skipped — the delete action
-        // must still be reachable for a linked worktree that has nothing to open.
-        TestRepoWorld.Git(worktree, "rm", "-r", "Foo.sln", "src");
-        TestRepoWorld.Git(worktree, "commit", "-m", "drop solution");
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-        };
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(1);
-            await Assert.That(dialogs.ChooserRequests[0].DeleteLabel).IsNotNull();   // offered despite no .sln
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);
+            // The log reports the removal; nothing was launched, no modal fallback was needed.
+            await Assert.That(window.LogText()).Contains("✓ Removed worktree & branch 'feature/x'.");
             await Assert.That(rider.LastLaunch).IsNull();
+            await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(0);
 
-            var git = new GitService();
-            await Assert.That(Directory.Exists(worktree)).IsFalse();
-            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            // The only card is gone, so the screen falls back to NotFound and re-locks.
+            await Assert.That(vm.Targets.Count).IsEqualTo(0);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.NotFound);
+            await Assert.That(vm.IsLocked).IsTrue();
+            await Assert.That(vm.CanOpen).IsFalse();
         });
     }
 
     [Test]
-    public async Task No_delete_action_is_offered_for_a_default_branch()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        world.CreateBranch(clone, "sidework");                        // free 'main' from the main tree
-        var mainWorktree = world.AddWorktreeExisting(clone, "main");  // linked worktree on the default branch
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();   // default OnChooser picks the first item (the solution)
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("main");
-
-            // 'main' is a configured default branch — the delete shortcut must not offer to nuke it.
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(1);
-            await Assert.That(dialogs.ChooserRequests[0].DeleteLabel).IsNull();
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(0);
-
-            // A normal open still happens against the located worktree.
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.StartsWith(rider.LastLaunch!.Value.Target, mainWorktree)).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task A_failed_remote_delete_still_completes_the_local_cleanup_and_reports_it()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/x");
-        world.PushBranch(worktree, "feature/x");              // cached tracking ref now says it's on origin
-        TestRepoWorld.Git(origin, "branch", "-D", "feature/x");   // but it's since vanished from origin
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-        };
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            // The push --delete fails (the ref is already gone), but the local worktree + branch removal stands.
-            var git = new GitService();
-            await Assert.That(Directory.Exists(worktree)).IsFalse();
-            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
-
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-            await Assert.That(window.Vm().StatusText).Contains("remote");
-        });
-    }
-
-    [Test]
-    public async Task Deleting_from_a_multi_folder_chooser_removes_the_folder_the_user_picked()
+    public async Task Deleting_one_of_two_locations_keeps_the_other_and_re_selects_it()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -266,22 +251,19 @@ public class DeleteWorktreeTests
         var betaWt = world.AddWorktree(beta, "feature/x");
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            // First chooser = which folder (pick Beta's); the branch-folder chooser = delete.
-            OnChooser = req => req.Title.Contains("Open from branch folder")
-                ? ChooserDialog.DeleteRequested
-                : req.PickTitleContaining(betaWt),
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-        };
+        var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");   // branch-only → two folders → folder chooser, then delete
+            await window.Discover("feature/x");
+            var vm = window.Vm();
+            await Assert.That(vm.Targets.Count).IsEqualTo(2);
 
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(2);   // folder chooser, then target chooser
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(1);
+            // Click Beta's card, then delete it.
+            vm.SelectedTarget = window.CardWithPath("Beta.worktrees");
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
 
             var git = new GitService();
             // The picked (Beta) worktree and its branch are gone…
@@ -290,6 +272,50 @@ public class DeleteWorktreeTests
             // …while the other (Alpha) clone is untouched.
             await Assert.That(Directory.Exists(alphaWt)).IsTrue();
             await Assert.That(await git.LocalBranchExistsAsync(alpha, "feature/x")).IsTrue();
+
+            // The survivor takes the selection; the screen stays Found on one location.
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(Paths.Contains(vm.SelectedTarget!.Path, "Alpha.worktrees")).IsTrue();
+            await Assert.That(vm.FoundChipText).IsEqualTo("✓ 1 location");
+            await Assert.That(vm.HasMultipleTargets).IsFalse();
+        });
+    }
+
+    [Test]
+    public async Task A_worktree_with_no_solution_still_gets_a_card_and_can_be_deleted()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+
+        // Strip the solution — a worktree with nothing to open must still be discoverable and deletable.
+        TestRepoWorld.Git(worktree, "rm", "-r", "Foo.sln", "src");
+        TestRepoWorld.Git(worktree, "commit", "-m", "drop solution");
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            var vm = window.Vm();
+
+            // Found, no solution chips beyond the Folder fallback, delete unlocked.
+            await Assert.That(vm.IsFound).IsTrue();
+            await Assert.That(vm.HasSolutionChips).IsFalse();
+            await Assert.That(vm.CanDelete).IsTrue();
+
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
+
+            var git = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(rider.LastLaunch).IsNull();
         });
     }
 
@@ -310,34 +336,36 @@ public class DeleteWorktreeTests
                 : ProcessRunner.RunAsync("git", args, dir, ct));
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-            OnConfirmForceDelete = _ => true,   // accept the disk-level delete
-        };
+        var dialogs = new FakeDialogService { OnConfirmForceDelete = _ => true };   // accept the disk-level delete
         var services = world.BuildServices([root], rider, dialogs, git: git);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
             Screenshots.Save(window, "D-force-delete-worktree");
+            var vm = window.Vm();
 
-            // The fallback was offered (with the worktree path) and accepted.
+            // The modal fallback was offered (with the worktree path) and accepted.
             await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(1);
             await Assert.That(dialogs.ForceDeleteConfirmations[0].WorktreePath).IsEqualTo(Path.GetFullPath(worktree));
 
-            // The folder, the local branch, and the origin branch are all gone; the flow reports GO.
+            // The folder and the local branch are gone; origin still has the branch (never touched).
             var check = new GitService();
             await Assert.That(Directory.Exists(worktree)).IsFalse();
             await Assert.That(await check.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
-            await Assert.That(await check.RemoteHasBranchAsync(clone, "feature/x")).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+            await Assert.That(await check.RemoteHasBranchAsync(clone, "feature/x")).IsTrue();
+
+            // The flow lands exactly like a clean delete: reported, card gone, screen re-locked.
+            await Assert.That(window.LogText()).Contains("✓ Removed worktree & branch 'feature/x'.");
+            await Assert.That(vm.Targets.Count).IsEqualTo(0);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.NotFound);
         });
     }
 
     [Test]
-    public async Task When_git_cant_remove_the_worktree_declining_the_force_delete_is_a_no_go()
+    public async Task When_git_cant_remove_the_worktree_declining_the_force_delete_leaves_it_in_place()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -351,25 +379,29 @@ public class DeleteWorktreeTests
                 : ProcessRunner.RunAsync("git", args, dir, ct));
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnChooser = _ => ChooserDialog.DeleteRequested,
-            OnConfirmDelete = _ => WorktreeDeletionChoice.All,
-            OnConfirmForceDelete = _ => false,   // back out of the disk-level delete
-        };
+        var dialogs = new FakeDialogService();   // default OnConfirmForceDelete declines
         var services = world.BuildServices([root], rider, dialogs, git: git);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            await window.ConfirmDeleteAsync();
+            var vm = window.Vm();
 
             await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(1);   // it asked…
 
-            // …and, declined, nothing was deleted — the worktree and its branch remain, status is NO-GO.
+            // …and, declined, nothing was deleted — worktree and branch remain, the log says so.
             var check = new GitService();
             await Assert.That(Directory.Exists(worktree)).IsTrue();
             await Assert.That(await check.LocalBranchExistsAsync(clone, "feature/x")).IsTrue();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
+            await Assert.That(window.LogText()).Contains("Couldn't remove the worktree");
+
+            // The card survives (the delete failed), the confirm strip has reset, delete can be retried.
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(vm.IsConfirmingDelete).IsFalse();
+            await Assert.That(vm.CanDelete).IsTrue();
         });
     }
 
@@ -380,33 +412,5 @@ public class DeleteWorktreeTests
         for (var i = 0; i + 1 < args.Count; i++)
             if (args[i] == first && args[i + 1] == second) return true;
         return false;
-    }
-
-    [Test]
-    public async Task No_delete_action_is_offered_when_the_branch_sits_in_the_main_tree()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        world.CreateBranch(clone, "feature/x");   // switch the MAIN tree onto the branch (no linked worktree)
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();   // default OnChooser picks the first item (the solution)
-        var services = world.BuildServices([root], rider, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            // The located folder is the main working tree, which can't be worktree-removed — so no button.
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(1);
-            await Assert.That(dialogs.ChooserRequests[0].DeleteLabel).IsNull();
-            await Assert.That(dialogs.DeleteConfirmations.Count).IsEqualTo(0);
-
-            // A normal open still happens.
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(rider.LastLaunch).IsNotNull();
-        });
     }
 }

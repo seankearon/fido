@@ -1,9 +1,9 @@
+using Fido.Models;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
 
 namespace Fido.Tests.E2E;
 
-/// <summary>Scenario C: one clone plus several linked worktrees — the right worktree must be chosen.</summary>
+/// <summary>Scenario C: one clone plus several linked worktrees — discovery must surface only the right one.</summary>
 [NotInParallel]
 public class MultipleWorktreesTests
 {
@@ -25,18 +25,37 @@ public class MultipleWorktreesTests
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open(branch, "Foo");
+            await window.Discover(branch);
             Screenshots.Save(window, $"C-worktree-{expectedSegment}");
 
-            // exactly one worktree holds this branch → no chooser, and it's the right one
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(0);
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+            // exactly one location holds this branch → a single card, and it's the right worktree
+            var vm = window.Vm();
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
 
-            var target = rider.LastLaunch!.Value.Target;
-            await Assert.That(Paths.Contains(target, "Foo.worktrees")).IsTrue();
-            await Assert.That(Paths.Contains(target, expectedSegment)).IsTrue();
-            await Assert.That(Paths.Contains(target, otherSegment)).IsFalse();
-            await Assert.That(target).EndsWith("Foo.sln");
+            var card = vm.Targets[0];
+            await Assert.That(card.IsWorktree).IsTrue();
+            await Assert.That(card.KindLabel).IsEqualTo("worktree");
+            await Assert.That(Paths.Contains(card.Path, "Foo.worktrees")).IsTrue();
+            await Assert.That(Paths.Contains(card.Path, expectedSegment)).IsTrue();
+            await Assert.That(Paths.Contains(card.Path, otherSegment)).IsFalse();
+
+            // the sibling worktree's path never leaks into the results
+            foreach (var target in vm.Targets)
+                await Assert.That(Paths.Contains(target.Path, otherSegment)).IsFalse();
+
+            // unlocked, with the worktree auto-selected and Foo.sln as the leading solution chip
+            await Assert.That(vm.CanOpen).IsTrue();
+            await Assert.That(vm.SelectedTarget).IsEqualTo(card);
+            await Assert.That(vm.SelectedSolutionChip!.SolutionPath!).EndsWith("Foo.sln");
+
+            // Rider opens solutions → the launch target is that worktree's Foo.sln
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+            var launched = rider.LastLaunch!.Value.Target;
+            await Assert.That(Paths.Contains(launched, "Foo.worktrees")).IsTrue();
+            await Assert.That(Paths.Contains(launched, expectedSegment)).IsTrue();
+            await Assert.That(Paths.Contains(launched, otherSegment)).IsFalse();
+            await Assert.That(launched).EndsWith("Foo.sln");
         });
     }
 }

@@ -30,7 +30,14 @@ public sealed class AppConfig
     /// </summary>
     public List<Editor> Editors { get; set; } = new();
 
-    /// <summary>Index into <see cref="Editors"/> of the default editor (the Open button / Enter).</summary>
+    /// <summary>
+    /// <see cref="DefaultEditorIndex"/> value meaning no default tool is set: the main screen shows no
+    /// hero button and renders every tool at equal weight in the grid.
+    /// </summary>
+    public const int NoDefaultEditor = -1;
+
+    /// <summary>Index into <see cref="Editors"/> of the default tool (the hero Open button), or
+    /// <see cref="NoDefaultEditor"/> when the user wants an equal-weight grid with no hero.</summary>
     public int DefaultEditorIndex { get; set; }
 
     /// <summary>
@@ -79,24 +86,47 @@ public sealed class AppConfig
     public int CloseAfterOpenDelaySeconds { get; set; } = DefaultCloseAfterOpenDelaySeconds;
 
     /// <summary>
-    /// The currently selected default editor (the Open button / Enter), or null when none are configured.
-    /// Clamps an out-of-range <see cref="DefaultEditorIndex"/> back to the first editor.
+    /// The currently selected default tool (the hero button), or null when none are configured or the
+    /// user chose no default (<see cref="NoDefaultEditor"/>, meaning an equal-weight tool grid).
+    /// An out-of-range positive index clamps back into the list rather than silently losing the default.
     /// </summary>
     public Editor? DefaultEditor =>
-        Editors.Count == 0 ? null : Editors[Math.Clamp(DefaultEditorIndex, 0, Editors.Count - 1)];
+        Editors.Count == 0 || DefaultEditorIndex == NoDefaultEditor
+            ? null
+            : Editors[Math.Clamp(DefaultEditorIndex, 0, Editors.Count - 1)];
 
     /// <summary>
-    /// Finds the configured editor whose <see cref="Editor.Slug"/> matches <paramref name="slug"/>
-    /// (case-insensitive, trimmed), or null when none match. Editors with a blank slug are skipped, so they
-    /// can't be selected from the command line. Used to honour <c>fido &lt;branch&gt; &lt;slug&gt;</c>.
+    /// Finds the configured editor matching <paramref name="slug"/> (case-insensitive, trimmed) by its
+    /// configured <see cref="Editor.Slug"/> or a well-known alias of its kind (<c>webstorm</c>,
+    /// <c>vscode</c>, <c>explorer</c>, <c>console</c>…), or null when none match. Display names are
+    /// deliberately not consulted — a blank-slug custom editor stays un-selectable from the command
+    /// line. Used to honour <c>fido &lt;branch&gt; &lt;tool&gt;</c> and <c>--tool &lt;id&gt;</c>.
     /// </summary>
     public Editor? FindEditorBySlug(string? slug)
     {
         if (string.IsNullOrWhiteSpace(slug)) return null;
-        var wanted = slug.Trim();
-        return Editors.FirstOrDefault(e =>
-            !string.IsNullOrWhiteSpace(e.Slug) &&
-            string.Equals(e.Slug.Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+        var wanted = Normalize(slug);
+
+        var bySlug = Editors.FirstOrDefault(e =>
+            !string.IsNullOrWhiteSpace(e.Slug) && Normalize(e.Slug) == wanted);
+        if (bySlug is not null) return bySlug;
+
+        return Editors.FirstOrDefault(e => KindAliases(e.Kind).Contains(wanted));
+
+        // Lower-cased with spaces removed, so "VS Code", "vscode" and "VSCODE" all meet in the middle.
+        static string Normalize(string s) => s.Trim().Replace(" ", "").ToLowerInvariant();
+
+        static string[] KindAliases(EditorKind kind) => kind switch
+        {
+            EditorKind.Rider => ["rider"],
+            EditorKind.WebStorm => ["webstorm", "ws"],
+            EditorKind.VsCode => ["vscode", "code", "vsc"],
+            EditorKind.VisualStudio => ["visualstudio", "vs", "devenv"],
+            EditorKind.Zed => ["zed"],
+            EditorKind.Console => ["console", "terminal", "term"],
+            EditorKind.FileExplorer => ["explorer", "fileexplorer", "files", "finder"],
+            _ => [],
+        };
     }
 
     /// <summary>Builds a config seeded with common dev locations and the built-in editor list.</summary>

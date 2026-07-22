@@ -2,36 +2,50 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Fido;
 using Fido.Models;
+using Fido.Services;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
 
 namespace Fido.Tests.E2E;
 
-/// <summary>CLI prefill, input validation, and that the real Open button drives the flow.</summary>
+/// <summary>
+/// CLI startup semantics for the discovery-first flow: argument prefill, the one-shot auto-open
+/// (explicit tool + exactly one location, and nothing else), the <c>--tool none</c> equal-weight
+/// grid, and blank-branch validation. The CLI no longer opens anything unless a tool is named —
+/// a bare branch just runs the scan and presents the results. Also pins the default-tool boundary
+/// — a CLI <c>--tool</c> override is run-scoped while a gear-popover pick persists — and Enter in
+/// the branch box firing an immediate scan.
+/// </summary>
 [NotInParallel]
 public class StartupAndValidationTests
 {
     [Test]
-    public async Task Startup_args_prefill_branch_solution_and_folder_mode()
+    public async Task Bare_branch_argument_prefills_and_scans_but_never_auto_opens()
     {
         using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
-        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+        world.Clone(origin, root, "Foo");   // exactly one location for 'main'
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
 
         var original = Program.StartupArgs;
-        Program.StartupArgs = ["-b", "feature/z", "-s", "MyApp", "--folder"];
+        Program.StartupArgs = ["main"];   // a bare argument is taken as the branch — no tool named
         try
         {
             await Harness.WithWindow(services, async window =>
             {
                 var vm = window.Vm();
-                await Assert.That(vm.BranchName).IsEqualTo("feature/z");
-                await Assert.That(vm.SolutionName).IsEqualTo("MyApp");
-                await Assert.That(vm.IsFolderMode).IsTrue();
+                await Assert.That(vm.BranchName).IsEqualTo("main");
 
-                // the real input control reflects the prefill via its two-way binding
-                await Assert.That(window.FindControl<AutoCompleteBox>("BranchBox")!.Text).IsEqualTo("feature/z");
-                Screenshots.Save(window, "cli-args-prefill");
+                // Run the scan to completion deterministically (the Opened handler's own scan is
+                // fire-and-forget; ours supersedes it). One location — but with no tool named on
+                // the command line, presenting the result is all that happens.
+                await window.RunDiscoveryAsync();
+
+                await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+                await Assert.That(vm.Targets.Count).IsEqualTo(1);
+                await Assert.That(launcher.Launches.Count).IsEqualTo(0);
             });
         }
         finally
@@ -41,40 +55,18 @@ public class StartupAndValidationTests
     }
 
     [Test]
-    public async Task Positional_argument_prefills_the_branch()
-    {
-        using var world = new TestRepoWorld();
-        var root = world.SearchRoot("root");
-        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
-
-        var original = Program.StartupArgs;
-        Program.StartupArgs = ["feature/positional"];   // a bare argument is taken as the branch
-        try
-        {
-            await Harness.WithWindow(services, async window =>
-            {
-                await Assert.That(window.Vm().BranchName).IsEqualTo("feature/positional");
-            });
-        }
-        finally
-        {
-            Program.StartupArgs = original;
-        }
-    }
-
-    [Test]
-    public async Task Cli_branch_auto_opens_the_flow_and_closes_on_success()
+    public async Task Branch_plus_tool_auto_opens_once_for_a_single_location_and_closes()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
+        world.Clone(origin, root, "Foo");   // exactly one location for 'main'
 
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());   // default: close on CLI launch
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());   // default: close on CLI launch
 
         var original = Program.StartupArgs;
-        Program.StartupArgs = ["-b", "main", "-s", "Foo"];
+        Program.StartupArgs = ["main", "rider"];   // bare branch, then a bare tool id
         try
         {
             await Harness.WithWindow(services, async window =>
@@ -82,11 +74,13 @@ public class StartupAndValidationTests
                 var closed = new TaskCompletionSource();
                 window.Closed += (_, _) => closed.TrySetResult();
 
-                // No button click: providing the branch on the CLI runs the open flow on startup.
-                var launched = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-                await Assert.That(launched).IsEqualTo((Task)rider.FirstLaunch);
-                await Assert.That(rider.Launches.Count).IsEqualTo(1);
+                // No interaction: naming a tool on the CLI auto-opens when the scan finds one location.
+                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
+                await Assert.That(launcher.Launches.Count).IsEqualTo(1);
+                await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Rider);
 
+                // ...and a CLI-driven launch closes Fido (CloseAfterOpen.CommandLine, no delay).
                 var didClose = await Task.WhenAny(closed.Task, Task.Delay(TimeSpan.FromSeconds(10)));
                 await Assert.That(didClose).IsEqualTo((Task)closed.Task);
             });
@@ -98,25 +92,39 @@ public class StartupAndValidationTests
     }
 
     [Test]
-    public async Task Cli_editor_slug_selects_that_editor_for_the_auto_open()
+    public async Task Two_locations_with_an_explicit_tool_lists_both_and_does_not_auto_open()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
         world.Clone(origin, root, "Foo");
+        world.Clone(origin, root, "Bar");   // a second clone: 'main' now lives in two places
 
         var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
 
         var original = Program.StartupArgs;
-        Program.StartupArgs = ["-b", "main", "-s", "Foo", "-e", "zed"];   // open in Zed, not the default (Rider)
+        Program.StartupArgs = ["-b", "main", "-e", "zed"];   // legacy --editor/-e alias still accepted
         try
         {
             await Harness.WithWindow(services, async window =>
             {
-                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
-                await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Zed);
+                var vm = window.Vm();
+                await window.RunDiscoveryAsync();   // deterministic re-run of the startup scan
+
+                // Both locations are presented as cards for the user to disambiguate...
+                await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+                await Assert.That(vm.Targets.Count).IsEqualTo(2);
+                await Assert.That(vm.HasMultipleTargets).IsTrue();
+                await Assert.That(window.CardWithPath("root/Foo").IsMainClone).IsTrue();
+                await Assert.That(window.CardWithPath("root/Bar").IsMainClone).IsTrue();
+
+                // ...nothing opened by itself — the ambiguity is the user's to resolve...
+                await Assert.That(launcher.Launches.Count).IsEqualTo(0);
+
+                // ...but the named tool still became this run's default (the hero button).
+                await Assert.That(vm.HasHero).IsTrue();
+                await Assert.That(vm.HeroLabel).IsEqualTo("Open in Zed");
             });
         }
         finally
@@ -126,7 +134,7 @@ public class StartupAndValidationTests
     }
 
     [Test]
-    public async Task Positional_editor_slug_after_the_branch_selects_that_editor()
+    public async Task Unknown_tool_id_warns_with_known_ids_and_never_auto_opens()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -137,14 +145,27 @@ public class StartupAndValidationTests
         var services = world.BuildServices([root], launcher, new FakeDialogService());
 
         var original = Program.StartupArgs;
-        Program.StartupArgs = ["main", "-s", "Foo", "zed"];   // bare branch, then a bare editor slug
+        Program.StartupArgs = ["-b", "main", "-t", "nope"];   // a tool id that matches nothing
         try
         {
             await Harness.WithWindow(services, async window =>
             {
-                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
-                await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Zed);
+                var vm = window.Vm();
+
+                // The branch still scans (--branch prefills AND scans, per the handoff); the typo
+                // only disarms the one-shot auto-open. Await the flow deterministically — this call
+                // supersedes the Opened handler's fire-and-forget scan and inherits its one-shots.
+                await window.RunDiscoveryAsync();
+
+                // The typo is reported after the scan (which resets the log), listing the ids that
+                // would have worked; the branch stays prefilled so the user can correct and retry.
+                await Assert.That(vm.BranchName).IsEqualTo("main");
+                await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+                await Assert.That(window.LogText()).Contains("Unknown tool 'nope'");
+                await Assert.That(window.LogText()).Contains("rider");
+
+                // A single location was found, yet nothing auto-opened.
+                await Assert.That(launcher.Launches.Count).IsEqualTo(0);
             });
         }
         finally
@@ -154,7 +175,165 @@ public class StartupAndValidationTests
     }
 
     [Test]
-    public async Task Unknown_editor_slug_is_no_go_and_does_not_launch()
+    public async Task Tool_none_drops_the_hero_and_shows_the_full_equal_grid()
+    {
+        using var world = new TestRepoWorld();
+        var root = world.SearchRoot("root");
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["--tool", "none"];   // equal-weight grid for this run only
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                var vm = window.Vm();
+                await Assert.That(vm.HasHero).IsFalse();
+                await Assert.That(vm.HeroTool).IsNull();
+
+                // No hero means nobody is promoted out of the grid: all seven default tools sit there.
+                await Assert.That(vm.GridTools.Count).IsEqualTo(7);
+                await Assert.That(vm.GridTools.Any(t => t.Name == "Rider")).IsTrue();
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+    }
+
+    [Test]
+    public async Task Branch_and_solution_flags_prefill_the_real_input_boxes()
+    {
+        using var world = new TestRepoWorld();
+        var root = world.SearchRoot("root");
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["-b", "feature/z", "-s", "MyApp"];   // -s is the solution *filter* now
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                var vm = window.Vm();
+                await Assert.That(vm.BranchName).IsEqualTo("feature/z");
+                await Assert.That(vm.SolutionFilter).IsEqualTo("MyApp");
+
+                // the real input controls reflect the prefill via their two-way bindings
+                await Assert.That(window.FindControl<AutoCompleteBox>("BranchBox")!.Text).IsEqualTo("feature/z");
+                await Assert.That(window.FindControl<AutoCompleteBox>("SolutionBox")!.Text).IsEqualTo("MyApp");
+                Screenshots.Save(window, "cli-args-prefill");
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+    }
+
+    [Test]
+    public async Task Blank_branch_stays_idle_and_locked_and_touches_neither_git_nor_a_tool()
+    {
+        using var world = new TestRepoWorld();
+        var root = world.SearchRoot("root");
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("   ");   // whitespace-only branch — a scan has nothing to look for
+
+            var vm = window.Vm();
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Idle);
+            await Assert.That(vm.IsLocked).IsTrue();
+            await Assert.That(launcher.Launches.Count).IsEqualTo(0);
+        });
+    }
+
+    [Test]
+    public async Task Cli_tool_override_is_run_scoped_and_never_persists_as_the_default()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");   // exactly one location → the named tool auto-opens
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+        var configDir = services.ConfigService.ConfigDirectory;
+
+        var original = Program.StartupArgs;
+        Program.StartupArgs = ["-b", "main", "-t", "zed"];
+        try
+        {
+            await Harness.WithWindow(services, async window =>
+            {
+                // The override owns this run: Zed takes the hero button...
+                await Assert.That(window.Vm().HeroTool!.Name).IsEqualTo("Zed");
+
+                // ...and the single-location auto-open fires — which records the MRU and saves the
+                // config, so the file on disk is definitely rewritten during this run. That makes
+                // the reload below a real check, not just re-reading the seed BuildServices wrote.
+                var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+                await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
+            });
+        }
+        finally
+        {
+            Program.StartupArgs = original;
+        }
+
+        // The window is closed; what's on disk is what the next run will load. The persisted
+        // default is still Rider (index 0) — `--tool zed` was a per-run override, not a settings
+        // change.
+        var reloaded = new ConfigService(configDir).Load();
+        await Assert.That(reloaded.DefaultEditorIndex).IsEqualTo(0);
+        await Assert.That(reloaded.Editors[reloaded.DefaultEditorIndex].Name).IsEqualTo("Rider");
+    }
+
+    [Test]
+    public async Task Gear_popover_pick_persists_the_default_and_re_renders_the_hero()
+    {
+        using var world = new TestRepoWorld();
+        var root = world.SearchRoot("root");
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+        var configDir = services.ConfigService.ConfigDirectory;
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vm = window.Vm();
+            await Assert.That(vm.HeroTool!.Name).IsEqualTo("Rider");   // the seeded default
+
+            // Tick Zed's radio row — the popover binds each row's IsSelected straight to these
+            // objects, so this is exactly what clicking the RadioButton drives.
+            vm.DefaultToolChoices.Single(c => c.Name == "Zed").IsSelected = true;
+            UiTestExtensions.Pump();
+
+            // The hero re-renders immediately (Zed leaves the grid to take the button)...
+            await Assert.That(vm.HeroTool!.Name).IsEqualTo("Zed");
+            await Assert.That(vm.HeroLabel).IsEqualTo("Open in Zed");
+            await Assert.That(vm.GridTools.Any(t => t.Name == "Zed")).IsFalse();
+
+            // ...and unlike a CLI --tool override, the choice is written to disk there and then.
+            var afterZed = new ConfigService(configDir).Load();
+            await Assert.That(afterZed.Editors[afterZed.DefaultEditorIndex].Name).IsEqualTo("Zed");
+
+            // "No default (equal weight)": the hero disappears, every tool returns to the grid,
+            // and the deliberate NoDefaultEditor (-1) choice persists through a reload.
+            vm.DefaultToolChoices.Single(c => c.Index == AppConfig.NoDefaultEditor).IsSelected = true;
+            UiTestExtensions.Pump();
+
+            await Assert.That(vm.HasHero).IsFalse();
+            await Assert.That(vm.HeroTool).IsNull();
+            await Assert.That(vm.GridTools.Count).IsEqualTo(7);
+
+            var afterNone = new ConfigService(configDir).Load();
+            await Assert.That(afterNone.DefaultEditorIndex).IsEqualTo(AppConfig.NoDefaultEditor);
+        });
+    }
+
+    [Test]
+    public async Task Enter_in_the_branch_box_triggers_an_immediate_scan()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -164,308 +343,28 @@ public class StartupAndValidationTests
         var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
 
-        var original = Program.StartupArgs;
-        Program.StartupArgs = ["-b", "main", "-s", "Foo", "-e", "nope"];   // a slug that matches no editor
-        try
+        await Harness.WithWindow(services, async window =>
         {
-            await Harness.WithWindow(services, async window =>
+            var vm = window.Vm();
+
+            // Type the branch (arming the 600ms debounce) and press Enter on the real box — the
+            // key handler posts a scan through the dispatcher, superseding the timer. No direct
+            // RunDiscoveryAsync call here: the whole flow runs off the keystroke.
+            window.SetText("BranchBox", "main");
+            window.PressKeyOn("BranchBox", Key.Enter);
+
+            // The scan starts on a posted dispatcher job and lands on a background continuation:
+            // pump-and-poll until the phase machine leaves Idle/Scanning (the 5s ceiling is slack
+            // for a loaded CI box, not an expectation).
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (vm.Phase is DiscoveryPhase.Idle or DiscoveryPhase.Scanning && DateTime.UtcNow < deadline)
             {
-                await Task.Delay(200);
                 UiTestExtensions.Pump();
+                await Task.Delay(50);
+            }
 
-                await Assert.That(launcher.Launches.Count).IsEqualTo(0);   // nothing auto-launched
-                await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-                await Assert.That(window.Vm().StatusText).Contains("nope");
-                await Assert.That(window.Vm().BranchName).IsEqualTo("main");   // form is still prefilled to correct & retry
-            });
-        }
-        finally
-        {
-            Program.StartupArgs = original;
-        }
-    }
-
-    [Test]
-    public async Task Button_open_does_not_close_the_window_by_default()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());   // default: CommandLine
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var closed = false;
-            window.Closed += (_, _) => closed = true;
-
-            await window.Open("main", "Foo");   // interactive open (not from the command line)
-
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-            await Assert.That(closed).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-        });
-    }
-
-    [Test]
-    public async Task CloseAfterOpen_Always_closes_after_a_button_open()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService(),
-            closeAfterOpen: CloseAfterOpen.Always);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var closed = false;
-            window.Closed += (_, _) => closed = true;
-
-            await window.Open("main", "Foo");
-
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-            await Assert.That(closed).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task CloseAfterOpen_with_a_delay_counts_down_then_closes()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService(),
-            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var closed = new TaskCompletionSource();
-            window.Closed += (_, _) => closed.TrySetResult();
-
-            await window.Open("main", "Foo");
-
-            // Launched — but the close is deferred behind the countdown: the window is still up, the
-            // "keep open" bar is showing, and the console has started narrating the countdown.
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-            await Assert.That(closed.Task.IsCompleted).IsFalse();
-            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
-            await Assert.That(window.LogText()).Contains("Closing in");
-            Screenshots.Save(window, "close-countdown");
-
-            // ...and once the countdown elapses, it closes itself.
-            var didClose = await Task.WhenAny(closed.Task, Task.Delay(TimeSpan.FromSeconds(8)));
-            await Assert.That(didClose).IsEqualTo((Task)closed.Task);
-        });
-    }
-
-    [Test]
-    public async Task Countdown_ticks_down_in_place_on_a_single_log_line()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService(),
-            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 4);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("main", "Foo");
-
-            var lineCount = window.Vm().Log.Count;
-            var firstTick = window.Vm().Log[^1].Text;
-            await Assert.That(firstTick).Contains("Closing in 4");
-
-            await Task.Delay(TimeSpan.FromSeconds(1.5));   // let it tick at least once
-
-            // The number reduced, but on the same line — the log didn't grow by a line per second.
-            await Assert.That(window.Vm().Log.Count).IsEqualTo(lineCount);
-            await Assert.That(window.Vm().Log[^1].Text).IsNotEqualTo(firstTick);
-            await Assert.That(window.Vm().Log[^1].Text).Contains("Closing in");
-        });
-    }
-
-    [Test]
-    public async Task Keep_open_cancels_a_pending_auto_close()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService(),
-            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 2);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var closed = false;
-            window.Closed += (_, _) => closed = true;
-
-            await window.Open("main", "Foo");           // arms a 2s countdown, shows the bar
-            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
-
-            window.ClickButton("KeepOpenButton");        // the escape hatch
-            await Assert.That(window.Vm().IsClosingCountdown).IsFalse();
-
-            // Wait past the original delay: because it was kept open, the window stays up.
-            await Task.Delay(TimeSpan.FromSeconds(3));
-            await Assert.That(closed).IsFalse();
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-        });
-    }
-
-    [Test]
-    public async Task Starting_another_open_cancels_a_pending_auto_close()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService(),
-            closeAfterOpen: CloseAfterOpen.Always, closeAfterOpenDelaySeconds: 1);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var closed = false;
-            window.Closed += (_, _) => closed = true;
-
-            await window.Open("main", "Foo");   // arms a 1s countdown
-            await Assert.That(closed).IsFalse();
-            await Assert.That(window.Vm().IsClosingCountdown).IsTrue();
-
-            await window.Open("", "");           // a fresh open (here a no-go) supersedes the countdown
-            await Assert.That(window.Vm().IsClosingCountdown).IsFalse();
-
-            // Wait well past the original delay: because the countdown was cancelled, the window stays open.
-            await Task.Delay(TimeSpan.FromSeconds(2.5));
-            await Assert.That(closed).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-        });
-    }
-
-    [Test]
-    public async Task Empty_branch_is_no_go_and_touches_neither_git_nor_rider()
-    {
-        using var world = new TestRepoWorld();
-        var root = world.SearchRoot("root");
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("   ", "");   // whitespace-only branch
-
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-            await Assert.That(window.Vm().StatusText).Contains("please enter a branch name");
-            await Assert.That(rider.Launches.Count).IsEqualTo(0);
-        });
-    }
-
-    [Test]
-    public async Task Enter_in_the_branch_box_opens_in_a_single_press()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-
-            window.PressKeyOn("BranchBox", Key.Enter);   // one Enter — not the drop-down-dismissing first press plus a second
-
-            // a single launch: the box handled Enter and the default button did not also fire
-            var completed = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-            await Assert.That(completed).IsEqualTo((Task)rider.FirstLaunch);
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-        });
-    }
-
-    [Test]
-    public async Task Enter_with_the_mru_dropdown_open_opens_in_one_press()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            // Give the branch box MRU history so its suggestion drop-down has something to show,
-            // then set the inputs as if a branch had just been pasted in.
-            window.Vm().LoadMru(["main"], []);
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-
-            // Ctrl+Space summons the MRU drop-down (the boxes no longer open it on focus) — the
-            // state the user is in when they hit Enter. Assert it's showing so we exercise the swallow.
-            var box = window.FindControl<AutoCompleteBox>("BranchBox")!;
-            box.Focus();
-            box.RaiseEvent(new KeyEventArgs
-            {
-                RoutedEvent = InputElement.KeyDownEvent,
-                Key = Key.Space,
-                KeyModifiers = KeyModifiers.Control,
-            });
-            UiTestExtensions.Pump();
-            await Assert.That(box.IsDropDownOpen).IsTrue();
-
-            // One Enter on the real control. Avalonia's AutoCompleteBox.OnKeyDown consumes it just
-            // to dismiss the drop-down (marking it handled); the fix opens on that same press.
-            box.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-            await Assert.That(box.IsDropDownOpen).IsFalse();   // the press dismisses the MRU list...
-            UiTestExtensions.Pump();
-
-            // ...and, on that same press, acts on the branch — exactly once, with no second Enter.
-            var completed = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-            await Assert.That(completed).IsEqualTo((Task)rider.FirstLaunch);
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
-        });
-    }
-
-    [Test]
-    public async Task Clicking_the_open_button_runs_the_flow()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var rider = new FakeEditorLauncher();
-        var services = world.BuildServices([root], rider, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-            window.ClickButton("OpenButton");   // real Click → async-void handler → RunOpenAsync
-
-            // the click can't be awaited directly; wait on the launch signal (bounded)
-            var completed = await Task.WhenAny(rider.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
-            await Assert.That(completed).IsEqualTo((Task)rider.FirstLaunch);
-            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
         });
     }
 }

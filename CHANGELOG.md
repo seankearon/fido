@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The main screen was redesigned around inline discovery** (per the Claude Design handoff in
+  `design/design_handoff_fido_redesign`) — one window, one screen, no auto-popping dialogs:
+  - **Discovery is the core loop.** Typing a branch name (debounced, or Enter to fire immediately)
+    scans every configured working tree and clone for where that branch is checked out. Results render
+    **inline as selectable cards** — each labelled **worktree** or **main clone** (worktrees first, the
+    first auto-selected) with its repo, solution count, and last-updated age. The separate "Open from
+    branch folder" window and the multi-checkout chooser dialog are gone.
+  - **A branch checked out nowhere is offered as a *new worktree* card.** When no working tree has the
+    branch, discovery consults the scanned clones' refs — a local branch, the cached `origin` tracking
+    ref, or (as a last resort) one live `ls-remote` sweep, so a branch a teammate or cloud session
+    pushed after your last fetch is still found. Each clone that has it appears as a clearly-labelled
+    **new worktree** card showing where the worktree would be created; **opening it creates the
+    worktree first** (fetching and tracking the remote ref when needed) and then launches, exactly
+    like the old decision-dialog flow — minus the dialog. Candidates preview the clone's solutions as
+    chips and are never deletable.
+  - **Open actions stay locked until discovery succeeds.** The hero button and tool grid are always on
+    show but enabled only when the branch was **found** — with a one-line reason (idle / scanning /
+    not found) in their place until then. Nothing opens before discovery resolves.
+  - **The default tool is a hero button, not a hard-coded Rider.** Whatever config or the CLI sets
+    drives the full-width amber **Open in &lt;tool&gt;** button; the remaining tools sit in a
+    three-column grid with their `Ctrl+1…9` accelerators. Choosing **no default** (new ⚙ popover
+    option, or `--tool none`) renders every tool at equal weight.
+  - **The Solution/Folder toggle is gone; behaviour is inferred per tool.** Rider and Visual Studio
+    open the **chosen solution chip** (`*.sln`/`*.slnx`/`*.slnf` detected per target; the Solution box
+    now **filters** the chips); WebStorm, VS Code, Zed, Console, and File Explorer always open the
+    folder. A **Folder** chip opens the working tree itself (`--folder` starts the run on it).
+  - **Delete moved to the main screen.** "Delete worktree & branch" sits under the open actions,
+    enabled only when the selected target is a **linked worktree** on a non-default branch. Clicking it
+    swaps the button for an **in-place two-step confirm** that spells out the worktree path and branch
+    — plus uncommitted-change and orphaned-commit warnings — with Cancel/Delete (Esc backs out; Enter
+    never deletes). The confirmed delete removes the worktree and its **local** branch; the branch on
+    `origin` is never touched. The "filename too long" recovery (permanent, Recycle-Bin-bypassing
+    folder delete) still offers itself when git can't remove the folder.
+  - **The ⚙ gear opens a default-tool popover** (radio list incl. *No default (equal weight)*, with a
+    note that a `--tool` launch flag overrides it per run) and an **All settings…** door to the full
+    settings dialog.
+  - **CLI:** `fido <branch> [tool]`, `--branch/-b`, `--solution/-s` (chip filter), and `--tool/-t`
+    (`--editor/-e` still accepted) which also takes kind aliases (`webstorm`, `vscode`, `explorer`, …)
+    and `none`. A CLI-supplied branch **prefills and scans**; naming a tool makes it the run's hero and
+    **auto-opens only when discovery finds exactly one location** — with several, the choice is always
+    presented, never auto-popped. An unknown tool id is reported (with the known ids) and never guessed.
+  - **A warm, cream-and-amber look.** The handoff's palette is now the Light theme verbatim — canvas
+    `#FBF9F3`, amber `#F4A62A` accents, worktree/main-clone colour coding, red-outline danger styling —
+    with the Dark theme re-derived in the same warm hues, anchored on the logo tile. The flight log
+    keeps the FIDO aviation voice, now colour-coded per line kind (accent/ok/warn/muted/plain), and the
+    window height hugs its content.
+
+### Removed
+
+- **The chooser, decision, and delete-worktree dialogs** — inline discovery, the target cards, and the
+  in-place delete confirm replace all three. Placing a not-checked-out branch lives on as the inline
+  **new worktree** card (above); the decision dialog's **check-out-in-main-tree** option and the
+  Settings section for **New-branch repos** are gone — candidates now come from the clones discovery
+  already scans, so there's no separate list to maintain (a configured list is preserved on disk,
+  unused).
+
 ### Added
 
 - **Delete a worktree, its branch, and the remote branch — from the branch-folder chooser.** When

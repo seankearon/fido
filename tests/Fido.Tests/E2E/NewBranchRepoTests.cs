@@ -1,53 +1,89 @@
+using System.IO;
 using Fido.Models;
-using Fido.Services;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
+using Fido.Views;
 
 namespace Fido.Tests.E2E;
 
 /// <summary>
-/// Scenario D: a branch typed with no solution that isn't checked out anywhere. Fido looks across the
-/// repos configured for new branches, keeps only those whose refs actually contain the branch (local or
-/// origin), and offers to place it there as a worktree or a main-tree checkout. Found in none ⇒ abandon.
+/// Scenario D: a branch that is checked out nowhere. When one of the scanned clones has the branch —
+/// a local ref, the cached origin tracking ref, or (via a live <c>ls-remote</c> fallback) a branch
+/// pushed to origin that this machine never fetched — discovery offers it as a selectable
+/// <see cref="TargetKind.NewWorktree"/> card, and opening creates the worktree first, then launches.
+/// Only a branch that exists in no scanned clone at all lands on the locked
+/// <see cref="DiscoveryPhase.NotFound"/> state.
 /// </summary>
 [NotInParallel]
-public class NewBranchRepoTests
+public class NewWorktreeCandidateTests
 {
-    private static void ConfigureNewBranchRepos(FidoServices services, params string[] repos)
-    {
-        var cfg = services.ConfigService.Load();
-        cfg.NewBranchRepos = repos.ToList();
-        services.ConfigService.Save(cfg);
-    }
-
     /// <summary>Creates a local branch ref without checking it out (working tree stays put).</summary>
     private static void AddLocalBranch(string repoPath, string branch) =>
         TestRepoWorld.Git(repoPath, "branch", branch);
 
+    /// <summary>Asserts the full locked contract after a scan that found nothing for <paramref name="branch"/>.</summary>
+    private static async Task AssertNotFoundAndLocked(MainWindow window, string branch)
+    {
+        var vm = window.Vm();
+        await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.NotFound);
+        await Assert.That(vm.IsNotFound).IsTrue();
+        await Assert.That(vm.IsLocked).IsTrue();
+        await Assert.That(vm.LockReason).IsEqualTo("🔒 No location found — nothing to open");
+        await Assert.That(vm.CanOpen).IsFalse();
+        await Assert.That(vm.CanDelete).IsFalse();
+        await Assert.That(vm.Targets.Count).IsEqualTo(0);
+        await Assert.That(vm.SelectedTarget).IsNull();
+        await Assert.That(window.LogText()).Contains($"⚠ No working tree or clone has '{branch}'.");
+        await Assert.That(window.LogText().Contains("✓ Found")).IsFalse();
+    }
+
+    /// <summary>Asserts a single create-a-worktree offer landed for <paramref name="branch"/>.</summary>
+    private static async Task AssertSingleCandidate(MainWindow window, string branch, bool remoteOnly)
+    {
+        var vm = window.Vm();
+        await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+        await Assert.That(vm.CanOpen).IsTrue();
+        await Assert.That(vm.Targets.Count).IsEqualTo(1);
+
+        var card = vm.Targets[0];
+        await Assert.That(card.IsNewWorktree).IsTrue();
+        await Assert.That(card.KindLabel).IsEqualTo("new worktree");
+        await Assert.That(card.Target.BranchOnOriginOnly).IsEqualTo(remoteOnly);
+        await Assert.That(vm.SelectedTarget).IsEqualTo(card);
+
+        // A candidate is never deletable — there's nothing on disk yet.
+        await Assert.That(vm.CanDelete).IsFalse();
+        await Assert.That(vm.DeleteDisabledNote).Contains("opening creates this worktree");
+        await Assert.That(window.LogText()).Contains($"'{branch}' isn't checked out anywhere");
+    }
+
     [Test]
-    public async Task Unknown_branch_with_no_configured_repos_is_no_go()
+    public async Task Branch_with_no_refs_anywhere_is_not_found_and_locked()
     {
         using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
+        var originFoo = world.CreateOrigin("Foo", "Foo");
+        var originBar = world.CreateOrigin("Bar", "Bar");
         var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
+        world.Clone(originFoo, root, "Foo");
+        world.Clone(originBar, root, "Bar");
+        // neither clone (nor either origin) has "feature/zzz"
 
         var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
-        var services = world.BuildServices([root], rider, dialogs);   // NewBranchRepos left empty
+        var services = world.BuildServices([root], rider, dialogs);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");   // no solution → branch-only flow
+            await window.Discover("feature/zzz");
+            Screenshots.Save(window, "D-not-found-locked");
 
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-            await Assert.That(dialogs.DecisionRequests.Count).IsEqualTo(0);
-            await Assert.That(rider.LastLaunch).IsNull();
+            await AssertNotFoundAndLocked(window, "feature/zzz");
+            await Assert.That(window.Vm().ScannedBranch).IsEqualTo("feature/zzz");
+            await Assert.That(rider.Launches.Count).IsEqualTo(0);
         });
     }
 
     [Test]
-    public async Task Branch_present_in_configured_repo_is_offered_as_a_worktree()
+    public async Task Local_branch_ref_that_is_checked_out_nowhere_is_offered_as_a_new_worktree()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -56,244 +92,128 @@ public class NewBranchRepoTests
         AddLocalBranch(clone, "feature/x");   // exists locally, not checked out
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, clone);
+        var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");
-            Screenshots.Save(window, "D-new-branch-worktree");
+            await window.Discover("feature/x");
+            Screenshots.Save(window, "D-new-worktree-offer");
 
-            await Assert.That(dialogs.DecisionRequests.Count).IsEqualTo(1);
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: false);
+            await Assert.That(rider.Launches.Count).IsEqualTo(0);   // offering is not opening
+        });
+    }
 
-            var target = rider.LastLaunch!.Value.Target;
-            await Assert.That(Paths.Contains(target, "Foo.worktrees")).IsTrue();
-            await Assert.That(Paths.Contains(target, "feature-x")).IsTrue();   // branch name sanitized for the path
-            await Assert.That(target).EndsWith("Foo.sln");
+    /// <summary>
+    /// A branch that lives only on origin is offered whether the clone has already fetched its
+    /// remote-tracking ref (pushed before the clone) or has never heard of it (pushed after —
+    /// found by the live <c>ls-remote</c> fallback).
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task Branch_that_lives_only_on_origin_is_offered_as_a_new_worktree(bool pushedBeforeClone)
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+
+        if (pushedBeforeClone)
+        {
+            world.PublishBranchToOrigin(origin, "feature/x");
+            world.Clone(origin, root, "Foo");   // fetches origin/feature/x; stays on main, no local checkout
+        }
+        else
+        {
+            world.Clone(origin, root, "Foo");
+            world.PublishBranchToOrigin(origin, "feature/x");   // pushed after the clone → never fetched here
+        }
+
+        var rider = new FakeEditorLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: true);
+            await Assert.That(rider.Launches.Count).IsEqualTo(0);
         });
     }
 
     [Test]
-    public async Task Branch_present_in_configured_repo_can_be_checked_out_in_main()
+    public async Task Opening_a_candidate_creates_the_worktree_and_launches_its_solution()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
-        AddLocalBranch(clone, "feature/x");
+        world.PublishBranchToOrigin(origin, "feature/x");   // never fetched by the clone
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Main };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, clone);
+        var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/x");
+            var vm = window.Vm();
+            await window.Discover("feature/x");
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: true);
 
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.StartsWith(rider.LastLaunch!.Value.Target, clone)).IsTrue();
+            // The chips preview the clone's solutions before anything exists on disk.
+            await Assert.That(vm.HasSolutionChips).IsTrue();
+            await Assert.That(vm.SelectedSolutionChip!.Label).IsEqualTo("Foo.sln");
 
-            var current = await new GitService().GetCurrentBranchAsync(clone);
-            await Assert.That(current).IsEqualTo("feature/x");   // the main tree really switched
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+
+            // The worktree now exists, checked out on a tracking branch, and Rider got the
+            // same-named solution inside the NEW tree — not the clone's copy.
+            var worktree = vm.Targets[0].Path;
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+            await Assert.That(await services.Git.GetCurrentBranchAsync(worktree)).IsEqualTo("feature/x");
+            await Assert.That(await services.Git.IsLinkedWorktreeAsync(worktree)).IsTrue();
+
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            var target = rider.LastLaunch!.Value.Target;
+            await Assert.That(Paths.StartsWith(target, worktree)).IsTrue();
+            await Assert.That(target).EndsWith("Foo.sln");
+            await Assert.That(window.LogText()).Contains("Fido? GO!");
+
+            // A rescan now reports it as a real worktree, deletable like any other.
+            await window.RunDiscoveryAsync();
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+            await Assert.That(vm.CanDelete).IsTrue();
         });
     }
 
     [Test]
-    public async Task Branch_present_in_two_configured_repos_prompts_a_repo_chooser()
+    public async Task Open_and_delete_are_no_ops_while_locked_and_no_dialogs_appear()
     {
         using var world = new TestRepoWorld();
-        var originFoo = world.CreateOrigin("Foo", "Foo");
-        var originBar = world.CreateOrigin("Bar", "Bar");
+        var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
-        var cloneFoo = world.Clone(originFoo, root, "Foo");
-        var cloneBar = world.Clone(originBar, root, "Bar");
-        AddLocalBranch(cloneFoo, "feature/x");
-        AddLocalBranch(cloneBar, "feature/x");
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService
-        {
-            OnDecision = _ => OpenDecision.Worktree,
-            // first chooser = which repo (pick Bar); later = which target inside it (pick the solution)
-            OnChooser = req => req.Title == "Select repository" ? req.PickTitleContaining(cloneBar) : 0,
-        };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            var repoChooser = dialogs.ChooserRequests.FirstOrDefault(r => r.Title == "Select repository");
-            await Assert.That(repoChooser).IsNotNull();
-            await Assert.That(repoChooser!.Items.Count).IsEqualTo(2);
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "Bar.worktrees")).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task Only_the_configured_repo_that_has_the_branch_is_offered_without_a_chooser()
-    {
-        using var world = new TestRepoWorld();
-        var originFoo = world.CreateOrigin("Foo", "Foo");
-        var originBar = world.CreateOrigin("Bar", "Bar");
-        var root = world.SearchRoot("root");
-        var cloneFoo = world.Clone(originFoo, root, "Foo");
-        var cloneBar = world.Clone(originBar, root, "Bar");
-        AddLocalBranch(cloneFoo, "feature/x");   // only Foo has the branch
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            // Bar is filtered out → only one candidate → no "Select repository" chooser.
-            await Assert.That(dialogs.ChooserRequests.Any(r => r.Title == "Select repository")).IsFalse();
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "Foo.worktrees")).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task Branch_absent_from_all_configured_repos_is_abandoned()
-    {
-        using var world = new TestRepoWorld();
-        var originFoo = world.CreateOrigin("Foo", "Foo");
-        var originBar = world.CreateOrigin("Bar", "Bar");
-        var root = world.SearchRoot("root");
-        var cloneFoo = world.Clone(originFoo, root, "Foo");
-        var cloneBar = world.Clone(originBar, root, "Bar");
-        // neither clone has "feature/zzz"
+        world.Clone(origin, root, "Foo");
 
         var rider = new FakeEditorLauncher();
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
 
         await Harness.WithWindow(services, async window =>
         {
-            await window.Open("feature/zzz");
+            await window.Discover("feature/zzz");
+            await Assert.That(window.Vm().IsLocked).IsTrue();
 
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.NoGo);
-            await Assert.That(dialogs.DecisionRequests.Count).IsEqualTo(0);   // never reached the decision
-            await Assert.That(rider.LastLaunch).IsNull();
-        });
-    }
+            // Both action seams are gated on the phase machine: nothing launches, nothing arms.
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+            await window.RequestDeleteAsync();
 
-    [Test]
-    public async Task Decision_cancel_aborts_cleanly()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        AddLocalBranch(clone, "feature/x");
+            await Assert.That(rider.Launches.Count).IsEqualTo(0);
+            await Assert.That(window.Vm().IsConfirmingDelete).IsFalse();
+            await Assert.That(window.LogText().Contains("Fido? GO!")).IsFalse();
 
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Cancel };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, clone);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.None);
-            await Assert.That(rider.LastLaunch).IsNull();
-        });
-    }
-
-    [Test]
-    public async Task Branch_present_only_on_an_unfetched_remote_is_found_and_opened()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");       // only main fetched
-        world.PublishBranchToOrigin(origin, "feature/x");   // pushed to origin AFTER the clone → not fetched here
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, clone);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-            Screenshots.Save(window, "D-unfetched-remote-branch");
-
-            // Before the fix this was a no-go ("branch not found in any configured repo"); now Fido
-            // queries the remote, fetches the branch, and opens it.
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "feature-x")).IsTrue();
-
-            var current = await new GitService().GetCurrentBranchAsync(clone);
-            await Assert.That(current).IsEqualTo("main");   // worktree took the branch; main tree untouched
-        });
-    }
-
-    [Test]
-    public async Task Branch_present_only_on_origin_is_checked_out_tracking()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-
-        // Publish feature/x to origin from a clone that lives OUTSIDE the search roots.
-        var other = world.SearchRoot("other");
-        var publisher = world.Clone(origin, other, "Pub");
-        world.CreateBranch(publisher, "feature/x");
-        TestRepoWorld.Git(publisher, "push", "-u", "origin", "feature/x");
-
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");   // fetches origin/feature/x; stays on main, no local ref
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, clone);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            await Assert.That(window.Vm().StatusKind).IsEqualTo(StatusKind.Go);
-            await Assert.That(Paths.Contains(rider.LastLaunch!.Value.Target, "feature-x")).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task Branch_search_progress_ticks_in_place_in_the_flight_log()
-    {
-        using var world = new TestRepoWorld();
-        var originFoo = world.CreateOrigin("Foo", "Foo");
-        var originBar = world.CreateOrigin("Bar", "Bar");
-        var root = world.SearchRoot("root");
-        var cloneFoo = world.Clone(originFoo, root, "Foo");   // searched first, lacks the branch
-        var cloneBar = world.Clone(originBar, root, "Bar");   // searched second, has it locally
-        AddLocalBranch(cloneBar, "feature/x");
-
-        var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService { OnDecision = _ => OpenDecision.Worktree };
-        var services = world.BuildServices([root], rider, dialogs);
-        ConfigureNewBranchRepos(services, cloneFoo, cloneBar);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            await window.Open("feature/x");
-
-            var log = window.Vm().Log;
-            // The hunt is narrated by repo name (Bar is where the branch was found)...
-            await Assert.That(log.Any(l => l.Text == "Searching for local branch in Bar")).IsTrue();
-            // ...but in place: searching two repos (and both phases) leaves a single line, not one apiece.
-            await Assert.That(log.Count(l => l.Text.Contains("Searching for"))).IsEqualTo(1);
+            // The old chooser/decision/delete dialogs are gone; the surviving modals stay untouched too.
+            await Assert.That(dialogs.ForceDeleteConfirmations.Count).IsEqualTo(0);
+            await Assert.That(dialogs.SettingsShownCount).IsEqualTo(0);
         });
     }
 }

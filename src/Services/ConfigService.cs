@@ -112,7 +112,10 @@ public sealed class ConfigService
         }
         cfg.ConfigVersion = AppConfig.CurrentConfigVersion;
 
-        cfg.DefaultEditorIndex = Math.Clamp(cfg.DefaultEditorIndex, 0, cfg.Editors.Count - 1);
+        // NoDefaultEditor (-1) is a deliberate "equal-weight grid, no hero" choice — preserve it;
+        // anything else clamps back into the editor list.
+        if (cfg.DefaultEditorIndex != AppConfig.NoDefaultEditor)
+            cfg.DefaultEditorIndex = Math.Clamp(cfg.DefaultEditorIndex, 0, cfg.Editors.Count - 1);
         return cfg;
     }
 }

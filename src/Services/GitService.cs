@@ -204,6 +204,21 @@ public sealed class GitService
     }
 
     /// <summary>
+    /// Absolute path of the main working tree of the clone that <paramref name="dir"/> belongs to —
+    /// identical to <paramref name="dir"/> when it already is the main tree. Derived from the shared
+    /// common git dir (its parent folder), so it stays correct under symlinked search roots. Null on
+    /// any git error; callers fall back to <paramref name="dir"/> itself.
+    /// </summary>
+    public async Task<string?> GetMainWorktreePathAsync(string dir, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "rev-parse", "--path-format=absolute", "--git-common-dir");
+        if (!r.Success) return null;
+        var common = r.StdOut.Trim();
+        if (common.Length == 0) return null;
+        return System.IO.Path.GetDirectoryName(common);
+    }
+
+    /// <summary>
     /// Counts commits reachable from <paramref name="branch"/> but from no other ref — no other local branch,
     /// no remote-tracking branch, no tag. These are the commits that would be <em>orphaned</em> (lost to normal
     /// use) if the branch were force-deleted: unpushed, unmerged work that exists nowhere else. Zero when the
