@@ -28,6 +28,13 @@ public sealed class Editor
     /// </summary>
     public bool OpensFolderOnly => Kind is EditorKind.WebStorm or EditorKind.Console or EditorKind.FileExplorer;
 
+    /// <summary>
+    /// True when this tool understands solution files and should be handed the chosen <c>.sln</c>/<c>.slnx</c>
+    /// when one is selected — Rider and Visual Studio only. Every other tool (including VS Code and Zed,
+    /// which would open a <c>.sln</c> as a text file) always gets the folder and ignores the solution choice.
+    /// </summary>
+    public bool OpensSolutions => Kind is EditorKind.Rider or EditorKind.VisualStudio;
+
     /// <summary>Explicit path to the executable/app bundle; auto-detected from <see cref="Kind"/> when null/empty.</summary>
     public string? Path { get; set; }
 

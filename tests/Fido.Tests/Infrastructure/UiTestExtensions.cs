@@ -68,25 +68,26 @@ public static class UiTestExtensions
     public static string LogText(this MainWindow window) =>
         string.Join("\n", window.Vm().Log.Select(line => line.Text));
 
-    /// <summary>Types the branch/solution into the real boxes and runs the open flow to completion.</summary>
-    public static async Task Open(this MainWindow window, string branch, string solution = "")
+    /// <summary>
+    /// Types the branch/solution-filter into the real boxes and runs discovery to completion,
+    /// bypassing the debounce timer (tests shouldn't wait 600ms per scan).
+    /// </summary>
+    public static async Task Discover(this MainWindow window, string branch, string solutionFilter = "")
     {
         window.SetText("BranchBox", branch);
-        window.SetText("SolutionBox", solution);
-        await window.RunOpenAsync();
+        window.SetText("SolutionBox", solutionFilter);
+        await window.RunDiscoveryAsync();
         Dispatcher.UIThread.RunJobs();
     }
 
-    /// <summary>
-    /// Index of the first chooser item whose title contains <paramref name="needle"/>, comparing with
-    /// separators normalized (chooser titles may be git-porcelain paths with forward slashes).
-    /// </summary>
-    public static int PickTitleContaining(this ChooserRequest request, string needle)
+    /// <summary>The target card whose path contains <paramref name="needle"/> (separators normalized),
+    /// for selecting a specific discovery result the way a click would.</summary>
+    public static TargetCard CardWithPath(this MainWindow window, string needle)
     {
         var unified = needle.Replace('\\', '/');
-        for (var i = 0; i < request.Items.Count; i++)
-            if (request.Items[i].Title.Replace('\\', '/').Contains(unified, StringComparison.OrdinalIgnoreCase))
-                return i;
-        throw new InvalidOperationException($"No chooser item title contains '{needle}'.");
+        foreach (var card in window.Vm().Targets)
+            if (card.Path.Replace('\\', '/').Contains(unified, StringComparison.OrdinalIgnoreCase))
+                return card;
+        throw new InvalidOperationException($"No discovered target path contains '{needle}'.");
     }
 }

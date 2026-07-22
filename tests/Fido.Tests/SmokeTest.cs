@@ -1,19 +1,19 @@
-using Avalonia.Threading;
+using Fido.Models;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
 using Fido.Views;
 
 namespace Fido.Tests;
 
 /// <summary>
 /// End-to-end smoke: real <see cref="MainWindow"/> over the headless Skia platform, a real git clone,
-/// injected fakes for Rider and dialogs, and a rendered-frame screenshot. Validates the whole harness.
+/// injected fakes for Rider and dialogs, and a rendered-frame screenshot. Validates the whole harness:
+/// discovery lands on Found with an inline target card, and opening with Rider launches the solution.
 /// </summary>
 [NotInParallel]
 public class SmokeTest
 {
     [Test]
-    public async Task Opens_a_single_clone_on_main_and_launches_rider()
+    public async Task Discovers_a_single_clone_on_main_and_launches_rider()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -24,24 +24,23 @@ public class SmokeTest
         var dialogs = new FakeDialogService();
         var services = world.BuildServices([rootA], rider, dialogs);
 
-        await Ui.On(async () =>
+        await Harness.WithWindow(services, async window =>
         {
-            var window = new MainWindow(services);
-            window.Show();
-            UiTestExtensions.Pump();
             Screenshots.Save(window, "smoke-mainwindow");
 
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-            await window.RunOpenAsync();
-            UiTestExtensions.Pump();
+            await window.Discover("main", "Foo");
 
             var vm = window.Vm();
-            await Assert.That(vm.StatusKind).IsEqualTo(StatusKind.Go);
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.SelectedTarget).IsNotNull();
+            await Assert.That(window.LogText()).Contains("✓ Found 1 location(s) for 'main'.");
+
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+
             await Assert.That(rider.Launches.Count).IsEqualTo(1);
             await Assert.That(rider.LastLaunch!.Value.Target).EndsWith("Foo.sln");
-
-            window.Close();
+            await Assert.That(window.LogText()).Contains("Fido? GO!");
         });
     }
 

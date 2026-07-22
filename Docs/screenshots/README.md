@@ -8,10 +8,11 @@ screen — *"The Eagle has landed"* — is featured on the [main README](../../R
 
 ## Home screen
 
-The mission-control console. Enter a **branch name**, optionally a **solution**, choose **Open
-as** Solution or Folder, then launch your default editor with **Open** (Enter) — or any other
-editor via its button and **Ctrl+1 … Ctrl+9**. The **Flight log** reports each step as Fido
-"goes around the horn".
+The mission-control console — one window, one screen. Type a **branch name** and Fido scans your
+search roots for every working tree currently on it; the results render **inline** as selectable
+cards. The **open actions** below stay locked until discovery finds the branch, then the big amber
+button launches your **default tool** (the rest sit in the grid, **Ctrl+1 … Ctrl+9**). The
+**Flight log** reports each step as Fido "goes around the horn".
 
 <table>
   <tr>
@@ -26,11 +27,13 @@ editor via its button and **Ctrl+1 … Ctrl+9**. The **Flight log** reports each
 
 ---
 
-## Open from branch folder
+## Discovery results
 
-When a branch's folder contains more than one solution — or you'd rather open the repo root —
-Fido asks what to open. Move with **↑ / ↓**, confirm with **Enter** or double-click, or back
-out with **Esc**.
+When a branch is checked out in more than one place, every location gets its own card — labelled
+**worktree** or **main clone**, worktrees first — and you choose which to act on. The context strip
+shows the selected target with a **chip per detected solution** (plus **Folder**); Rider and Visual
+Studio open the chosen chip, every other tool opens the folder. The **Solution** box filters the
+chips.
 
 <table>
   <tr>
@@ -38,8 +41,8 @@ out with **Esc**.
     <td align="center"><strong>Light</strong></td>
   </tr>
   <tr>
-    <td><img src="open-dialog-dark.png" alt="Open-from-branch-folder chooser, dark theme" width="400"></td>
-    <td><img src="open-dialog-light.png" alt="Open-from-branch-folder chooser, light theme" width="400"></td>
+    <td><img src="open-dialog-dark.png" alt="Inline discovery results with target cards, dark theme" width="400"></td>
+    <td><img src="open-dialog-light.png" alt="Inline discovery results with target cards, light theme" width="400"></td>
   </tr>
 </table>
 
@@ -47,8 +50,9 @@ out with **Esc**.
 
 ## Delete a worktree
 
-For a **linked worktree** on a non-default branch, the branch-folder chooser adds a **Delete worktree &
-branch** button beside the open choices.
+When the selected card is a **linked worktree** on a non-default branch, the **Delete worktree &
+branch** button beneath the tools is live (selecting the main clone — or a default branch —
+disables it with a note saying why).
 
 <table>
   <tr>
@@ -56,15 +60,15 @@ branch** button beside the open choices.
     <td align="center"><strong>Light</strong></td>
   </tr>
   <tr>
-    <td><img src="open-dialog-delete-dark.png" alt="Branch-folder chooser with the delete button, dark theme" width="400"></td>
-    <td><img src="open-dialog-delete-light.png" alt="Branch-folder chooser with the delete button, light theme" width="400"></td>
+    <td><img src="open-dialog-delete-dark.png" alt="Delete row beneath the open actions, dark theme" width="400"></td>
+    <td><img src="open-dialog-delete-light.png" alt="Delete row beneath the open actions, light theme" width="400"></td>
   </tr>
 </table>
 
-Clicking it opens a confirmation dialog with a **checkbox for each present target** — the worktree, its
-local branch, and the branch on `origin` — ticked by default. Untick any to keep it (keeping the worktree
-disables deleting its branch), and Fido warns in red about uncommitted changes or commits that exist only on
-the branch.
+Clicking it swaps the button for an **inline confirm strip** that spells out exactly what happens —
+remove the worktree and delete the **local** branch (the branch on `origin` is never touched) —
+with warnings when the worktree has uncommitted changes or commits that exist only on that branch.
+**Cancel** or **Esc** backs out; only the explicit **Delete** click confirms.
 
 <table>
   <tr>
@@ -72,8 +76,8 @@ the branch.
     <td align="center"><strong>Light</strong></td>
   </tr>
   <tr>
-    <td><img src="delete-worktree-dialog-dark.png" alt="Delete-worktree confirmation dialog, dark theme" width="400"></td>
-    <td><img src="delete-worktree-dialog-light.png" alt="Delete-worktree confirmation dialog, light theme" width="400"></td>
+    <td><img src="delete-worktree-dialog-dark.png" alt="Inline delete confirm strip, dark theme" width="400"></td>
+    <td><img src="delete-worktree-dialog-light.png" alt="Inline delete confirm strip, light theme" width="400"></td>
   </tr>
 </table>
 
@@ -81,9 +85,10 @@ the branch.
 
 ## Settings
 
-Configure **search roots**, your **editors** (each with a CLI slug, with the default marked
-**●**), the **worktree root**, **new-branch repos**, **theme**, and the **close-after-opening**
-behaviour and delay.
+The ⚙ gear popover picks the **default tool** (or **No default** for the equal-weight grid);
+**All settings…** opens the full dialog to configure **search roots**, your **editors** (each with
+a CLI slug, with the default marked **●**), the **worktree root**, **theme**, and the
+**close-after-opening** behaviour and delay.
 
 <table>
   <tr>

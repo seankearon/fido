@@ -88,6 +88,45 @@ public sealed class OpenerService
         => _finder.Find([folder], SolutionGlobs, config.SearchDepth);
 
     /// <summary>
+    /// Inline discovery for the main screen: scans the search roots for git working trees currently on
+    /// <paramref name="branch"/> and describes each as a <see cref="DiscoveredTarget"/> — linked worktree
+    /// or main clone, owning repo name, the solution files inside it, and when it last changed. Worktrees
+    /// are listed before main clones (they're the likelier target, and only they can be deleted). The
+    /// blocking directory scans run on the thread pool: this is called from a keystroke-debounced loop,
+    /// so it must never stall the UI thread the way the older dialog-driven flow could afford to.
+    /// <paramref name="onTreeCount"/> reports how many working trees are being checked as soon as the
+    /// enumeration finishes, so the UI can narrate "Scanning N working tree(s)…" mid-scan.
+    /// </summary>
+    public async Task<IReadOnlyList<DiscoveredTarget>> DiscoverTargetsAsync(
+        AppConfig config, string branch, Action<int>? onTreeCount = null, CancellationToken ct = default)
+    {
+        var trees = await Task.Run(() => _workingTreeFinder.Find(config.SearchRoots, config.SearchDepth), ct);
+        onTreeCount?.Invoke(trees.Count);
+
+        var targets = new List<DiscoveredTarget>();
+        foreach (var dir in trees)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!string.Equals(await _git.GetCurrentBranchAsync(dir, ct), branch, StringComparison.Ordinal))
+                continue;
+
+            var kind = await _git.IsLinkedWorktreeAsync(dir, ct) ? TargetKind.Worktree : TargetKind.MainClone;
+            var mainPath = await _git.GetMainWorktreePathAsync(dir, ct) ?? dir;
+            var repoName = Path.GetFileName(Path.TrimEndingDirectorySeparator(mainPath));
+            var solutions = await Task.Run(() => FindSolutionsInFolder(dir, config), ct);
+
+            DateTime? updated = null;
+            try { updated = Directory.GetLastWriteTimeUtc(dir); }
+            catch { /* advisory meta only — an unreadable timestamp shouldn't hide the target */ }
+
+            targets.Add(new DiscoveredTarget(dir, kind, repoName, solutions, updated));
+        }
+
+        // Stable sort: worktrees keep their scan order ahead of the main clones.
+        return [.. targets.OrderBy(t => t.Kind == TargetKind.MainClone ? 1 : 0)];
+    }
+
+    /// <summary>
     /// Finds repositories whose tree contains a solution or project matching <paramref name="solutionName"/>,
     /// deduplicated by canonical main working tree (so copies inside worktrees collapse to one).
     /// A solution is preferred over a bare project when the same clone has both.

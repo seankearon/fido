@@ -104,20 +104,20 @@ public class SettingsDialogTests
     }
 
     [Test]
-    public async Task Save_persists_ticked_new_branch_repos()
+    public async Task Save_leaves_a_previously_configured_new_branch_repo_list_intact()
     {
+        // The redesigned main screen no longer consumes NewBranchRepos (the placement flow went with
+        // the dialogs), so Settings no longer edits it — but a saved list must survive a save
+        // round-trip untouched in case the feature returns.
         using var world = new TestRepoWorld();
         var (service, config, dir) = NewConfig(world);
+        config.NewBranchRepos = new() { @"C:\src\widget" };
+        service.Save(config);
 
         await Harness.OnUi(async owner =>
         {
             var dialog = new SettingsDialog(config, service);
             var resultTask = dialog.ShowDialog(owner);
-            UiTestExtensions.Pump();
-
-            var vm = (SettingsViewModel)dialog.DataContext!;
-            vm.MergeDetected(new[] { @"C:\src\widget", @"C:\src\gadget" });
-            vm.NewBranchRepos.First(r => r.Path == @"C:\src\widget").IsEnabled = true;   // tick one, leave the other
             UiTestExtensions.Pump();
 
             dialog.ClickButton("SaveButton");

@@ -1,70 +1,29 @@
 using Fido.Models;
 using Fido.Services;
-using Fido.ViewModels;
 
 namespace Fido.Tests.Infrastructure;
 
-public sealed record ChooserRequest(string Title, string Prompt, IReadOnlyList<ChooserItem> Items, string? DeleteLabel = null);
-
-public sealed record DecisionRequest(RepositoryInfo Repo, string Branch, MainContext Context);
-
 /// <summary>
 /// A real <see cref="IDialogService"/> that returns scripted choices and records every request, so the
-/// end-to-end flow can be driven without real modal windows. The real dialog widgets are tested
-/// separately. A fake, not a mock — assert against the recorded requests after the flow runs.
+/// end-to-end flow can be driven without real modal windows. Discovery, target choice, and worktree
+/// deletion render inline on the main screen now; only the settings dialog and the exceptional
+/// force-delete recovery remain modal. A fake, not a mock — assert against the recorded requests.
 /// </summary>
 public sealed class FakeDialogService : IDialogService
 {
-    /// <summary>Chooser responder; defaults to selecting the first item.</summary>
-    public Func<ChooserRequest, int?> OnChooser { get; set; } = _ => 0;
-
-    /// <summary>Decision responder; defaults to "create worktree".</summary>
-    public Func<DecisionRequest, OpenDecision?> OnDecision { get; set; } = _ => OpenDecision.Worktree;
-
-    /// <summary>
-    /// Delete-confirmation responder; returns the chosen targets, or null to decline (the safe default for a
-    /// destructive action). Return <see cref="WorktreeDeletionChoice.All"/> to confirm every present target.
-    /// </summary>
-    public Func<WorktreeDeletion, WorktreeDeletionChoice?> OnConfirmDelete { get; set; } = _ => null;
-
     /// <summary>
     /// Force-delete-folder responder used when git couldn't remove the worktree; defaults to declining (the
     /// safe default for a Recycle-Bin-bypassing delete). Return true to accept the fallback.
     /// </summary>
     public Func<WorktreeForceDelete, bool> OnConfirmForceDelete { get; set; } = _ => false;
 
-    public List<ChooserRequest> ChooserRequests { get; } = new();
-    public List<DecisionRequest> DecisionRequests { get; } = new();
-    public List<WorktreeDeletion> DeleteConfirmations { get; } = new();
     public List<WorktreeForceDelete> ForceDeleteConfirmations { get; } = new();
     public int SettingsShownCount { get; private set; }
-
-    public ChooserRequest? LastChooser => ChooserRequests.Count > 0 ? ChooserRequests[^1] : null;
-
-    public Task<int?> ShowChooserAsync(string title, string prompt, IReadOnlyList<ChooserItem> items, string? deleteLabel = null)
-    {
-        var request = new ChooserRequest(title, prompt, items, deleteLabel);
-        ChooserRequests.Add(request);
-        return Task.FromResult(OnChooser(request));
-    }
-
-    public Task<WorktreeDeletionChoice?> ConfirmDeleteWorktreeAsync(WorktreeDeletion plan)
-    {
-        DeleteConfirmations.Add(plan);
-        return Task.FromResult(OnConfirmDelete(plan));
-    }
 
     public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
     {
         ForceDeleteConfirmations.Add(request);
         return Task.FromResult(OnConfirmForceDelete(request));
-    }
-
-    public Task<OpenDecision?> ShowDecisionAsync(RepositoryInfo repo, string branch, MainContext context)
-    {
-        var request = new DecisionRequest(repo, branch, context);
-        DecisionRequests.Add(request);
-        return Task.FromResult(OnDecision(request));
     }
 
     public Task ShowSettingsAsync(AppConfig config, ConfigService configService)

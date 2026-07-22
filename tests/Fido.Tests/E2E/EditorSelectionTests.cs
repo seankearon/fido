@@ -1,18 +1,24 @@
-using System.Linq;
+using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Fido.Models;
 using Fido.Tests.Infrastructure;
-using Fido.ViewModels;
 
 namespace Fido.Tests.E2E;
 
-/// <summary>Launching into a chosen editor, and the main window's editor launch-option wiring.</summary>
+/// <summary>
+/// Tool selection on the redesigned main window: the default tool renders as the hero button with the
+/// rest in the shortcut grid, solution-capable tools (Rider / Visual Studio) honour the selected
+/// solution chip while every other tool always opens the folder, clicks on the rendered hero / grid
+/// buttons route through the real Click handlers, Ctrl+N accelerators launch by config order, and
+/// nothing launches until discovery has found the branch.
+/// </summary>
 [NotInParallel]
 public class EditorSelectionTests
 {
     [Test]
-    public async Task The_default_editor_drives_the_open_button_and_is_used_on_open()
+    public async Task The_default_config_seeds_a_Rider_hero_and_a_six_tool_grid()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -24,19 +30,132 @@ public class EditorSelectionTests
 
         await Harness.WithWindow(services, async window =>
         {
-            // Defaults are seeded by ConfigService; Rider is the default, the rest are secondary.
-            await Assert.That(window.Vm().OpenButtonText).IsEqualTo("Open in Rider");
-            await Assert.That(window.Vm().HasSecondaryEditors).IsTrue();
+            var vm = window.Vm();
 
-            await window.Open("main", "Foo");
+            // ConfigService seeds Editor.Defaults(); DefaultEditorIndex 0 makes Rider the hero.
+            await Assert.That(vm.HasHero).IsTrue();
+            await Assert.That(vm.HeroTool!.Name).IsEqualTo("Rider");
+            await Assert.That(vm.HeroTool!.Gesture).IsEqualTo("Ctrl+1");
+            await Assert.That(vm.HeroTool!.IsDefault).IsTrue();
+            await Assert.That(vm.HeroLabel).IsEqualTo("Open in Rider");
+
+            // The remaining six render in config order, gestures still tied to config position.
+            await Assert.That(vm.GridTools.Count).IsEqualTo(6);
+            string[] expectedNames = ["WebStorm", "VS Code", "Visual Studio", "Zed", "Console", "File Explorer"];
+            for (var i = 0; i < expectedNames.Length; i++)
+            {
+                await Assert.That(vm.GridTools[i].Name).IsEqualTo(expectedNames[i]);
+                await Assert.That(vm.GridTools[i].Gesture).IsEqualTo($"Ctrl+{i + 2}");
+                await Assert.That(vm.GridTools[i].IsDefault).IsFalse();
+            }
+        });
+    }
+
+    [Test]
+    [Arguments(EditorKind.Rider, "Rider")]
+    [Arguments(EditorKind.VisualStudio, "Visual Studio")]
+    public async Task Solution_capable_tools_open_the_selected_solution(EditorKind kind, string name)
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            // The first detected solution chip is auto-selected; a solution-capable tool hands it over.
+            await Assert.That(window.Vm().SelectedSolutionChip!.SolutionPath).IsNotNull();
+            await window.OpenWithAsync(new Editor { Name = name, Kind = kind });
 
             await Assert.That(launcher.Launches.Count).IsEqualTo(1);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(kind);
+            await Assert.That(launcher.LastLaunch!.Value.Target).EndsWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+        });
+    }
+
+    [Test]
+    [Arguments(EditorKind.WebStorm, "WebStorm")]
+    [Arguments(EditorKind.VsCode, "VS Code")]
+    [Arguments(EditorKind.Zed, "Zed")]
+    [Arguments(EditorKind.Console, "Console")]
+    [Arguments(EditorKind.FileExplorer, "File Explorer")]
+    public async Task Folder_only_tools_open_the_folder_even_with_a_solution_chip_selected(EditorKind kind, string name)
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            // A solution chip is selected, but these tools would open a .sln as a text file (or not at
+            // all) — the folder is handed over and the chip ignored.
+            await Assert.That(window.Vm().SelectedSolutionChip!.SolutionPath).IsNotNull();
+            await window.OpenWithAsync(new Editor { Name = name, Kind = kind });
+
+            await Assert.That(launcher.Launches.Count).IsEqualTo(1);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(kind);
+            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task Clicking_the_rendered_grid_and_hero_buttons_launches_their_bound_tools()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            // Click the real Zed button in the shortcut grid — the Click handler resolves the editor
+            // from the clicked button's DataContext, so this exercises the actual rendered controls.
+            var zed = window.GetVisualDescendants().OfType<Button>()
+                .Where(b => b.Classes.Contains("tool"))
+                .Single(b => b.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Zed"));
+            zed.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            UiTestExtensions.Pump();   // the async-void handler resumes through the dispatcher
+
+            var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Zed);
+            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
+
+            // The hero is the one Button carrying the "hero" class (the "fido hero" input boxes are
+            // AutoCompleteBoxes, not Buttons); default config makes it Rider, which is solution-capable
+            // and so hands over the auto-selected solution chip rather than the folder.
+            var hero = window.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("hero"));
+            hero.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            UiTestExtensions.Pump();
+
+            await Assert.That(launcher.Launches.Count).IsEqualTo(2);
             await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Rider);
+            await Assert.That(launcher.LastLaunch!.Value.Target)
+                .IsEqualTo(window.Vm().SelectedSolutionChip!.SolutionPath);
         });
     }
 
     [Test]
-    public async Task Opening_with_a_chosen_editor_launches_that_editor()
+    public async Task Ctrl_n_launches_the_nth_configured_tool()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -48,42 +167,17 @@ public class EditorSelectionTests
 
         await Harness.WithWindow(services, async window =>
         {
-            var vsCode = new Editor { Name = "VS Code", Kind = EditorKind.VsCode };
+            await window.Discover("main");
 
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-            await window.RunOpenAsync(editor: vsCode);   // as a Ctrl+N shortcut / secondary button would
-
-            await Assert.That(launcher.Launches.Count).IsEqualTo(1);
-            await Assert.That(launcher.LastLaunch!.Value.Editor.Name).IsEqualTo("VS Code");
-            await Assert.That(window.Vm().StatusText).Contains("VS Code launched");
-        });
-    }
-
-    [Test]
-    public async Task Ctrl_n_launches_the_nth_configured_editor()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        world.Clone(origin, root, "Foo");
-
-        var launcher = new FakeEditorLauncher();
-        var services = world.BuildServices([root], launcher, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-
-            // Seeded order is [Rider, WebStorm, VS Code, Visual Studio, Zed, Console, File Explorer]; Ctrl+3 → index 2 → VS Code.
+            // Seeded order is [Rider, WebStorm, VS Code, ...]; Ctrl+3 → index 2 → VS Code. PressKey has
+            // no modifier parameter, so raise the routed event with Control set, as the real key press would.
             window.RaiseEvent(new KeyEventArgs
             {
                 RoutedEvent = InputElement.KeyDownEvent,
                 Key = Key.D3,
                 KeyModifiers = KeyModifiers.Control,
             });
-            Dispatcher.UIThread.RunJobs();
+            UiTestExtensions.Pump();   // the handler posts the open back through the dispatcher
 
             var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
             await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
@@ -92,7 +186,7 @@ public class EditorSelectionTests
     }
 
     [Test]
-    public async Task The_open_folder_chooser_entry_names_the_chosen_editor()
+    public async Task Opening_launches_nothing_before_discovery_has_found_the_branch()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -100,121 +194,16 @@ public class EditorSelectionTests
         world.Clone(origin, root, "Foo");
 
         var launcher = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();
-        var services = world.BuildServices([root], launcher, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var vsCode = new Editor { Name = "VS Code", Kind = EditorKind.VsCode };
-
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "");   // branch-only flow → folder chooser lists solutions + "open folder"
-            await window.RunOpenAsync(editor: vsCode);
-
-            var items = dialogs.LastChooser!.Items;
-            await Assert.That(items.Any(i => i.Title == "Open this folder in VS Code")).IsTrue();
-            await Assert.That(items.Any(i => i.Title == "Open this folder in Rider")).IsFalse();
-        });
-    }
-
-    [Test]
-    public async Task A_folder_only_editor_opens_the_folder_even_in_solution_mode()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-
-        var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
         {
-            var webStorm = new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm };
+            // No scan has run — the phase machine still says Idle, so every open path is locked.
+            await Assert.That(window.Vm().CanOpen).IsFalse();
 
-            await Assert.That(window.Vm().IsSolutionMode).IsTrue();   // default mode would hand over the .sln
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
 
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");
-            await window.RunOpenAsync(editor: webStorm);
-
-            // WebStorm has no concept of a solution, so the folder is handed over despite solution mode.
-            await Assert.That(launcher.LastLaunch!.Value.Target).IsNotEmpty();
-            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
-            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
-            await Assert.That(window.Vm().StatusText).Contains("folder");
+            await Assert.That(launcher.Launches.Count).IsEqualTo(0);
         });
-    }
-
-    [Test]
-    public async Task A_folder_only_editor_skips_the_branch_folder_target_chooser()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        world.CreateBranch(clone, "feature/x");
-
-        var launcher = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();
-        var services = world.BuildServices([root], launcher, dialogs);
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var webStorm = new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm };
-
-            window.SetText("BranchBox", "feature/x");
-            window.SetText("SolutionBox", "");   // branch-only flow → would normally offer solution-or-folder
-            await window.RunOpenAsync(editor: webStorm);
-
-            // A single folder on the branch and a folder-only editor → no chooser at all, folder handed over.
-            await Assert.That(dialogs.ChooserRequests.Count).IsEqualTo(0);
-            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
-            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
-        });
-    }
-
-    [Test]
-    public async Task Opening_with_the_console_hands_over_the_folder()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-
-        var launcher = new FakeEditorLauncher();
-        var services = world.BuildServices([root], launcher, new FakeDialogService());
-
-        await Harness.WithWindow(services, async window =>
-        {
-            var console = new Editor { Name = "Console", Kind = EditorKind.Console };
-
-            window.SetText("BranchBox", "main");
-            window.SetText("SolutionBox", "Foo");   // solution mode, but a console only ever opens the folder
-            await window.RunOpenAsync(editor: console);
-
-            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Console);
-            await Assert.That(launcher.LastLaunch!.Value.Target).DoesNotEndWith("Foo.sln");
-            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, clone)).IsTrue();
-            await Assert.That(window.Vm().StatusText).Contains("folder");
-        });
-    }
-
-    [Test]
-    public async Task Secondary_editors_carry_numbered_shortcut_gestures()
-    {
-        var vm = new MainWindowViewModel();
-        vm.SetEditors(new List<Editor>
-        {
-            new() { Name = "Rider", Kind = EditorKind.Rider },
-            new() { Name = "VS Code", Kind = EditorKind.VsCode },
-            new() { Name = "Zed", Kind = EditorKind.Zed },
-        }, defaultIndex: 0);
-
-        await Assert.That(vm.OpenButtonText).IsEqualTo("Open in Rider");
-        await Assert.That(vm.SecondaryEditors.Count).IsEqualTo(2);
-        await Assert.That(vm.SecondaryEditors[0].Name).IsEqualTo("VS Code");
-        await Assert.That(vm.SecondaryEditors[0].Gesture).IsEqualTo("Ctrl+2");   // editor index 1 → Ctrl+2
-        await Assert.That(vm.SecondaryEditors[1].Gesture).IsEqualTo("Ctrl+3");
     }
 }

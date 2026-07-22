@@ -3,10 +3,12 @@
 **Fido** is a launch manager for your IDE — [**JetBrains Rider**](https://www.jetbrains.com/rider/),
 [**WebStorm**](https://www.jetbrains.com/webstorm/), [**VS Code**](https://code.visualstudio.com/), [**Visual Studio**](https://visualstudio.microsoft.com/), [**Zed**](https://zed.dev/), or any custom editor.
 
-Give it a branch name; it locates the matching Git worktree on disk — switching or
-creating one when needed — and opens the solution or repo folder in your editor. Pick a default
-(opened with **Enter**); other editors are a **Ctrl+1 … Ctrl+9** away. It can also drop you into a
-**terminal** or open the folder in your **file explorer** — on Windows, macOS, and Linux.
+Give it a branch name; it scans your repos for every **worktree** and **clone** currently on
+that branch, lists them right on the main screen — clearly labelled — and opens your pick's
+solution or folder in your editor. Set a **default tool** for the big Open button; every tool is a
+**Ctrl+1 … Ctrl+9** away. It can also drop you into a **terminal** or open the folder in your
+**file explorer** — on Windows, macOS, and Linux. Finished with a branch? Delete its worktree and
+local branch from the same screen, with an inline confirm.
 
 <p align="center">
   <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
@@ -20,30 +22,34 @@ creating one when needed — and opens the solution or repo folder in your edito
 
 ## Command-line launch
 
-Fido pre-fills its form from the command line, and **giving it a branch runs the open immediately** —
-the same flow as typing the branch and pressing **Open** (any chooser/decision dialogs still appear
-when a choice is genuinely needed):
+Fido pre-fills its form from the command line, and **giving it a branch starts discovery
+immediately** — the same flow as typing the branch. Name a **tool** too and Fido auto-opens it, but
+only when the branch is checked out in **exactly one** place; multiple locations are presented for
+you to choose, never guessed between:
 
 ```text
-fido feature/new-ui                    # resolve the branch, open in the default editor
-fido feature/new-ui -s MyApp           # open MyApp's solution on that branch
-fido feature/new-ui zed                # open in a specific editor by its slug
+fido feature/new-ui                    # scan for the branch and show every location
+fido feature/new-ui rider              # …and auto-open in Rider if there's exactly one
+fido feature/new-ui -s MyApp           # …with the solution chips filtered to MyApp
 fido feature/new-ui term               # open a terminal on that branch (files = file explorer)
-fido -b feature/new-ui -s MyApp -e vs  # the same, with explicit options
+fido -b feature/new-ui -s MyApp -t vs  # the same, with explicit options
 ```
 
-Each target has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`, plus `term` for a terminal and
-`files` for the file explorer) that you can pass as the **second argument** — or explicitly with `-e` /
-`--editor` — to open in that target instead of the default. Slugs are editable in **Settings**; an unknown
-slug stops with a clear **No-go** rather than silently using the default. See
-**[Features](Docs/Features.md)** for the full reference.
+Each tool has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`, plus `term` for a terminal and
+`files` for the file explorer) that you can pass as the **second argument** — or explicitly with `-t` /
+`--tool` (also `-e` / `--editor`) — and the built-in kinds answer to aliases like `vscode` or
+`explorer` too. The named tool becomes the run's default (the hero button); `--tool none` shows the
+equal-weight grid instead. Slugs are editable in **Settings**; an unknown id is called out in the
+flight log rather than silently using the default. See **[Features](Docs/Features.md)** for the
+full reference.
 
 ---
 
 ## Screenshots
 
-Fido ships with matching **dark** and **light** themes. Browse the full set — home screen,
-branch-folder chooser, and settings — in the **[screenshot gallery](Docs/screenshots/)**.
+Fido ships with matching **dark** and **light** themes. Browse the full set — the home screen
+with its inline discovery results, the delete confirm, and settings — in the
+**[screenshot gallery](Docs/screenshots/)**.
 
 ---
 

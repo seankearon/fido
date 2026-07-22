@@ -26,9 +26,11 @@ if set) and an HTML report to `bin/<config>/net10.0/TestResults/`. CI uploads bo
 
 | Folder | What it covers |
 |--------|----------------|
-| `E2E/` | The headline scenarios through the real `MainWindow`: two clones of one repo, two repos, multiple worktrees, editor-not-installed, editor selection, CLI prefill, validation, button click |
-| `Dialogs/` | The real `ChooserDialog` / `DecisionDialog` / `SettingsDialog` windows, driven by list/keyboard/buttons |
+| `E2E/` | The headline scenarios through the real `MainWindow`: two clones of one repo, two repos, multiple worktrees, worktree deletion, editor-not-installed, editor selection, CLI startup & validation, redesign screenshots |
+| `Dialogs/` | The real `SettingsDialog` window, driven by keyboard/buttons |
 | `Services/` | `OpenerService` / `GitService` / `Mru` / `ConfigService` against a real temp git world (no UI) |
+| `ViewModels/` | `SettingsViewModel` logic (no UI) |
+| `Models/` | `AppConfig` editor lookup (CLI slug / kind-alias resolution) |
 | `Locator/` | The real `EditorLauncher.Locate` probing, against a fake editor executable |
 | `Infrastructure/` | `TestRepoWorld` (real git fixtures), `FakeEditorLauncher`, `FakeDialogService`, headless helpers, screenshots |
 

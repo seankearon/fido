@@ -1,9 +1,9 @@
 # Fido — Features
 
 **Fido** is a small desktop utility that turns a **branch name** into an open Rider
-window. You tell it the branch (and optionally a solution name); it works out
-*where that branch lives on disk* — an existing checkout, a linked worktree, or a
-fresh one — and launches **JetBrains Rider** there.
+window. You type the branch; it works out *where that branch lives on disk* — every
+linked worktree and main clone currently checked out on it — and launches
+**JetBrains Rider** (or any other configured tool) there.
 
 The name is a nod to the Apollo **Flight Dynamics Officer (FIDO)**, whose job was to
 track the spacecraft and compute its trajectory. Fido does the same for your code:
@@ -16,168 +16,178 @@ a branch name in, its exact path on disk out.
 
 ## Overview
 
-Given a branch and a solution, Fido:
+Given a branch, Fido:
 
-1. Finds the git repository (or repositories) on your machine that contain the solution.
-2. Works out where the branch should be opened — reusing an existing checkout when one
-   exists, or letting you switch the main tree / create a worktree when it doesn't.
-3. Opens the resolved `.sln`/`.slnx`/`.slnf` (or the repo folder) in your chosen editor — Rider by
-   default, or WebStorm / VS Code / Visual Studio / Zed / a custom editor.
+1. Scans your configured **search roots** for every working tree **currently on that
+   branch** — linked worktrees and main clones alike.
+2. Shows each location **inline on the main screen** as a selectable card, clearly
+   labelled **worktree** or **main clone**, and lets you choose which to act on.
+3. Opens the chosen `.sln`/`.slnx`/`.slnf` (or the folder) in your chosen tool — Rider by
+   default, or WebStorm / VS Code / Visual Studio / Zed / a terminal / the file
+   explorer / a custom editor.
 
-Everything is keyboard-friendly, and a live log narrates each step.
+Everything happens on one screen, everything is keyboard-friendly, and a live log
+narrates each step.
 
 ---
 
-## Two ways to use it
+## The discovery loop
 
-### 1. Branch + solution name
+Type a branch and Fido starts looking. There is no separate search button, no pop-up
+chooser, and no second window:
 
-Enter both a **branch** and a **solution name** (a name like `MyApp`, *not* a path).
-Fido searches your configured roots for that solution, resolves the branch, and opens it.
-This is the full flow, including the ability to **create** a checkout if the branch
-isn't on disk yet.
+- **Typing** debounces into a scan (about 600 ms after you stop); **Enter** fires one
+  immediately.
+- A status pill tracks the phase: **idle → scanning → found / not found**.
+- **Found:** the locations render inline as **target cards** — worktrees listed before
+  main clones, the first auto-selected. When the branch is checked out in more than
+  one place, a helper strip says so and you pick the card to act on.
+- **Not found:** a warning card says no working tree or clone has the branch —
+  double-check the name, or fetch the remote first. Fido never switches a checkout or
+  creates a worktree for you; it opens what already exists.
 
-### 2. Branch only (leave the solution blank)
+The **open and delete actions stay locked until discovery succeeds** — nothing opens
+before Fido knows where the branch lives, and the locked block states the reason
+(`🔒 Enter a branch name to begin discovery`, `🔒 Scanning…`, `🔒 No location found`).
 
-Enter just a **branch**. Fido first scans your roots for a working tree that is **currently
-on that branch**, then lists the solution files in that folder (plus an "open the folder"
-option) for you to pick. When that folder is a **linked worktree**, the same dialog also offers to
-**delete it** — see [Deleting a worktree](#deleting-a-worktree).
-
-If the branch isn't checked out anywhere, Fido falls back to your **new-branch repos** — the
-repositories you tick in Settings. It keeps only those whose refs actually contain the branch
-(a local branch **or** an `origin` remote-tracking branch) and offers the same **decision
-dialog** as solution mode: **checkout in the main tree** or **create a linked worktree**. If
-the branch exists in none of your configured repos, Fido says so and does nothing.
+The **Solution** box is optional: it **filters** which detected solutions appear as
+chips (see [What gets opened](#what-gets-opened-solution-or-folder)) — it's no longer a
+search input or a mode switch.
 
 ---
 
 ## Feature reference
 
-### Finding the repository
+### Finding the branch
 
-- Matches **`.sln`**, **`.slnx`**, and **`.slnf`** (Visual Studio solution filter) files. A full
-  solution wins over a same-named filter, so a repo's primary target stays the full solution.
-- Walks each configured **search root** to a limited depth, skipping noise directories
-  (`.git`, `node_modules`, `bin`, `obj`, `.vs`, `.idea`, `packages`, `.svn`, `.hg`, and
-  hidden folders).
-- Collapses matches by their **canonical main working tree**, so copies of a solution found
-  inside worktrees fold back into a single repository entry.
+- Walks each configured **search root** to a limited depth looking for git working
+  trees, skipping noise directories (`.git`, `node_modules`, `bin`, `obj`, `.vs`,
+  `.idea`, `packages`, `.svn`, `.hg`, and hidden folders).
+- Checks each working tree's **current branch** — only trees actually on the typed
+  branch count. Both **linked worktrees** and a clone's **main tree** qualify.
+- Labels every hit: a **worktree** card (git-branch icon, deletable) or a **main
+  clone** card (home icon, never deletable), with a meta line like
+  `platform · 2 solutions · updated 3d ago`.
+- Detects the **solution files** inside each target — **`.sln`**, **`.slnx`**, and
+  **`.slnf`** (Visual Studio solution filter) — for the solution chips.
 
-### Cross-clone safety (no duplicate worktrees)
+### Cross-clone visibility
 
 Git enforces "one worktree per branch" only **within a single clone**. If you have two
-clones of the same upstream (e.g. `D:\shine\apps` and `D:\main\apps`), each can independently
-check out the same branch — leaving you with duplicate copies on disk.
+clones of the same upstream (e.g. `D:\shine\apps` and `D:\main\apps`), each can
+independently check out the same branch — leaving you with duplicate copies on disk.
 
-Fido prevents this. Before offering to create anything, it scans **every** candidate clone for
-a working tree already on the branch (a clone's own main tree counts):
+Fido makes that visible instead of guessing: **every** location on the branch appears
+as its own card, labelled with its kind and owning repo, and **you choose** which one
+to open (or delete). Because Fido never creates checkouts itself, it can never add a
+duplicate of its own.
 
-- **Already checked out somewhere →** it reuses that checkout. No duplicate is created.
-- **Checked out in several places →** it asks which one to open.
-- **Not checked out anywhere →** only then does it offer to place the branch.
+### Choosing the target
 
-### Placing a new branch
+The selected card is the target for **every** action — the hero button, the tool grid,
+the keyboard accelerators, and the delete row. Selecting a different card:
 
-When the branch isn't checked out anywhere, Fido shows a **decision dialog** describing the
-main tree's current branch, whether the branch exists on `origin`, the resolved start point,
-and any outstanding changes. You choose:
+- updates the **context strip** (the `OPEN` row showing the target path and its kind),
+- rebuilds the **solution chips** from that target's detected solutions, and
+- cancels any pending delete confirmation.
 
-- **Checkout in main** — switch the main working tree to the branch (creating it if needed).
-  The dialog warns when the main tree has uncommitted changes that a switch would carry along.
-- **Create a worktree** *(default — it's non-destructive)* — add a linked worktree and leave
-  the main tree untouched.
-
-**Start-point resolution** when creating a branch: prefer `origin/<branch>` (set up to track),
-else the repo's default branch, else the current `HEAD`.
-
-**Worktree location**: a configurable worktree root, otherwise a sibling
-`<repo>.worktrees/<sanitized-branch>` folder. Existing paths get a numeric suffix so nothing
-is clobbered.
-
-### Choosers
-
-When a choice is needed, Fido shows a keyboard-navigable list with rich, two-line rows:
-
-- **Pick a clone** (more than one repo matches): each row shows the path plus
-  *current branch · origin · worktree count* — making it obvious when two rows are clones of
-  the same upstream.
-- **Pick a checkout / folder** (branch is in more than one place): each row shows the path and
-  the **short HEAD commit**. On GitHub remotes the commit is a **clickable link** to the commit
-  page (plain text for other remotes) — handy for spotting when two checkouts have diverged.
-- **Pick what to open** (branch-only mode): the folder's solutions, plus an "open this folder"
-  entry. When the folder is a **linked worktree**, a **Delete worktree & branch** button appears too
-  (see [Deleting a worktree](#deleting-a-worktree)).
-
-### Deleting a worktree
-
-In branch-only mode, once Fido has located a **linked worktree** on the branch, the **"Open from branch
-folder"** chooser adds a **Delete worktree & branch** button alongside the open choices — reachable even when
-there's nothing to open (a folder-only editor, or a worktree with no solution file). It's a shortcut for
-tidying up a branch you're finished with, in one step:
-
-- A **confirmation dialog** offers a **checkbox for each present target** — the **worktree**, its **local
-  branch**, and the **branch on `origin`** — each **ticked by default**. Untick any to keep it, so you can (say)
-  drop just the remote branch, or remove the worktree while keeping its branches. Because a branch that stays
-  checked out can't be deleted, **keeping the worktree disables deleting its local branch**. The dialog adds
-  explicit **data-loss warnings** when the worktree has **uncommitted changes**, or when the branch carries
-  **commits that exist nowhere else** — unpushed and unmerged work that a force-delete would orphan. Nothing
-  happens unless you click **Delete** (disabled when nothing is ticked); **Cancel**, **Enter**, and **Esc** all
-  back out, and the destructive button sits outside the keyboard tab order so it can't be fired by a stray keypress.
-- On confirmation Fido carries out **exactly the ticked targets**: it **removes the linked worktree**,
-  **deletes the local branch**, and — when it exists — **deletes the branch on `origin`**. The git steps run
-  from the clone's **main working tree**, so the worktree is dropped cleanly; a dirty worktree is
-  force-removed after the warning.
-- Each git step is **retried on transient failures** so a fleeting hiccup doesn't leave a half-tidied branch:
-  a worktree file still held open by an editor or antivirus scan (common on Windows), a git ref/index `.lock`
-  left by a racing git process, or a network blip while deleting the branch on `origin`. Fido retries a few
-  times with a short, backing-off wait — each attempt narrated in the flight log — while **permanent** refusals
-  (`use --force to delete`, `remote ref does not exist`, "not fully merged") still fail fast on the first try.
-- **Long filenames & a force-delete fallback.** Deep worktrees can trip Windows' **260-character `MAX_PATH`**
-  limit — a `node_modules` tree or generated output whose paths are too long — and a delete then fails with
-  **`filename too long`** / **`unable to unlink … Filename too long`**, leaving the worktree stuck. Fido guards
-  against this two ways. First, git's worktree commands run with **long-path support** (`core.longpaths`) so
-  git's own file operations use the Windows extended-length API and can remove those files. Second, if git
-  **still** can't delete the folder (a path too long even for that), Fido **offers to delete it straight from
-  disk**: a recursive removal that **bypasses the Recycle Bin** and uses an extended-length (`\\?\`) path so it
-  isn't defeated by the same limit. Once the folder is gone Fido **prunes** git's dangling worktree registration
-  and carries on with the branch deletions. It's an explicit, clearly-labelled confirmation — nothing is
-  force-deleted unless you choose it, and backing out leaves everything in place.
-- If the remote delete fails for good (say you're offline), the completed **local** cleanup stays done and the
-  failure is reported in the flight log rather than rolled back.
-
-The button is offered **only for a linked worktree on a non-default branch** — a clone's **main working
-tree** can't be worktree-removed, and the default branches (`main`/`master`) are deliberately never offered
-for deletion. In those cases the button is hidden and a normal open proceeds.
+Exactly one card is always selected; the first (a worktree, when there is one) is
+selected automatically when a scan lands.
 
 ### What gets opened: solution or folder
 
-- **Solution mode:** a radio toggle chooses **Solution** (the `.sln`/`.slnx`/`.slnf`) or **Folder**
-  (the repo root). If solution mode can't find the file, it falls back to opening the folder.
-- **Branch-only mode:** the chooser lists each solution found in the folder plus an
-  "open the folder" option.
-- **Folder-only targets:** some targets only understand a project folder — **WebStorm**, and the
-  **Console** / **File Explorer** targets that open the folder itself. When one of those is chosen, Fido
-  always hands over the folder — it ignores the solution toggle and skips the "which solution?" chooser.
+- The context strip lists a **chip per detected solution** (`.sln`/`.slnx`/`.slnf`)
+  in the selected target, plus a **Folder** chip. The first solution is pre-selected;
+  pick **Folder** to open the working tree itself.
+- **Only Rider and Visual Studio consult the chips** — they open the chosen solution
+  (or the folder, when Folder is chosen or no solutions were found).
+- **Every other tool opens the folder** — WebStorm, VS Code, Zed, Console, and File
+  Explorer have no solution concept and ignore the chips entirely.
+- The **Solution** box **filters** the chips by file name (blank = show every solution
+  found). When the filter hides them all, only the Folder chip remains.
+
+### Open actions & the default tool
+
+- The **hero button** is the **default tool** — full-width, marked with a `default`
+  pill and its `Ctrl+N` accelerator. Every other tool sits in the **3-column grid**
+  below it, each with its own accelerator.
+- **No default set?** There's no hero — all tools render in the equal-weight grid,
+  with a note: *"No default tool set — every option is equal weight. Pick one, set a
+  default in ⚙, or pass `--tool` on launch."*
+- The **⚙ gear popover** (top-right) sets the default: a radio list of your configured
+  tools plus **No default (equal weight)**. The choice persists to config immediately.
+  **All settings…** opens the full Settings dialog from the same popover.
+- A CLI `--tool <id>` overrides the default **for that run only** — picking a radio in
+  the popover (or editing Settings) takes back over.
+- All open actions are visible in every phase but **enabled only when discovery has
+  found the branch** — the accelerators respect the same gate.
+
+### Deleting a worktree
+
+Once discovery has found the branch, a **Delete worktree & branch** button sits on the
+main screen beneath the tools — no dialog to dig through. It's a shortcut for tidying
+up a branch you're finished with:
+
+- The button is enabled **only when the selected card is a linked worktree on a
+  non-default branch**. Selecting the **main clone** disables it with a note (*"only
+  worktrees can be deleted — the main clone stays put."*); the default branches
+  (`main`/`master`) are deliberately never deletable, even from a worktree (*"default
+  branches can't be deleted — main/master stay put."*).
+- **Two-step inline confirm.** The first click swaps the button for an in-place
+  confirm strip that spells out exactly what happens — *"Remove the worktree at
+  `<path>` and delete local branch `<branch>`? This can't be undone."* — plus explicit
+  **data-loss warnings** when the worktree has **uncommitted changes** or the branch
+  carries **commits that exist nowhere else** (unpushed and unmerged work a delete
+  would orphan). Nothing happens unless you click **Delete**; **Cancel** or **Esc**
+  backs out, and the destructive buttons sit outside the keyboard tab order so they
+  can't be fired by a stray keypress.
+- On confirmation Fido **removes the linked worktree** and **deletes the local
+  branch** — and nothing else. **The branch on `origin` is never touched.** The git
+  steps run from the clone's **main working tree**, so the worktree is dropped
+  cleanly; a dirty worktree is force-removed after the warning.
+- Each git step is **retried on transient failures** so a fleeting hiccup doesn't
+  leave a half-tidied branch: a worktree file still held open by an editor or
+  antivirus scan (common on Windows), or a git ref/index `.lock` left by a racing git
+  process. Fido retries a few times with a short, backing-off wait — each attempt
+  narrated in the flight log — while **permanent** refusals still fail fast on the
+  first try.
+- **Long filenames & a force-delete fallback.** Deep worktrees can trip Windows'
+  **260-character `MAX_PATH`** limit — a `node_modules` tree or generated output whose
+  paths are too long — and a delete then fails with **`filename too long`** /
+  **`unable to unlink … Filename too long`**, leaving the worktree stuck. Fido guards
+  against this two ways. First, git's worktree commands run with **long-path support**
+  (`core.longpaths`) so git's own file operations use the Windows extended-length API
+  and can remove those files. Second, if git **still** can't delete the folder (a path
+  too long even for that), Fido **offers to delete it straight from disk**: a modal,
+  clearly-labelled confirmation for a recursive removal that **bypasses the Recycle
+  Bin** and uses an extended-length (`\\?\`) path so it isn't defeated by the same
+  limit. Once the folder is gone Fido **prunes** git's dangling worktree registration
+  and carries on with the branch deletion. Nothing is force-deleted unless you choose
+  it, and backing out leaves everything in place.
+- Afterwards the card **drops out of the results** and the next location is selected —
+  or the screen falls to **not found** when none remain.
 
 ### Editors / IDEs
 
 Fido can open the resolved target into any of several editors — plus the **Console** and **File Explorer**
-targets below. The list is configured in Settings, and one entry is the **default**:
+targets below. The list is configured in Settings, and one entry can be the **default**:
 
-- The **default** target is launched by the **Open** button and **Enter**.
-- Every other one gets a **secondary button** on the main window and a numbered keyboard
-  shortcut, **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth entry in the list).
+- The **default** tool takes the **hero button**; set it from the **⚙ gear popover**
+  or the **●** radio in Settings (or leave it unset for the equal-weight grid).
+- Every tool — hero included — has a numbered keyboard shortcut, **Ctrl+1 … Ctrl+9**
+  (Ctrl+N opens with the Nth entry in the configured list).
 
 Built-in editor kinds — **Rider**, **WebStorm**, **VS Code**, **Visual Studio**, **Zed** — auto-detect
 when their path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.
-**WebStorm** is **folder-only**: it's always handed the repo folder rather than a `.sln`/`.slnx`/`.slnf`.
+**WebStorm** is **folder-only**: it's always handed the folder rather than a `.sln`/`.slnx`/`.slnf`.
 Optional extra command-line arguments can be supplied per editor (passed before the target path).
 
 Each entry also carries a **slug** — a short command-line token (built-in defaults: `rider`, `ws`,
-`vsc`, `vs`, `zed`, `term`, `files`) — so a specific one can be picked when launching Fido from the command
-line (see **Command-line launch**). The slug is editable per entry in Settings; leave it blank to make that
-entry un-selectable from the CLI.
+`vsc`, `vs`, `zed`, `term`, `files`) — so a specific one can be picked when launching Fido from the
+command line (see **Command-line launch**). The slug is editable per entry in Settings, and the
+built-in kinds also answer to **well-known aliases** (`webstorm`, `vscode` / `code`,
+`visualstudio` / `devenv`, `console` / `terminal`, `explorer` / `fileexplorer` / `finder`…) — only a
+**Custom** editor with a blank slug is un-selectable from the CLI.
 
 **Auto-detection** for each known kind looks, in order, at an explicit path, then your **`PATH`**,
 then common install locations:
@@ -213,111 +223,116 @@ macOS, and Linux**:
   else `nautilus` / `dolphin` / `thunar` / `nemo` / `pcmanfm`. The file manager is configurable via the
   row's **path** too.
 
-Both behave like any other target — a secondary button, a **Ctrl+N** shortcut, and a CLI slug — so
+Both behave like any other tool — a grid button, a **Ctrl+N** shortcut, and a CLI slug — so
 `fido feature/new-ui term` opens a terminal on that branch and `fido feature/new-ui files` opens its folder.
-They always hand over the **folder**, ignoring the Solution/Folder toggle and the "which solution?" chooser.
+They always hand over the **folder**, ignoring the solution chips.
 
 ### Mission-control console
 
-The in-app log narrates each launch like a flight-control "go around the horn" poll:
+The in-app **flight log** narrates each scan and launch like a flight-control "go around
+the horn" poll:
 
 ```
 🚀 Going around the horn…
-[✓] Branch resolved: feature/new-ui
-[✓] Worktree located: D:\dev\src\worktrees\feature-new-ui
-[✓] Solution found: Shine.sln
-[✓] Rider located: C:\…\rider64.exe
-
+Scanning 24 working tree(s) for 'feature/new-ui'…
+✓ Found 2 location(s) for 'feature/new-ui'.
+✓ Rider located: C:\…\rider64.exe
+▸ Opening Shine.sln in Rider
 Fido? GO!
 The Eagle has landed...
 Closing in 7…
 ```
 
-The `Closing in N…` line ticks down in place (one line, not a line per second). The countdown also
-shows in a **Keep open** bar at the bottom of the window — click it to call off the close and keep
+Each fresh scan resets the log and starts the poll again; the `Scanning N working
+tree(s)…` line ticks in place as the count comes in. The `Closing in N…` line counts
+down in place too (one line, not a line per second), and the countdown also shows in a
+**Keep open** bar at the bottom of the window — click it to call off the close and keep
 Fido up.
 
-When a typed branch isn't checked out anywhere and Fido searches the repos configured for new branches,
-it narrates the hunt the same way — `Searching for local branch in <repo>`, then `Searching for remote
-branch in <repo>` when it queries origin — ticking through the repo names in place on a single line.
-
-Failures call it straight — `[✗] …` lines and a **No-go** status; a cancelled dialog reads
-**Aborted**.
+Lines are colour-coded by kind — accent for the mission beats (`🚀`, `🗑`, `Fido? GO!`),
+green `✓` for successes, plain `▸` for actions — and failures call it straight: `⚠`
+lines for a branch that isn't checked out anywhere, a tool that can't be located, or a
+delete that went wrong.
 
 ### Keyboard & shortcuts
 
-- The **branch** field is focused on launch; both fields and the Open button have access-key
-  mnemonics.
-- **Enter** triggers **Open in &lt;default editor&gt;**; the inputs disable while a launch is in progress.
-- **Ctrl+1 … Ctrl+9** open in the corresponding configured editor (the same editors shown as
-  secondary buttons), so you can pick a non-default editor without leaving the keyboard.
-- **Decision dialog:** `M` / `1` = checkout in main, `W` / `2` = create worktree,
-  `Enter` = worktree (the default), `Esc` = cancel.
-- **Choosers:** `↑` / `↓` move the highlighted row, `Enter` (or the **Open** button, or a
-  double-click) opens it, `Esc` cancels. The shortcuts work whatever holds focus, and a hint
-  line along the bottom edge spells them out.
+- The **branch** field is focused on launch. Typing debounces into a scan; **Enter**
+  fires one immediately.
+- **Ctrl+Space** in either input opens its **recently-used** suggestions (the **✕** on
+  a suggestion forgets it).
+- **Ctrl+1 … Ctrl+9** open the selected target with the corresponding configured tool
+  (the same tools shown as buttons), gated — like the buttons — on discovery having
+  **found** the branch.
+- **Esc** backs out of a pending delete confirmation.
 - **Settings dialog:** `Enter` saves, `Esc` cancels.
 - **`Alt+Space`** opens the window's native **system menu** (Move, Size, Minimize, Maximize, Close)
   on any window — the same menu reached from the title-bar icon or a title-bar right-click.
 
-Every dialog follows the same convention — `Enter` triggers the primary action and `Esc` dismisses —
-so the keyboard behaves consistently across the app.
+The destructive delete buttons sit outside the tab order, so `Enter`/`Tab` can never
+land on them by accident.
 
 ### Command-line launch
 
-Launch arguments pre-populate the form, and **supplying a branch runs the open flow
-automatically** — exactly as if you'd typed it and clicked **Open in Rider**, so any
-chooser/decision dialogs still appear when a choice is genuinely needed:
+Launch arguments pre-populate the form, and **supplying a branch starts discovery
+immediately** — exactly as if you'd typed it. Opening, though, stays deliberate:
 
 | Argument | Effect |
 | --- | --- |
-| `<name>` (bare, first) or `--branch` / `-b` `<name>` | Set the branch — **and auto-run the open** |
-| `<slug>` (bare, second) or `--editor` / `-e` `<slug>` | Open with the target whose **slug** matches (e.g. `rider`, `vsc`, `vs`, `zed`, or `term` / `files` for a terminal / file manager) instead of the default |
-| `--solution` / `-s` `<name>` | Set the solution name |
-| `--folder` | Start in Folder open-mode |
+| `<name>` (bare, first) or `--branch` / `-b` `<name>` | Set the branch — **discovery runs straight away** |
+| `<tool>` (bare, second) or `--tool` / `-t` `<id>` (also `--editor` / `-e`) | The named tool becomes **this run's default** (the hero button) — and **auto-opens** when discovery finds **exactly one** location |
+| `--solution` / `-s` `<name>` | Pre-fill the **solution filter** |
+| `--folder` | Start on the **Folder** chip instead of the first solution |
 
-For example, `fido feature/new-ui -s MyApp` opens that branch's `MyApp` solution and,
-by default, closes Fido a few seconds after Rider is launched (see **Close after opening** and
-**Close delay** below).
+A tool `<id>` is a configured **slug** (`rider`, `vsc`, `vs`, `zed`, `term`, `files`…)
+or a built-in kind alias (`webstorm`, `vscode`, `visualstudio`, `console`,
+`explorer`…). `--tool none` shows the equal-weight grid for this run without touching
+your saved default.
 
-To pick a non-default target, give its slug as the **second bare argument** — `fido feature/new-ui zed`
-opens in Zed, `fido feature/new-ui term` opens a terminal on the branch, `fido feature/new-ui files` opens
-its folder — or pass it explicitly with `--editor` / `-e`: `fido -b feature/new-ui -s MyApp -e vs`.
-An unrecognised slug stops with a **No-go** that names it (and lists the known slugs) rather than
-silently falling back to the default.
+For example, `fido feature/new-ui rider` scans for the branch and — if it's checked
+out in exactly one place — opens it in Rider and, by default, closes Fido a few
+seconds later (see **Close after opening** and **Close delay** below). The auto-open
+is intentionally narrow:
+
+- **A bare `fido <branch>`** (no tool named) scans and presents the results — it
+  **never auto-opens**.
+- **Multiple locations** are never auto-opened either — Fido shows the labelled cards
+  and lets you choose, rather than guessing between clones.
+- **An unrecognised tool id** is reported in the flight log after the scan (listing
+  the ids that *are* known) and never auto-opens — Fido won't silently fall back to
+  the default.
 
 ---
 
 ## Configuration
 
-### Settings (in the app's **Settings** panel)
+### Settings (in the app's **Settings** dialog — reach it via ⚙ → **All settings…**)
 
-- **Search roots** — directories to scan for solutions / working trees (one per line).
-- **Editors** — the targets Fido can open into. Each row has a name, an optional **slug** (the
+- **Search roots** — directories to scan for working trees (one per line).
+- **Editors** — the tools Fido can open into. Each row has a name, an optional **slug** (the
   command-line token that selects it, e.g. `rider`), a **kind** (Rider, WebStorm, VS Code, Visual Studio,
   Zed, **Console**, **File Explorer**, or Custom), and an optional path (blank = auto-detect for known kinds;
   required for Custom). For **Console** the path is the **terminal program** and for **File Explorer** the
   **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
   so you can point Fido at the terminal you prefer. Tick the
-  **●** radio to set the default (the Open button / Enter); the rest are reached by **Ctrl+1 … Ctrl+9**
-  or by their slug on the command line. **Add** appends a new row; **✕** removes one.
+  **●** radio to set the default (the hero button) — or use the ⚙ gear popover on the main screen,
+  which offers the same choice plus **No default (equal weight)**. The rest are reached by
+  **Ctrl+1 … Ctrl+9** or by their slug on the command line. **Add** appends a new row; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
-- **New-branch repos** — the repositories Fido may place a branch into in **branch-only mode**
-  when the branch isn't checked out anywhere. Click **Detect** to scan your search roots for git
-  repositories, then tick the ones to use.
+- **Theme** — **System**, **Light**, or **Dark**.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
-  the Open button), or **Never** (turns auto-close off).
+  the on-screen buttons), or **Never** (turns auto-close off).
 - **Close delay** — seconds Fido counts down before it auto-closes (default **10**; **0** closes
   immediately). The flight log shows a single line that ticks down in place (`Closing in 10…`, then
   `9…`, `8…`), and a **Keep open** bar appears at the bottom with the live countdown. Clicking
-  **Keep open** — or simply starting another open — cancels the close, so it's never a point of no return.
+  **Keep open** — or simply starting another scan or open — cancels the close, so it's never a point
+  of no return.
 
 ### Defaults
 
 - **Search roots:** `%USERPROFILE%\source\repos`, `%USERPROFILE%\src`,
   `%USERPROFILE%\RiderProjects`, `%USERPROFILE%\Projects`.
-- **Default branch names:** `main`, `master`.
+- **Default branch names:** `main`, `master` (never offered for deletion).
 - **Search depth:** 4.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 
@@ -333,14 +348,14 @@ the next save writes to the new location.
 
 | Capability | Summary |
 | --- | --- |
-| Input | Branch name (required) + solution name (optional) |
-| Branch-only mode | Open from an existing checkout, or place the branch into a configured repo that already has it |
-| Cross-clone reuse | Never creates a second worktree for a branch already checked out |
-| Placement | Switch main tree **or** create a linked worktree |
-| Delete worktree | Remove worktree + local/`origin` branch; retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
-| Open target | `.sln` / `.slnx` / `.slnf` solution, or the repo folder |
-| Editors | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — default + Ctrl+1…9, or by CLI slug |
+| Input | Branch name (required); the solution box **filters** the detected solution chips |
+| Discovery | Debounced scan of the search roots for working trees **currently on the branch**; results inline as cards, worktrees before main clones |
+| Multiple locations | Every checkout shown, labelled **worktree** / **main clone** — you choose which to act on |
+| Open gate | Open & delete actions unlock only when discovery **finds** the branch |
+| Open target | Rider / Visual Studio: the chosen `.sln` / `.slnx` / `.slnf` chip or the folder; every other tool: the folder |
+| Delete worktree | Inline two-step confirm; removes the worktree + **local** branch (never the remote); retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
+| Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
-| Commit links | Short HEAD hash, clickable to the GitHub commit |
+| CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

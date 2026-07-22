@@ -41,34 +41,6 @@ public partial class SettingsDialog : Window
             App.ApplyTheme(_vm.SelectedTheme);
     }
 
-    // Detect git repos under the currently-entered search roots and fold them into the checklist.
-    private async void OnDetectClick(object? sender, RoutedEventArgs e)
-    {
-        DetectReposButton.IsEnabled = false;
-        try
-        {
-            var cfg = new AppConfig
-            {
-                SearchRoots = _vm.CurrentSearchRoots().ToList(),
-                SearchDepth = _config.SearchDepth,
-            };
-            var opener = new OpenerService(new GitService(), new SolutionFinder(), new WorkingTreeFinder());
-
-            // The directory walk is synchronous — keep it off the UI thread; the continuation
-            // resumes here on the UI thread, so mutating the bound collection is safe.
-            var repos = await Task.Run(() => opener.FindAllRepositoriesAsync(cfg));
-            _vm.MergeDetected(repos.Select(r => r.MainWorktreePath));
-        }
-        catch
-        {
-            // Best-effort detection; leave the existing list untouched on failure.
-        }
-        finally
-        {
-            DetectReposButton.IsEnabled = true;
-        }
-    }
-
     private void OnAddEditorClick(object? sender, RoutedEventArgs e) => _vm.AddEditor();
 
     private void OnRemoveEditorClick(object? sender, RoutedEventArgs e)

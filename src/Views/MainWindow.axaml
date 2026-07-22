@@ -4,8 +4,8 @@
         xmlns:sys="using:System"
         x:Class="Fido.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Width="660" Height="780"
-        MinWidth="560" MinHeight="560"
+        Width="720" SizeToContent="Height"
+        MinWidth="560" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/fido-icon-256.png"
         Title="Fido"
@@ -13,160 +13,399 @@
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">
 
-    <!-- top controls size to content; the flight log takes the slack; the countdown pins to the bottom.
-         A Grid (not a DockPanel) so the log can shrink instead of overlapping its neighbours when space is tight. -->
-    <Grid Margin="26,24,26,26" RowDefinitions="Auto,*,Auto">
+    <!-- One window, one screen: header → inputs → discovery → open actions → delete → flight log.
+         The upper stack scrolls if the discovery list outgrows the window; the flight log keeps its
+         own min/max height near the bottom; the auto-close countdown pins beneath it. -->
+    <Grid Margin="30,26,30,24" RowDefinitions="*,Auto,Auto">
 
-        <StackPanel Grid.Row="0">
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="22">
 
-            <!-- header: brand left, settings cog right -->
-            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="13">
-                    <Image Source="/Assets/fido-icon-256.png" Width="38" Height="38" VerticalAlignment="Center" />
-                    <StackPanel Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="fido" FontFamily="{DynamicResource FidoMono}" FontSize="22"
-                                   FontWeight="ExtraBold" Foreground="{DynamicResource FidoTextPrimary}" />
+                <!-- ============================= 1. Header ============================= -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Logo tile: the amber rising line + arrow on the dark brand square -->
+                    <Border Width="52" Height="52" CornerRadius="13"
+                            Background="{DynamicResource FidoLogoTileBg}" VerticalAlignment="Center">
+                        <Viewbox Width="30" Height="30">
+                            <Canvas Width="120" Height="120">
+                                <Path Data="{StaticResource FidoGlyphCurve}"
+                                      Stroke="{DynamicResource FidoBrandStroke}" StrokeThickness="9"
+                                      StrokeLineCap="Round" />
+                                <Path Data="M66,31 L88,27 L82,52"
+                                      Stroke="{DynamicResource FidoBrandStroke}" StrokeThickness="9"
+                                      StrokeLineCap="Round" StrokeJoin="Round" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="fido" FontSize="26" FontWeight="ExtraBold" LetterSpacing="-0.5"
+                                   Foreground="{DynamicResource FidoTextPrimary}" />
                         <TextBlock Text="Flight Dynamics Officer — guiding Rider to a safe landing"
-                                   FontSize="11.5" Foreground="{DynamicResource FidoTagline}" TextWrapping="Wrap" />
+                                   FontSize="12.5" Foreground="{DynamicResource FidoTagline}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <!-- Gear: default-tool popover (with a door through to full settings) -->
+                    <Button Grid.Column="2" x:Name="GearButton" Classes="iconbtn" Width="36" Height="36"
+                            VerticalAlignment="Top" ToolTip.Tip="Default tool &amp; settings">
+                        <Path Width="18" Height="18" Stretch="Uniform" Fill="{DynamicResource FidoTextMuted}"
+                              Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight" ShowMode="Transient">
+                                <StackPanel Width="280" Spacing="10" Margin="4">
+                                    <TextBlock Classes="label" Text="Default tool" />
+                                    <ItemsControl ItemsSource="{Binding DefaultToolChoices}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DefaultToolChoice">
+                                                <RadioButton GroupName="DefaultTool" FontSize="13" Padding="6,3"
+                                                             Content="{Binding Name}"
+                                                             IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock FontSize="11.5" Foreground="{DynamicResource FidoTextMuted}" TextWrapping="Wrap"
+                                               Text="A launch flag like --tool rider overrides this for a single run." />
+                                    <Button Classes="secondary" Content="All settings…" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center" Click="OnAllSettingsClick" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
+
+                <!-- ============================= 2. Inputs ============================= -->
+                <Grid ColumnDefinitions="1.7*,1*">
+                    <StackPanel Spacing="8" Margin="0,0,8,0">
+                        <TextBlock Classes="label" Text="Branch name" />
+                        <AutoCompleteBox x:Name="BranchBox" Classes="fido hero"
+                                         Text="{Binding BranchName, Mode=TwoWay}"
+                                         ItemsSource="{Binding RecentBranches}"
+                                         FilterMode="Contains" MinimumPrefixLength="0"
+                                         PlaceholderText="type a branch to discover">
+                            <AutoCompleteBox.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <Grid ColumnDefinitions="*,Auto" Background="Transparent">
+                                        <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <Button Grid.Column="1" Classes="mrudel" Tag="branch" Focusable="False"
+                                                Click="OnRemoveMruItem" ToolTip.Tip="Forget this branch name">
+                                            <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
+                                                  StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </AutoCompleteBox.ItemTemplate>
+                        </AutoCompleteBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">
+                        <TextBlock Classes="label">
+                            <Run Text="Solution " /><Run Text="· optional" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <AutoCompleteBox x:Name="SolutionBox" Classes="fido hero"
+                                         Text="{Binding SolutionFilter, Mode=TwoWay}"
+                                         ItemsSource="{Binding RecentSolutions}"
+                                         FilterMode="Contains" MinimumPrefixLength="0"
+                                         PlaceholderText="filter solutions">
+                            <AutoCompleteBox.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <Grid ColumnDefinitions="*,Auto" Background="Transparent">
+                                        <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <Button Grid.Column="1" Classes="mrudel" Tag="solution" Focusable="False"
+                                                Click="OnRemoveMruItem" ToolTip.Tip="Forget this solution name">
+                                            <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
+                                                  StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </AutoCompleteBox.ItemTemplate>
+                        </AutoCompleteBox>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ========================= 3. Discovery results ========================= -->
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Classes="label" Text="Discovery" VerticalAlignment="Center" />
+                        <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoHairline}"
+                                VerticalAlignment="Center" Margin="10,0" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Border Classes="pill idle" IsVisible="{Binding IsIdle}">
+                                <TextBlock Text="idle" />
+                            </Border>
+                            <Border Classes="pill scan" IsVisible="{Binding IsScanning}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="spinner" Width="12" Height="12"
+                                          Data="M6,1 A5,5 0 1 1 1,6" VerticalAlignment="Center" />
+                                    <TextBlock Text="scanning" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="pill found" IsVisible="{Binding IsFound}">
+                                <TextBlock Text="{Binding FoundChipText}" />
+                            </Border>
+                            <Border Classes="pill notfound" IsVisible="{Binding IsNotFound}">
+                                <TextBlock Text="not found" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Idle: dashed placeholder -->
+                    <Grid IsVisible="{Binding IsIdle}">
+                        <Rectangle Stroke="{DynamicResource FidoCardDashedBorder}" StrokeThickness="1.5"
+                                   StrokeDashArray="4,3" RadiusX="11" RadiusY="11" Fill="Transparent" />
+                        <TextBlock Margin="18,16" FontSize="12.5" Foreground="{DynamicResource FidoTextMuted}"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   Text="Enter a branch name above. Fido scans every configured working tree and clone to find where that branch is checked out — nothing opens until it does." />
+                    </Grid>
+
+                    <!-- Scanning: soft card with spinner -->
+                    <Border IsVisible="{Binding IsScanning}" Background="{DynamicResource FidoPanelBg}"
+                            BorderBrush="{DynamicResource FidoPanelBorder}" BorderThickness="1"
+                            CornerRadius="11" Padding="16,14">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Path Classes="spinner" Width="16" Height="16"
+                                  Data="M8,1.5 A6.5,6.5 0 1 1 1.5,8" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ScanningBody}" FontSize="13"
+                                       Foreground="{DynamicResource FidoTextSecondary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Not found: warning card -->
+                    <Border IsVisible="{Binding IsNotFound}" Background="{DynamicResource FidoNotFoundBg}"
+                            BorderBrush="{DynamicResource FidoNotFoundBorder}" BorderThickness="1.5"
+                            CornerRadius="11" Padding="16,14">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding NotFoundBody}" FontSize="13.5" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FidoNotFoundText}" TextWrapping="Wrap" />
+                            <TextBlock Text="Double-check the name, or fetch the remote first — then try again."
+                                       FontSize="12" Foreground="{DynamicResource FidoNotFoundSub}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Found: (optional) helper strip + selectable target cards -->
+                    <StackPanel IsVisible="{Binding IsFound}" Spacing="10">
+                        <Border IsVisible="{Binding HasMultipleTargets}" Background="{DynamicResource FidoHelperBg}"
+                                CornerRadius="9" Padding="12,8">
+                            <TextBlock Text="This branch is checked out in more than one place — choose which to act on:"
+                                       FontSize="12.5" Foreground="{DynamicResource FidoHelperText}" TextWrapping="Wrap" />
+                        </Border>
+
+                        <ListBox Classes="targets" ItemsSource="{Binding Targets}"
+                                 SelectionMode="Single,AlwaysSelected"
+                                 SelectedItem="{Binding SelectedTarget, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TargetCard">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                        <!-- Icon tile: git-branch for a worktree, home for the main clone -->
+                                        <Border Width="38" Height="38" CornerRadius="9" VerticalAlignment="Center"
+                                                Background="{DynamicResource FidoWorktreeTileBg}"
+                                                IsVisible="{Binding IsWorktree}">
+                                            <Path Width="18" Height="18" Stretch="Uniform"
+                                                  Stroke="{DynamicResource FidoWorktreeText}" StrokeThickness="1.8"
+                                                  StrokeLineCap="Round" StrokeJoin="Round"
+                                                  Data="M6,3 V15 M18,9 A9,9 0 0 1 9,18 M18,3 a3,3 0 1 1 -0.01,0 M6,15 a3,3 0 1 1 -0.01,0" />
+                                        </Border>
+                                        <Border Width="38" Height="38" CornerRadius="9" VerticalAlignment="Center"
+                                                Background="{DynamicResource FidoCloneTileBg}"
+                                                IsVisible="{Binding IsMainClone}">
+                                            <Path Width="18" Height="18" Stretch="Uniform"
+                                                  Stroke="{DynamicResource FidoCloneText}" StrokeThickness="1.8"
+                                                  StrokeLineCap="Round" StrokeJoin="Round"
+                                                  Data="M3,9 L12,2 L21,9 V20 a1,1 0 0 1 -1,1 H4 a1,1 0 0 1 -1,-1 Z M9,21 V12 H15 V21" />
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Margin="12,0" Spacing="3" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Path}" FontSize="13.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource FidoTextPrimary}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Meta}" FontSize="12"
+                                                       Foreground="{DynamicResource FidoLogMuted}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <Border Grid.Column="2" Classes="kindchip"
+                                                Classes.worktree="{Binding IsWorktree}"
+                                                Classes.clone="{Binding IsMainClone}">
+                                            <TextBlock Text="{Binding KindLabel}" />
+                                        </Border>
+
+                                        <!-- Radio indicator: amber ring + dot when selected -->
+                                        <Grid Grid.Column="3" Width="17" Height="17" Margin="12,0,2,0" VerticalAlignment="Center">
+                                            <Ellipse Classes="radioring" Width="17" Height="17" />
+                                            <Ellipse Classes="radiodot" Width="9" Height="9" />
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </StackPanel>
                 </StackPanel>
-                <Button Grid.Column="1" Classes="iconbtn" Click="OnSettingsClick" VerticalAlignment="Top"
-                        ToolTip.Tip="Settings">
-                    <Path Width="18" Height="18" Stretch="Uniform" Fill="{DynamicResource FidoTextMuted}"
-                          Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-                </Button>
-            </Grid>
 
-            <!-- branch (with MRU suggestions) -->
-            <StackPanel Spacing="9" Margin="0,0,0,18" IsEnabled="{Binding NotBusy}">
-                <TextBlock Classes="label" Text="Branch name" />
-                <AutoCompleteBox x:Name="BranchBox" Classes="fido"
-                                 Text="{Binding BranchName, Mode=TwoWay}"
-                                 ItemsSource="{Binding RecentBranches}"
-                                 FilterMode="Contains" MinimumPrefixLength="0">
-                    <AutoCompleteBox.ItemTemplate>
-                        <DataTemplate x:DataType="sys:String">
-                            <Grid ColumnDefinitions="*,Auto" Background="Transparent">
-                                <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" />
-                                <Button Grid.Column="1" Classes="mrudel" Tag="branch" Focusable="False"
-                                        Click="OnRemoveMruItem" ToolTip.Tip="Forget this branch name">
-                                    <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
-                                          StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </AutoCompleteBox.ItemTemplate>
-                </AutoCompleteBox>
-            </StackPanel>
+                <!-- ========================= 4. Open actions ========================= -->
+                <StackPanel Spacing="12">
 
-            <!-- solution (with MRU suggestions) -->
-            <StackPanel Spacing="9" Margin="0,0,0,20" IsEnabled="{Binding NotBusy}">
-                <TextBlock Classes="label">
-                    <Run Text="Solution name " /><Run Text="· optional" Foreground="{DynamicResource FidoTextDim}" />
-                </TextBlock>
-                <AutoCompleteBox x:Name="SolutionBox" Classes="fido"
-                                 Text="{Binding SolutionName, Mode=TwoWay}"
-                                 ItemsSource="{Binding RecentSolutions}"
-                                 FilterMode="Contains" MinimumPrefixLength="0"
-                                 PlaceholderText="blank → find the branch's folder and list its solutions">
-                    <AutoCompleteBox.ItemTemplate>
-                        <DataTemplate x:DataType="sys:String">
-                            <Grid ColumnDefinitions="*,Auto" Background="Transparent">
-                                <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" />
-                                <Button Grid.Column="1" Classes="mrudel" Tag="solution" Focusable="False"
-                                        Click="OnRemoveMruItem" ToolTip.Tip="Forget this solution name">
-                                    <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.4"
-                                          StrokeLineCap="Round" Data="M0,0 L9,9 M9,0 L0,9" />
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </AutoCompleteBox.ItemTemplate>
-                </AutoCompleteBox>
-            </StackPanel>
+                    <!-- Locked: the gate, with the reason doubling as the message -->
+                    <Border IsVisible="{Binding IsLocked}" Background="{DynamicResource FidoPanelBg}"
+                            BorderBrush="{DynamicResource FidoPanelBorder}" BorderThickness="1"
+                            CornerRadius="10" Padding="16,20">
+                        <TextBlock Text="{Binding LockReason}" HorizontalAlignment="Center" FontSize="13"
+                                   Foreground="{DynamicResource FidoTextMuted}" TextWrapping="Wrap" />
+                    </Border>
 
-            <!-- open as -->
-            <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,22" IsEnabled="{Binding NotBusy}">
-                <TextBlock Classes="label" Text="Open as" VerticalAlignment="Center" />
-                <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
-                        BorderThickness="1" CornerRadius="8" Padding="3" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton Classes="segment" GroupName="OpenAs" Content="Solution"
-                                     IsChecked="{Binding IsSolutionMode, Mode=TwoWay}" />
-                        <RadioButton Classes="segment" GroupName="OpenAs" Content="Folder"
-                                     IsChecked="{Binding IsFolderMode, Mode=TwoWay}" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                    <!-- Target / solution context strip (only meaningful once something was found) -->
+                    <Border IsVisible="{Binding IsFound}"
+                            Background="{DynamicResource FidoPanelBg}" BorderBrush="{DynamicResource FidoPanelBorder}"
+                            BorderThickness="1" CornerRadius="10" Padding="14,10">
+                            <StackPanel Spacing="9">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Classes="label" Text="OPEN" VerticalAlignment="Center" />
+                                    <Border Grid.Column="1" Background="{DynamicResource FidoChipBg}"
+                                            BorderBrush="{DynamicResource FidoChipBorder}" BorderThickness="1"
+                                            CornerRadius="7" Padding="10,4" Margin="10,0" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding SelectedPath}" FontSize="12.5"
+                                                   Foreground="{DynamicResource FidoTextPrimary}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding SelectedKindLabel}" FontSize="12"
+                                               Foreground="{DynamicResource FidoTextMuted}" VerticalAlignment="Center" />
+                                </Grid>
 
-            <!-- primary: opens in the default editor -->
-            <Button x:Name="OpenButton" Classes="primary" Click="OnOpenClick" IsDefault="True" IsEnabled="{Binding NotBusy}">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Path Data="M3,2 L12,7 L3,12 Z" Fill="{DynamicResource FidoButtonText}"
-                          Width="14" Height="14" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding OpenButtonText}" VerticalAlignment="Center" />
+                                <StackPanel IsVisible="{Binding HasSolutionChips}" Spacing="9">
+                                    <Border Height="1" Background="{DynamicResource FidoHairline}" />
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <TextBlock Text="Rider / Visual Studio open" FontSize="11.5"
+                                                   Foreground="{DynamicResource FidoTextMuted}"
+                                                   Margin="0,7,12,0" VerticalAlignment="Top" />
+                                        <ListBox Grid.Column="1" Classes="chips"
+                                                 SelectionMode="Single,AlwaysSelected"
+                                                 ItemsSource="{Binding SolutionChips}"
+                                                 SelectedItem="{Binding SelectedSolutionChip, Mode=TwoWay}">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:SolutionChip">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Hero open button (the default tool) — visible in every phase, enabled only
+                             when discovery has found the branch (the lock card above states why) -->
+                        <Border IsVisible="{Binding HasHero}" CornerRadius="10"
+                                BoxShadow="0 2 0 0 #D5870F, 0 8 16 -7 #99E08514">
+                            <Button Classes="hero" Click="OnHeroClick" IsEnabled="{Binding CanOpen}">
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                                    <Path Data="M2,1 L11,6.5 L2,12 Z" Fill="{DynamicResource FidoHeroText}"
+                                          Width="12" Height="13" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding HeroLabel}" Margin="10,0,9,0"
+                                               VerticalAlignment="Center" />
+                                    <Border Grid.Column="2" Background="{DynamicResource FidoHeroPillBg}"
+                                            CornerRadius="999" Padding="8,1" VerticalAlignment="Center">
+                                        <TextBlock Text="default" FontSize="10.5" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource FidoHeroPillText}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="3" Text="{Binding HeroTool.Gesture}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center"
+                                               FontSize="11.5" Foreground="{DynamicResource FidoHeroPillText}" />
+                                </Grid>
+                            </Button>
+                        </Border>
+
+                        <TextBlock IsVisible="{Binding ShowNoDefaultNote}" FontSize="12"
+                                   Foreground="{DynamicResource FidoTextMuted}" TextWrapping="Wrap"
+                                   Text="No default tool set — every option is equal weight. Pick one, set a default in ⚙, or pass --tool on launch." />
+
+                        <!-- The remaining tools, three abreast — like the hero, always on show, gated on found -->
+                        <ItemsControl ItemsSource="{Binding GridTools}" IsEnabled="{Binding CanOpen}"
+                                      Margin="0,0,-10,-10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:EditorLaunchOption">
+                                    <Button Classes="tool" Margin="0,0,10,10" Click="OnToolClick"
+                                            ToolTip.Tip="{Binding Name}">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource FidoTextBody}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Gesture}" FontSize="11.5"
+                                                       Foreground="{DynamicResource FidoTextDim}"
+                                                       Margin="8,0,0,0" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- ========================= 5. Delete row ========================= -->
+                        <StackPanel IsVisible="{Binding ShowDeleteRow}" Spacing="12">
+                            <Border Height="1" Background="{DynamicResource FidoSettingsDivider}" Margin="0,4,0,0" />
+
+                            <StackPanel IsVisible="{Binding ShowDeleteButton}" Orientation="Horizontal" Spacing="12">
+                                <Button Classes="dangerline" Click="OnDeleteClick" IsTabStop="False"
+                                        IsEnabled="{Binding CanDelete}"
+                                        Content="🗑  Delete worktree &amp; branch" />
+                                <TextBlock IsVisible="{Binding ShowDeleteDisabledNote}" Text="{Binding DeleteDisabledNote}"
+                                           FontSize="12" Foreground="{DynamicResource FidoTextMuted}"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360" />
+                            </StackPanel>
+
+                            <!-- In-place two-step confirm: Enter never deletes, only the explicit click -->
+                            <Border IsVisible="{Binding IsConfirmingDelete}" Background="{DynamicResource FidoDangerSoftBg}"
+                                    BorderBrush="{DynamicResource FidoDangerBorder}" BorderThickness="1.5"
+                                    CornerRadius="10" Padding="14,12">
+                                <StackPanel Spacing="10">
+                                    <TextBlock TextWrapping="Wrap" FontSize="13"
+                                               Foreground="{DynamicResource FidoDangerConfirmText}">
+                                        <Run Text="Remove the worktree at " /><Run Text="{Binding DeleteConfirmPath}" FontWeight="Bold" Foreground="{DynamicResource FidoDangerEmphasis}" /><Run Text=" and delete local branch " /><Run Text="{Binding DeleteConfirmBranch}" FontWeight="Bold" Foreground="{DynamicResource FidoDangerEmphasis}" /><Run Text="? This can't be undone." />
+                                    </TextBlock>
+                                    <TextBlock IsVisible="{Binding HasDeleteConfirmWarnings}"
+                                               Text="{Binding DeleteConfirmWarnings}" TextWrapping="Wrap"
+                                               FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource FidoDangerEmphasis}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                        <Button Classes="confirmcancel" Content="Cancel" Click="OnDeleteCancelClick"
+                                                IsEnabled="{Binding !IsDeleting}" />
+                                        <Button Classes="dangersolid" Content="Delete" Click="OnDeleteConfirmClick"
+                                                IsEnabled="{Binding !IsDeleting}" IsTabStop="False" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                 </StackPanel>
-            </Button>
 
-            <!-- secondary: open in another configured editor (also reachable by Ctrl+N) -->
-            <ItemsControl ItemsSource="{Binding SecondaryEditors}" IsVisible="{Binding HasSecondaryEditors}"
-                          Margin="0,10,0,0" IsEnabled="{Binding NotBusy}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:EditorLaunchOption">
-                        <Button Classes="secondary" Margin="0,0,8,8" Click="OnLaunchWithEditorClick"
-                                Content="{Binding ButtonLabel}" ToolTip.Tip="{Binding Name}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
 
-            <!-- status: NO-GO -->
-            <Border IsVisible="{Binding IsStatusNoGo}" Background="{DynamicResource FidoNoGoBg}"
-                    BorderBrush="{DynamicResource FidoNoGo}" BorderThickness="2,0,0,0"
-                    CornerRadius="0,5,5,0" Padding="14,11" Margin="0,20,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                    <Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource FidoNoGo}" VerticalAlignment="Center" />
-                    <TextBlock FontFamily="{DynamicResource FidoMono}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center">
-                        <Run Text="NO-GO" FontWeight="Bold" Foreground="{DynamicResource FidoNoGoText}" /><Run Text=" · " Foreground="{DynamicResource FidoTextSecondary}" /><Run Text="{Binding StatusText}" Foreground="{DynamicResource FidoTextSecondary}" />
-                    </TextBlock>
-                </StackPanel>
-            </Border>
-            <!-- status: GO -->
-            <Border IsVisible="{Binding IsStatusGo}" Background="{DynamicResource FidoGoBg}"
-                    BorderBrush="{DynamicResource FidoGo}" BorderThickness="2,0,0,0"
-                    CornerRadius="0,5,5,0" Padding="14,11" Margin="0,20,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                    <Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource FidoGo}" VerticalAlignment="Center" />
-                    <TextBlock FontFamily="{DynamicResource FidoMono}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center">
-                        <Run Text="GO" FontWeight="Bold" Foreground="{DynamicResource FidoGo}" /><Run Text=" · " Foreground="{DynamicResource FidoTextSecondary}" /><Run Text="{Binding StatusText}" Foreground="{DynamicResource FidoTextSecondary}" />
-                    </TextBlock>
-                </StackPanel>
-            </Border>
-
-        </StackPanel>
-
-        <!-- flight log fills the remainder -->
-        <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,20,0,0">
+        <!-- ============================= 6. Flight log ============================= -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" Margin="0,20,0,0">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,9">
                 <TextBlock Grid.Column="0" Classes="label" Text="Flight log" VerticalAlignment="Center" />
                 <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoLogRule}"
-                        VerticalAlignment="Center" Margin="8,0,0,0" />
+                        VerticalAlignment="Center" Margin="10,0,0,0" />
             </Grid>
             <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="15,14">
+                    BorderThickness="1" CornerRadius="10" Padding="15,12" MinHeight="104" MaxHeight="150">
                 <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Log}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:LogLine">
                                 <TextBlock Classes="logline" Text="{Binding Text}"
                                            Classes.accent="{Binding IsAccent}"
-                                           Classes.secondary="{Binding IsSecondary}"
-                                           Classes.error="{Binding IsError}" />
+                                           Classes.ok="{Binding IsOk}"
+                                           Classes.warn="{Binding IsWarn}"
+                                           Classes.plain="{Binding IsPlain}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -174,7 +413,7 @@
             </Border>
         </Grid>
 
-        <!-- close countdown + "keep open" escape hatch; only while an auto-close is pending -->
+        <!-- Close countdown + "keep open" escape hatch; only while an auto-close is pending -->
         <Border Grid.Row="2" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
                 Background="{DynamicResource FidoGoBg}" BorderBrush="{DynamicResource FidoGo}"
                 BorderThickness="2,0,0,0" CornerRadius="0,5,5,0" Padding="14,10">

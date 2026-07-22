@@ -141,9 +141,6 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _closeAfterOpenDelayText, value);
     }
 
-    /// <summary>Repos offered when a typed branch isn't checked out anywhere; ticked ones are persisted.</summary>
-    public ObservableCollection<RepoChoice> NewBranchRepos { get; } = new();
-
     public void LoadFrom(AppConfig config)
     {
         SearchRootsText = string.Join(Environment.NewLine, config.SearchRoots);
@@ -151,7 +148,9 @@ public sealed class SettingsViewModel : ObservableObject
 
         foreach (var existing in Editors) existing.PropertyChanged -= OnEditorChoiceChanged;
         Editors.Clear();
-        var defaultIndex = config.Editors.Count == 0
+        // NoDefaultEditor (-1) means "no hero, equal-weight grid": no row is ticked. Anything else
+        // clamps into the list so a stale index still lands on a real editor.
+        var defaultIndex = config.Editors.Count == 0 || config.DefaultEditorIndex == AppConfig.NoDefaultEditor
             ? -1
             : Math.Clamp(config.DefaultEditorIndex, 0, config.Editors.Count - 1);
         for (var i = 0; i < config.Editors.Count; i++)
@@ -163,10 +162,6 @@ public sealed class SettingsViewModel : ObservableObject
         SelectedTheme = config.Theme;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
-
-        NewBranchRepos.Clear();
-        foreach (var path in config.NewBranchRepos)
-            NewBranchRepos.Add(new RepoChoice(path, isEnabled: true));
     }
 
     public void ApplyTo(AppConfig config)
@@ -175,15 +170,18 @@ public sealed class SettingsViewModel : ObservableObject
         config.WorktreeRoot = string.IsNullOrWhiteSpace(WorktreeRoot) ? null : WorktreeRoot.Trim();
 
         config.Editors = Editors.Select(e => e.ToEditor()).ToList();
-        var defaultIndex = -1;
+        // No ticked row round-trips as NoDefaultEditor: the user may deliberately run with no hero
+        // (equal-weight tool grid), chosen here or in the gear popover.
+        var defaultIndex = AppConfig.NoDefaultEditor;
         for (var i = 0; i < Editors.Count; i++)
             if (Editors[i].IsDefault) { defaultIndex = i; break; }
-        config.DefaultEditorIndex = defaultIndex < 0 ? 0 : defaultIndex;
+        config.DefaultEditorIndex = defaultIndex;
         config.RiderPath = null;   // superseded by Editors; clear the migrated legacy value
         config.Theme = SelectedTheme;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
-        config.NewBranchRepos = NewBranchRepos.Where(r => r.IsEnabled).Select(r => r.Path).ToList();
+        // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer
+        // consumes it, but a saved list survives round-trips in case the placement flow returns.
     }
 
     /// <summary>Parses the delay text to whole seconds, clamped to a sane range; unreadable input falls back to the default.</summary>
@@ -191,23 +189,6 @@ public sealed class SettingsViewModel : ObservableObject
         int.TryParse(text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds)
             ? Math.Clamp(seconds, 0, AppConfig.MaxCloseAfterOpenDelaySeconds)
             : AppConfig.DefaultCloseAfterOpenDelaySeconds;
-
-    /// <summary>The search roots as currently typed (honors unsaved edits) — drives repo detection.</summary>
-    public IReadOnlyList<string> CurrentSearchRoots() => SplitRoots(SearchRootsText);
-
-    /// <summary>
-    /// Folds freshly detected repo paths into the checklist: existing entries keep their tick state,
-    /// newly discovered repos are added unticked for the user to opt in.
-    /// </summary>
-    public void MergeDetected(IEnumerable<string> mainPaths)
-    {
-        foreach (var path in mainPaths)
-        {
-            if (NewBranchRepos.Any(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase)))
-                continue;
-            NewBranchRepos.Add(new RepoChoice(path, isEnabled: false));
-        }
-    }
 
     private static List<string> SplitRoots(string text) => text
         .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
