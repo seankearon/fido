@@ -48,6 +48,27 @@ chips.
 
 ---
 
+## Placing a branch that isn't checked out anywhere
+
+When no working tree has the branch but a scanned clone's refs do (locally, on `origin`, or found by
+a live `ls-remote` for a branch you never fetched), each such clone offers **two placement cards**:
+a **new worktree** (leads, auto-selected) showing where it would be created, and a **switch clone**
+that moves the clone's main tree onto the branch — warning inline when uncommitted changes would
+ride along. Opening performs the placement first, then launches.
+
+<table>
+  <tr>
+    <td align="center"><strong>Dark</strong></td>
+    <td align="center"><strong>Light</strong></td>
+  </tr>
+  <tr>
+    <td><img src="placement-offer-dark.png" alt="New-worktree and switch-clone placement cards, dark theme" width="400"></td>
+    <td><img src="placement-offer-light.png" alt="New-worktree and switch-clone placement cards, light theme" width="400"></td>
+  </tr>
+</table>
+
+---
+
 ## Delete a worktree
 
 When the selected card is a **linked worktree** on a non-default branch, the **Delete worktree &
