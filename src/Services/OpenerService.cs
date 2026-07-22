@@ -91,11 +91,14 @@ public sealed class OpenerService
     /// Inline discovery for the main screen: scans the search roots for git working trees currently on
     /// <paramref name="branch"/> and describes each as a <see cref="DiscoveredTarget"/> — linked worktree
     /// or main clone, owning repo name, the solution files inside it, and when it last changed. Worktrees
-    /// are listed before main clones (they're the likelier target, and only they can be deleted). The
-    /// blocking directory scans run on the thread pool: this is called from a keystroke-debounced loop,
-    /// so it must never stall the UI thread the way the older dialog-driven flow could afford to.
-    /// <paramref name="onTreeCount"/> reports how many working trees are being checked as soon as the
-    /// enumeration finishes, so the UI can narrate "Scanning N working tree(s)…" mid-scan.
+    /// are listed before main clones (they're the likelier target, and only they can be deleted). When the
+    /// branch is checked out <em>nowhere</em>, the scanned clones are consulted instead: any whose refs
+    /// contain the branch — a local branch, the cached <c>origin</c> tracking ref, or (as a last resort)
+    /// a live <c>ls-remote</c> — is offered as a <see cref="TargetKind.NewWorktree"/> that opening will
+    /// create. The blocking directory scans run on the thread pool: this is called from a
+    /// keystroke-debounced loop, so it must never stall the UI thread the way the older dialog-driven
+    /// flow could afford to. <paramref name="onTreeCount"/> reports how many working trees are being
+    /// checked as soon as the enumeration finishes, so the UI can narrate "Scanning N working tree(s)…".
     /// </summary>
     public async Task<IReadOnlyList<DiscoveredTarget>> DiscoverTargetsAsync(
         AppConfig config, string branch, Action<int>? onTreeCount = null, CancellationToken ct = default)
@@ -104,27 +107,87 @@ public sealed class OpenerService
         onTreeCount?.Invoke(trees.Count);
 
         var targets = new List<DiscoveredTarget>();
+        // Every clone seen during the scan, keyed by its main working tree — the candidate pool for
+        // the create-a-worktree offer when the branch turns out to be checked out nowhere.
+        var clones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var dir in trees)
         {
             ct.ThrowIfCancellationRequested();
+            var mainPath = await _git.GetMainWorktreePathAsync(dir, ct) ?? dir;
+            clones.TryAdd(mainPath, mainPath);
+
             if (!string.Equals(await _git.GetCurrentBranchAsync(dir, ct), branch, StringComparison.Ordinal))
                 continue;
 
             var kind = await _git.IsLinkedWorktreeAsync(dir, ct) ? TargetKind.Worktree : TargetKind.MainClone;
-            var mainPath = await _git.GetMainWorktreePathAsync(dir, ct) ?? dir;
-            var repoName = Path.GetFileName(Path.TrimEndingDirectorySeparator(mainPath));
             var solutions = await Task.Run(() => FindSolutionsInFolder(dir, config), ct);
 
             DateTime? updated = null;
             try { updated = Directory.GetLastWriteTimeUtc(dir); }
             catch { /* advisory meta only — an unreadable timestamp shouldn't hide the target */ }
 
-            targets.Add(new DiscoveredTarget(dir, kind, repoName, solutions, updated));
+            targets.Add(new DiscoveredTarget(dir, kind, RepoNameOf(mainPath), mainPath, solutions, updated));
         }
+
+        if (targets.Count == 0)
+            targets.AddRange(await FindWorktreeCandidatesAsync(clones.Keys, branch, config, ct));
 
         // Stable sort: worktrees keep their scan order ahead of the main clones.
         return [.. targets.OrderBy(t => t.Kind == TargetKind.MainClone ? 1 : 0)];
     }
+
+    /// <summary>
+    /// The create-a-worktree offers for a branch checked out nowhere: each clone whose refs contain
+    /// <paramref name="branch"/>. Cached refs (local branch, <c>refs/remotes/origin</c>) are consulted
+    /// first — fast and offline, so the keystroke-debounced scan stays cheap. Only when no clone has a
+    /// cached ref does it fall back to one live <c>ls-remote</c> sweep, narrated per repo, which finds
+    /// branches pushed to origin that this machine never fetched. The actual fetch happens at open
+    /// time (<see cref="BuildMainContextAsync"/>/<see cref="CreateWorktreeAsync"/>), not here.
+    /// </summary>
+    private async Task<List<DiscoveredTarget>> FindWorktreeCandidatesAsync(
+        IEnumerable<string> clonePaths, string branch, AppConfig config, CancellationToken ct)
+    {
+        var candidates = new List<DiscoveredTarget>();
+
+        async Task AddCandidateAsync(string mainPath, bool remoteOnly)
+        {
+            var solutions = await Task.Run(() => FindSolutionsInFolder(mainPath, config), ct);
+            candidates.Add(new DiscoveredTarget(
+                BuildWorktreePath(new RepositoryInfo(mainPath, ""), branch, config),
+                TargetKind.NewWorktree, RepoNameOf(mainPath), mainPath, solutions,
+                UpdatedUtc: null, BranchOnOriginOnly: remoteOnly));
+        }
+
+        var misses = new List<string>();
+        foreach (var mainPath in clonePaths)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (await _git.LocalBranchExistsAsync(mainPath, branch, ct))
+                await AddCandidateAsync(mainPath, remoteOnly: false);
+            else if (await _git.RemoteBranchExistsAsync(mainPath, branch, ct))
+                await AddCandidateAsync(mainPath, remoteOnly: true);
+            else
+                misses.Add(mainPath);
+        }
+
+        if (candidates.Count > 0) return candidates;
+
+        // Nothing cached anywhere: ask each origin directly, once. A teammate (or a cloud session)
+        // may have pushed the branch after this machine last fetched.
+        foreach (var mainPath in misses)
+        {
+            ct.ThrowIfCancellationRequested();
+            _liveLog($"Checking origin of {RepoNameOf(mainPath)} for '{branch}'…");
+            if (await _git.RemoteHasBranchAsync(mainPath, branch, ct))
+                await AddCandidateAsync(mainPath, remoteOnly: true);
+        }
+
+        return candidates;
+    }
+
+    /// <summary>The clone's display name — its main working tree's folder name.</summary>
+    private static string RepoNameOf(string mainPath) =>
+        Path.GetFileName(Path.TrimEndingDirectorySeparator(mainPath));
 
     /// <summary>
     /// Finds repositories whose tree contains a solution or project matching <paramref name="solutionName"/>,

@@ -122,8 +122,14 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>True when the branch is checked out in more than one place — shows the helper strip.</summary>
+    /// <summary>True when there's more than one place to act on — shows the helper strip.</summary>
     public bool HasMultipleTargets => Targets.Count > 1;
+
+    /// <summary>The helper strip's copy — phrased for checkouts, or for create-a-worktree offers.</summary>
+    public string MultiTargetHelperText =>
+        Targets.Count > 0 && Targets.All(t => t.IsNewWorktree)
+            ? "This branch isn't checked out anywhere, but more than one repo has it — choose where to create its worktree:"
+            : "This branch is checked out in more than one place — choose which to act on:";
 
     public string SelectedPath => _selectedTarget?.Path ?? "";
     public string SelectedKindLabel => _selectedTarget?.KindLabel ?? "";
@@ -256,9 +262,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool ShowDeleteDisabledNote => ShowDeleteButton && !CanDelete;
 
     public string DeleteDisabledNote =>
-        _isBranchProtected && _selectedTarget?.IsWorktree == true
-            ? "default branches can't be deleted — main/master stay put."
-            : "only worktrees can be deleted — the main clone stays put.";
+        _selectedTarget?.IsNewWorktree == true
+            ? "nothing to delete yet — opening creates this worktree."
+            : _isBranchProtected && _selectedTarget?.IsWorktree == true
+                ? "default branches can't be deleted — main/master stay put."
+                : "only worktrees can be deleted — the main clone stays put.";
 
     /// <summary>True while the in-place confirm strip replaces the delete button.</summary>
     public bool IsConfirmingDelete
@@ -336,6 +344,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));
+        OnPropertyChanged(nameof(MultiTargetHelperText));
         Phase = DiscoveryPhase.Scanning;
     }
 
@@ -355,6 +364,7 @@ public sealed class MainWindowViewModel : ObservableObject
         SelectedTarget = Targets.Count > 0 ? Targets[0] : null;
         OnPropertyChanged(nameof(FoundChipText));
         OnPropertyChanged(nameof(HasMultipleTargets));
+        OnPropertyChanged(nameof(MultiTargetHelperText));
         Phase = targets.Count > 0 ? DiscoveryPhase.Found : DiscoveryPhase.NotFound;
     }
 
@@ -365,6 +375,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));
+        OnPropertyChanged(nameof(MultiTargetHelperText));
         Phase = DiscoveryPhase.Idle;
     }
 
@@ -377,6 +388,7 @@ public sealed class MainWindowViewModel : ObservableObject
         Targets.Remove(card);
         OnPropertyChanged(nameof(FoundChipText));
         OnPropertyChanged(nameof(HasMultipleTargets));
+        OnPropertyChanged(nameof(MultiTargetHelperText));
         SelectedTarget = Targets.Count > 0 ? Targets[0] : null;
         if (Targets.Count == 0)
             Phase = DiscoveryPhase.NotFound;

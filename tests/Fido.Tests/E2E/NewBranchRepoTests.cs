@@ -1,3 +1,4 @@
+using System.IO;
 using Fido.Models;
 using Fido.Tests.Infrastructure;
 using Fido.Views;
@@ -5,15 +6,15 @@ using Fido.Views;
 namespace Fido.Tests.E2E;
 
 /// <summary>
-/// Scenario D: the not-found contract. A branch that exists only as a ref (a local branch that isn't
-/// checked out, or a branch on origin) — or doesn't exist at all — is checked out in no working tree,
-/// so discovery lands in <see cref="DiscoveryPhase.NotFound"/> with everything locked: no open, no
-/// delete, no launch, no dialogs. The pre-redesign flow this file used to cover — offering the
-/// configured "new branch" repos via a decision dialog (check out in main, or create a worktree) —
-/// was removed by design: Fido now only opens locations that already exist on disk.
+/// Scenario D: a branch that is checked out nowhere. When one of the scanned clones has the branch —
+/// a local ref, the cached origin tracking ref, or (via a live <c>ls-remote</c> fallback) a branch
+/// pushed to origin that this machine never fetched — discovery offers it as a selectable
+/// <see cref="TargetKind.NewWorktree"/> card, and opening creates the worktree first, then launches.
+/// Only a branch that exists in no scanned clone at all lands on the locked
+/// <see cref="DiscoveryPhase.NotFound"/> state.
 /// </summary>
 [NotInParallel]
-public class BranchNotFoundTests
+public class NewWorktreeCandidateTests
 {
     /// <summary>Creates a local branch ref without checking it out (working tree stays put).</summary>
     private static void AddLocalBranch(string repoPath, string branch) =>
@@ -33,6 +34,26 @@ public class BranchNotFoundTests
         await Assert.That(vm.SelectedTarget).IsNull();
         await Assert.That(window.LogText()).Contains($"⚠ No working tree or clone has '{branch}'.");
         await Assert.That(window.LogText().Contains("✓ Found")).IsFalse();
+    }
+
+    /// <summary>Asserts a single create-a-worktree offer landed for <paramref name="branch"/>.</summary>
+    private static async Task AssertSingleCandidate(MainWindow window, string branch, bool remoteOnly)
+    {
+        var vm = window.Vm();
+        await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+        await Assert.That(vm.CanOpen).IsTrue();
+        await Assert.That(vm.Targets.Count).IsEqualTo(1);
+
+        var card = vm.Targets[0];
+        await Assert.That(card.IsNewWorktree).IsTrue();
+        await Assert.That(card.KindLabel).IsEqualTo("new worktree");
+        await Assert.That(card.Target.BranchOnOriginOnly).IsEqualTo(remoteOnly);
+        await Assert.That(vm.SelectedTarget).IsEqualTo(card);
+
+        // A candidate is never deletable — there's nothing on disk yet.
+        await Assert.That(vm.CanDelete).IsFalse();
+        await Assert.That(vm.DeleteDisabledNote).Contains("opening creates this worktree");
+        await Assert.That(window.LogText()).Contains($"'{branch}' isn't checked out anywhere");
     }
 
     [Test]
@@ -62,10 +83,8 @@ public class BranchNotFoundTests
     }
 
     [Test]
-    public async Task Local_branch_ref_that_is_checked_out_nowhere_is_not_found()
+    public async Task Local_branch_ref_that_is_checked_out_nowhere_is_offered_as_a_new_worktree()
     {
-        // Pre-redesign this branch triggered the decision dialog (checkout in main / create worktree).
-        // That placement flow is gone: a ref without a working tree is simply not a place to open.
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
@@ -73,27 +92,27 @@ public class BranchNotFoundTests
         AddLocalBranch(clone, "feature/x");   // exists locally, not checked out
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();
-        var services = world.BuildServices([root], rider, dialogs);
+        var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
         {
             await window.Discover("feature/x");
+            Screenshots.Save(window, "D-new-worktree-offer");
 
-            await AssertNotFoundAndLocked(window, "feature/x");
-            await Assert.That(rider.Launches.Count).IsEqualTo(0);
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: false);
+            await Assert.That(rider.Launches.Count).IsEqualTo(0);   // offering is not opening
         });
     }
 
     /// <summary>
-    /// A branch that lives only on origin is not found, whether the clone has already fetched its
-    /// remote-tracking ref (pushed before the clone) or has never heard of it (pushed after).
-    /// Pre-redesign Fido fetched and placed it; now nothing on disk means nothing to open.
+    /// A branch that lives only on origin is offered whether the clone has already fetched its
+    /// remote-tracking ref (pushed before the clone) or has never heard of it (pushed after —
+    /// found by the live <c>ls-remote</c> fallback).
     /// </summary>
     [Test]
     [Arguments(true)]
     [Arguments(false)]
-    public async Task Branch_that_lives_only_on_origin_is_not_found(bool pushedBeforeClone)
+    public async Task Branch_that_lives_only_on_origin_is_offered_as_a_new_worktree(bool pushedBeforeClone)
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -111,15 +130,59 @@ public class BranchNotFoundTests
         }
 
         var rider = new FakeEditorLauncher();
-        var dialogs = new FakeDialogService();
-        var services = world.BuildServices([root], rider, dialogs);
+        var services = world.BuildServices([root], rider, new FakeDialogService());
 
         await Harness.WithWindow(services, async window =>
         {
             await window.Discover("feature/x");
 
-            await AssertNotFoundAndLocked(window, "feature/x");
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: true);
             await Assert.That(rider.Launches.Count).IsEqualTo(0);
+        });
+    }
+
+    [Test]
+    public async Task Opening_a_candidate_creates_the_worktree_and_launches_its_solution()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");   // never fetched by the clone
+
+        var rider = new FakeEditorLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vm = window.Vm();
+            await window.Discover("feature/x");
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: true);
+
+            // The chips preview the clone's solutions before anything exists on disk.
+            await Assert.That(vm.HasSolutionChips).IsTrue();
+            await Assert.That(vm.SelectedSolutionChip!.Label).IsEqualTo("Foo.sln");
+
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+
+            // The worktree now exists, checked out on a tracking branch, and Rider got the
+            // same-named solution inside the NEW tree — not the clone's copy.
+            var worktree = vm.Targets[0].Path;
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+            await Assert.That(await services.Git.GetCurrentBranchAsync(worktree)).IsEqualTo("feature/x");
+            await Assert.That(await services.Git.IsLinkedWorktreeAsync(worktree)).IsTrue();
+
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            var target = rider.LastLaunch!.Value.Target;
+            await Assert.That(Paths.StartsWith(target, worktree)).IsTrue();
+            await Assert.That(target).EndsWith("Foo.sln");
+            await Assert.That(window.LogText()).Contains("Fido? GO!");
+
+            // A rescan now reports it as a real worktree, deletable like any other.
+            await window.RunDiscoveryAsync();
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+            await Assert.That(vm.CanDelete).IsTrue();
         });
     }
 

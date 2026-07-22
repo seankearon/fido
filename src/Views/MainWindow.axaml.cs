@@ -188,9 +188,11 @@ public partial class MainWindow : Window
             if (cts.IsCancellationRequested) return;
 
             _vm.CompleteScan(targets, IsProtectedBranch(branch));
-            _vm.AppendLog(targets.Count > 0
-                ? $"✓ Found {targets.Count} location(s) for '{branch}'."
-                : $"⚠ No working tree or clone has '{branch}'.");
+            _vm.AppendLog(targets.Count == 0
+                ? $"⚠ No working tree or clone has '{branch}'."
+                : targets.All(t => t.Kind == TargetKind.NewWorktree)
+                    ? $"✓ '{branch}' isn't checked out anywhere — {targets.Count} repo(s) can host it as a new worktree."
+                    : $"✓ Found {targets.Count} location(s) for '{branch}'.");
 
             // Starting a scan wipes the log, so a bad CLI tool id is reported here — after the first
             // completed scan — where it stays visible.
@@ -254,22 +256,47 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Opens the selected target with <paramref name="editor"/>. Gated on the phase machine: does
-    /// nothing unless discovery has found the branch. Solution-capable tools (Rider / Visual Studio)
-    /// honour the chosen solution chip; every other tool opens the folder. Internal for tests.
+    /// nothing unless discovery has found the branch. A <see cref="TargetKind.NewWorktree"/> target is
+    /// created first — fetch/track and worktree add via the opener — then opened like any other.
+    /// Solution-capable tools (Rider / Visual Studio) honour the chosen solution chip; every other
+    /// tool opens the folder. Internal for tests.
     /// </summary>
     internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false)
     {
         if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
 
         CancelPendingClose();   // a fresh open supersedes any countdown left running from the last one
-        var folder = card.Target.Path;
+        var branch = _vm.ScannedBranch;
         var solution = editor.OpensSolutions ? _vm.SelectedSolutionChip?.SolutionPath : null;
-        var targetPath = solution ?? folder;
-
-        RecordMru(_vm.ScannedBranch, _vm.SolutionFilter.Trim());
+        RecordMru(branch, _vm.SolutionFilter.Trim());
 
         try
         {
+            string folder;
+            if (card.Target.Kind == TargetKind.NewWorktree)
+            {
+                // The branch isn't checked out anywhere yet — create the offered worktree first.
+                var repo = new RepositoryInfo(card.Target.MainPath, "");
+                _vm.AppendLog($"▸ Creating a worktree for '{branch}' in {card.Target.RepoName}…");
+                var ctx = await _opener.BuildMainContextAsync(repo, branch, _config);
+                folder = await _opener.CreateWorktreeAsync(repo, branch, ctx);
+
+                // The chips previewed the clone's solutions; find the same-named file in the new tree.
+                if (solution is not null)
+                {
+                    var name = Path.GetFileName(solution);
+                    solution = await Task.Run(() =>
+                        Directory.EnumerateFiles(folder, name, SearchOption.AllDirectories).FirstOrDefault());
+                    if (solution is null)
+                        _vm.AppendLog($"[!] {name} isn't in the new worktree — opening the folder instead.");
+                }
+            }
+            else
+            {
+                folder = card.Target.Path;
+            }
+
+            var targetPath = solution ?? folder;
             var editorPath = _launcher.Locate(editor);
             if (editorPath is null)
             {
@@ -288,8 +315,6 @@ public partial class MainWindow : Window
         {
             _vm.AppendLog($"⚠ {ex.Message}");
         }
-
-        await Task.CompletedTask;
     }
 
     // --- Delete (inline two-step confirm) -------------------------------------------------

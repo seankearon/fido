@@ -42,9 +42,15 @@ chooser, and no second window:
 - **Found:** the locations render inline as **target cards** — worktrees listed before
   main clones, the first auto-selected. When the branch is checked out in more than
   one place, a helper strip says so and you pick the card to act on.
+- **Checked out nowhere, but a repo has it:** the scanned clones' refs are consulted —
+  a local branch, the cached `origin` tracking ref, or (as a last resort) one live
+  `ls-remote` sweep, so a branch pushed after your last fetch is still found. Each
+  clone that has the branch appears as a **new worktree** card (plus icon) showing
+  where the worktree *would* be created; **opening it creates the worktree first**
+  (fetching and tracking the remote ref when needed) and then launches into it.
 - **Not found:** a warning card says no working tree or clone has the branch —
-  double-check the name, or fetch the remote first. Fido never switches a checkout or
-  creates a worktree for you; it opens what already exists.
+  double-check the name. Fido never switches an existing checkout; the only thing it
+  will create is a worktree you explicitly selected.
 
 The **open and delete actions stay locked until discovery succeeds** — nothing opens
 before Fido knows where the branch lives, and the locked block states the reason
@@ -65,9 +71,11 @@ search input or a mode switch.
   `.idea`, `packages`, `.svn`, `.hg`, and hidden folders).
 - Checks each working tree's **current branch** — only trees actually on the typed
   branch count. Both **linked worktrees** and a clone's **main tree** qualify.
-- Labels every hit: a **worktree** card (git-branch icon, deletable) or a **main
-  clone** card (home icon, never deletable), with a meta line like
-  `platform · 2 solutions · updated 3d ago`.
+- Labels every hit: a **worktree** card (git-branch icon, deletable), a **main
+  clone** card (home icon, never deletable), or — when the branch is checked out
+  nowhere — a **new worktree** card (plus icon, created on open, never deletable),
+  with a meta line like `platform · 2 solutions · updated 3d ago` or
+  `platform · branch on origin · opening creates this worktree`.
 - Detects the **solution files** inside each target — **`.sln`**, **`.slnx`**, and
   **`.slnf`** (Visual Studio solution filter) — for the solution chips.
 
@@ -79,8 +87,8 @@ independently check out the same branch — leaving you with duplicate copies on
 
 Fido makes that visible instead of guessing: **every** location on the branch appears
 as its own card, labelled with its kind and owning repo, and **you choose** which one
-to open (or delete). Because Fido never creates checkouts itself, it can never add a
-duplicate of its own.
+to open (or delete). A worktree is only ever created from a card you selected — never
+behind your back — so Fido can't add a duplicate of its own.
 
 ### Choosing the target
 

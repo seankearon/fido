@@ -178,7 +178,7 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="{Binding NotFoundBody}" FontSize="13.5" FontWeight="SemiBold"
                                        Foreground="{DynamicResource FidoNotFoundText}" TextWrapping="Wrap" />
-                            <TextBlock Text="Double-check the name, or fetch the remote first — then try again."
+                            <TextBlock Text="Double-check the name — no scanned repo has this branch, locally or on origin."
                                        FontSize="12" Foreground="{DynamicResource FidoNotFoundSub}" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
@@ -187,7 +187,7 @@
                     <StackPanel IsVisible="{Binding IsFound}" Spacing="10">
                         <Border IsVisible="{Binding HasMultipleTargets}" Background="{DynamicResource FidoHelperBg}"
                                 CornerRadius="9" Padding="12,8">
-                            <TextBlock Text="This branch is checked out in more than one place — choose which to act on:"
+                            <TextBlock Text="{Binding MultiTargetHelperText}"
                                        FontSize="12.5" Foreground="{DynamicResource FidoHelperText}" TextWrapping="Wrap" />
                         </Border>
 
@@ -214,6 +214,15 @@
                                                   StrokeLineCap="Round" StrokeJoin="Round"
                                                   Data="M3,9 L12,2 L21,9 V20 a1,1 0 0 1 -1,1 H4 a1,1 0 0 1 -1,-1 Z M9,21 V12 H15 V21" />
                                         </Border>
+                                        <!-- New worktree: the branch exists here but isn't checked out — a plus glyph -->
+                                        <Border Width="38" Height="38" CornerRadius="9" VerticalAlignment="Center"
+                                                Background="{DynamicResource FidoHelperBg}"
+                                                IsVisible="{Binding IsNewWorktree}">
+                                            <Path Width="18" Height="18" Stretch="Uniform"
+                                                  Stroke="{DynamicResource FidoWorktreeText}" StrokeThickness="1.8"
+                                                  StrokeLineCap="Round" StrokeJoin="Round"
+                                                  Data="M12,3 a9,9 0 1 1 -0.01,0 M12,8 V16 M8,12 H16" />
+                                        </Border>
 
                                         <StackPanel Grid.Column="1" Margin="12,0" Spacing="3" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Path}" FontSize="13.5" FontWeight="SemiBold"
@@ -226,7 +235,8 @@
 
                                         <Border Grid.Column="2" Classes="kindchip"
                                                 Classes.worktree="{Binding IsWorktree}"
-                                                Classes.clone="{Binding IsMainClone}">
+                                                Classes.clone="{Binding IsMainClone}"
+                                                Classes.newwt="{Binding IsNewWorktree}">
                                             <TextBlock Text="{Binding KindLabel}" />
                                         </Border>
 

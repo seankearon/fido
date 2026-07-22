@@ -23,15 +23,27 @@ public sealed class TargetCard
 
     public bool IsWorktree => Target.Kind == TargetKind.Worktree;
     public bool IsMainClone => Target.Kind == TargetKind.MainClone;
+    public bool IsNewWorktree => Target.Kind == TargetKind.NewWorktree;
 
     /// <summary>The trailing kind chip's caption.</summary>
-    public string KindLabel => IsWorktree ? "worktree" : "main clone";
+    public string KindLabel => Target.Kind switch
+    {
+        TargetKind.Worktree => "worktree",
+        TargetKind.MainClone => "main clone",
+        _ => "new worktree",
+    };
 
     /// <summary>The meta line, e.g. <c>platform · 2 solutions · updated 3d ago</c>.</summary>
     public string Meta { get; }
 
     private static string BuildMeta(DiscoveredTarget t)
     {
+        if (t.Kind == TargetKind.NewWorktree)
+        {
+            var source = t.BranchOnOriginOnly ? "branch on origin" : "local branch, not checked out";
+            return $"{t.RepoName} · {source} · opening creates this worktree";
+        }
+
         var solutions = t.Solutions.Count == 1 ? "1 solution" : $"{t.Solutions.Count} solutions";
         var tail = t.Kind == TargetKind.MainClone
             ? "currently on this branch"
