@@ -445,10 +445,13 @@ public partial class MainWindow : Window
                 outcome = await _opener.ForceDeleteWorktreeAsync(plan, choice);
             }
 
-            var remoteNote = outcome.RemoteBranchDeleted ? $" + origin/{plan.Branch}"
-                : outcome.RemoteDeleteFailed ? " (origin branch delete failed — see log)"
-                : "";
-            _vm.AppendLog($"✓ Removed worktree & branch '{plan.Branch}'{remoteNote}.");
+            if (outcome.RemoteDeleteFailed)
+                _vm.AppendLog($"⚠ Removed worktree & branch '{plan.Branch}', but origin/{plan.Branch} could not be deleted — see log.");
+            else
+            {
+                var remoteNote = outcome.RemoteBranchDeleted ? $" + origin/{plan.Branch}" : "";
+                _vm.AppendLog($"✓ Removed worktree & branch '{plan.Branch}'{remoteNote}.");
+            }
             // Only drop the card if it's still part of the current results — a scan that superseded
             // this delete owns the list (and the phase machine) now.
             if (_vm.Targets.Contains(card))

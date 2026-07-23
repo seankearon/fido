@@ -611,7 +611,9 @@ public sealed class OpenerService
             localDeleted = true;
         }
 
-        if (choice.RemoteBranch && plan.RemoteBranchExists)
+        // An open pull request withholds the remote delete even when the caller ticked it — deleting
+        // origin/<branch> would sever the PR. The UI also gates this, but enforce it where git runs.
+        if (choice.RemoteBranch && plan.RemoteBranchExists && !plan.RemoteDeletionBlocked)
         {
             _log($"Deleting remote branch origin/{plan.Branch}…");
             // Retrying the push is safe — deleting an already-gone branch is a no-op in effect. One rare,

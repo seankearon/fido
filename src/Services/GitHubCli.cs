@@ -19,6 +19,10 @@ public sealed class GitHubCli
 
     private readonly CliRunner _run;
 
+    /// <summary>How long to wait on <c>gh</c> before giving up and treating the answer as "no PR known" —
+    /// so a stalled network call can't freeze the delete-confirm UI.</summary>
+    private static readonly TimeSpan QueryTimeout = TimeSpan.FromSeconds(10);
+
     public GitHubCli(CliRunner? run = null) => _run = run ?? DefaultRun;
 
     private static async Task<ProcessResult> DefaultRun(string dir, IReadOnlyList<string> args, CancellationToken ct)
@@ -46,10 +50,13 @@ public sealed class GitHubCli
         ProcessResult r;
         try
         {
-            r = await _run(dir, ["pr", "list", "--head", branch, "--state", "open", "--json", "number,url,title", "--limit", "1"], ct);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(QueryTimeout);
+            r = await _run(dir, ["pr", "list", "--head", branch, "--state", "open", "--json", "number,url,title", "--limit", "1"], timeout.Token);
         }
         catch
         {
+            // gh unavailable, cancelled, or timed out — treated as "no PR known".
             return null;
         }
 
@@ -62,16 +69,22 @@ public sealed class GitHubCli
             foreach (var el in doc.RootElement.EnumerateArray())
             {
                 if (el.ValueKind != JsonValueKind.Object) continue;
-                if (!el.TryGetProperty("number", out var numEl) || numEl.ValueKind != JsonValueKind.Number) continue;
-                var number = numEl.GetInt32();
-                var url = el.TryGetProperty("url", out var urlEl) ? urlEl.GetString() ?? "" : "";
-                var title = el.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? "" : "";
+                // A PR always carries an integer number; treat a record without one as "not a PR" and skip.
+                if (!el.TryGetProperty("number", out var numEl) || !numEl.TryGetInt32(out var number)) continue;
+                // url/title are best-effort — read them only when they're actually strings, so an unexpected
+                // type degrades to empty rather than throwing (the number alone means a PR exists, which is
+                // what blocks the remote delete).
+                var url = el.TryGetProperty("url", out var urlEl) && urlEl.ValueKind == JsonValueKind.String
+                    ? urlEl.GetString() ?? "" : "";
+                var title = el.TryGetProperty("title", out var titleEl) && titleEl.ValueKind == JsonValueKind.String
+                    ? titleEl.GetString() ?? "" : "";
                 return new PullRequestInfo(number, url, title);
             }
             return null;
         }
-        catch (JsonException)
+        catch
         {
+            // Contractually never throws — any unexpected parse failure means "no PR known".
             return null;
         }
     }
