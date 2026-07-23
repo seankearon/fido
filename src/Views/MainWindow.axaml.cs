@@ -287,6 +287,10 @@ public partial class MainWindow : Window
                 _vm.AppendLog($"▸ Creating a worktree for '{branch}' in {card.Target.RepoName}…");
                 var ctx = await _opener.BuildMainContextAsync(repo, branch, _config);
                 folder = await _opener.CreateWorktreeAsync(repo, branch, ctx);
+                // The worktree now exists on disk: convert the card to a real one so a second tool
+                // click opens it instead of trying to add the same worktree again (git would refuse —
+                // the branch is now checked out here).
+                await MaterialisePlacementAsync(card, folder, TargetKind.Worktree);
             }
             else if (card.Target.Kind == TargetKind.SwitchMainClone)
             {
@@ -296,6 +300,9 @@ public partial class MainWindow : Window
                 _vm.AppendLog($"▸ Switching {card.Target.RepoName}'s main tree to '{branch}'…");
                 var ctx = await _opener.BuildMainContextAsync(repo, branch, _config);
                 folder = await _opener.CheckoutInMainAsync(repo, branch, ctx);
+                // The main tree is now on the branch: convert the card to a plain main-clone target so
+                // a second click just reopens it rather than re-running the switch.
+                await MaterialisePlacementAsync(card, folder, TargetKind.MainClone);
             }
             else
             {
@@ -336,6 +343,31 @@ public partial class MainWindow : Window
         {
             _vm.AppendLog($"⚠ {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Replaces a placement card whose branch was just put on disk (worktree created, or clone
+    /// switched) with the real <paramref name="kind"/> checkout at <paramref name="folder"/>. Done as
+    /// soon as the placement succeeds — before the launch itself, which may fail to locate the editor —
+    /// so a follow-up click on the same card opens the existing folder instead of asking git to place
+    /// the branch again. The solutions are re-globbed from the tree that now exists (the placement card
+    /// only previewed the clone's), keeping the chip row honest for the next open.
+    /// </summary>
+    private async Task MaterialisePlacementAsync(TargetCard card, string folder, TargetKind kind)
+    {
+        DateTime? updated = null;
+        try { updated = Directory.GetLastWriteTimeUtc(folder); }
+        catch { /* advisory meta only — an unreadable timestamp shouldn't block the swap */ }
+
+        var solutions = await Task.Run(() => _opener.FindSolutionsInFolder(folder, _config));
+        var materialised = card.Target with
+        {
+            Path = folder,
+            Kind = kind,
+            Solutions = solutions,
+            UpdatedUtc = updated,
+        };
+        _vm.ReplaceTarget(card, materialised);
     }
 
     // --- Delete (inline two-step confirm) -------------------------------------------------

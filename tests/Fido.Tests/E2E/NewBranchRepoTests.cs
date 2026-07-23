@@ -193,6 +193,61 @@ public class NewWorktreeCandidateTests
         });
     }
 
+    /// <summary>
+    /// Regression: opening a placement card creates the worktree once and then <em>converts</em> the
+    /// card to the real checkout, so a second tool click (the user's "open a console, then open Rider")
+    /// launches the existing worktree instead of asking git to add it again — which git rejects because
+    /// the branch is already checked out there.
+    /// </summary>
+    [Test]
+    public async Task Opening_a_second_tool_reuses_the_created_worktree_instead_of_re_adding_it()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.PublishBranchToOrigin(origin, "feature/x");   // never fetched by the clone
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            var vm = window.Vm();
+            await window.Discover("feature/x");
+            await AssertSingleCandidate(window, "feature/x", remoteOnly: true);
+
+            // First click opens a console on the (freshly created) worktree.
+            await window.OpenWithAsync(new Editor { Name = "Console", Kind = EditorKind.Console });
+            var worktree = vm.Targets[0].Path;
+            await Assert.That(Directory.Exists(worktree)).IsTrue();
+
+            // The card has become a real, deletable worktree — no rescan needed — and stays selected.
+            await Assert.That(vm.Targets[0].IsNewWorktree).IsFalse();
+            await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+            await Assert.That(vm.SelectedTarget!.IsWorktree).IsTrue();
+            await Assert.That(vm.CanDelete).IsTrue();
+
+            // Second click — Rider this time — must open the existing worktree, not fail on a re-add.
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+
+            await Assert.That(window.LogText().Contains("git worktree add failed")).IsFalse();
+            await Assert.That(launcher.Launches.Count).IsEqualTo(2);
+
+            // Both launches landed inside the one worktree; no second, "-2" tree was created.
+            await Assert.That(Paths.StartsWith(launcher.Launches[0].Target, worktree)).IsTrue();
+            var riderTarget = launcher.Launches[1].Target;
+            await Assert.That(Paths.StartsWith(riderTarget, worktree)).IsTrue();
+            await Assert.That(riderTarget).EndsWith("Foo.sln");
+            await Assert.That(Directory.Exists(worktree + "-2")).IsFalse();
+
+            // Discovery still reports exactly one worktree for the branch.
+            await window.RunDiscoveryAsync();
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+        });
+    }
+
     [Test]
     public async Task Opening_the_switch_card_moves_the_main_tree_onto_the_branch()
     {

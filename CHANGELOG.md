@@ -150,6 +150,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default **10 seconds**; **0** closes immediately), and selecting **Never** turns auto-close
   off entirely.
 
+### Fixed
+
+- **Opening a second tool on a freshly placed branch no longer fails.** Opening a **new worktree**
+  placement card created the worktree and launched into it — but the card still read *new worktree*,
+  so a second click (open a **Console**, then open **Rider**) tried to `git worktree add` the same
+  branch again and failed with *git worktree add failed*, since the branch was now checked out in the
+  worktree the first click made. Placing a branch now **converts the card in place** to the real
+  checkout it became — a created worktree becomes a deletable **worktree**, a switched clone becomes a
+  **main clone** — with its solution chips re-scanned from the tree that now exists. Any further tool
+  clicks open that folder directly, no rescan required.
+
 ### Changed
 
 - **MRU suggestions no longer drop down on focus.** The Branch and Solution boxes used to open
