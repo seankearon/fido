@@ -158,7 +158,8 @@ public sealed class TestRepoWorld : IDisposable
         string? worktreeRoot = null,
         CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
         int closeAfterOpenDelaySeconds = 0,
-        GitService? git = null)
+        GitService? git = null,
+        GitHubCli? gitHub = null)
     {
         var config = new AppConfig
         {
@@ -181,6 +182,7 @@ public sealed class TestRepoWorld : IDisposable
             Launcher = launcher,
             Dialogs = dialogs,
             Git = git ?? new GitService(),
+            GitHub = gitHub ?? FakeGitHub.None,
         };
     }
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Optionally delete the remote branch when deleting a worktree.** The inline delete confirm strip
+  now offers an opt-in **_Also delete the remote branch `origin/<branch>`_** checkbox — shown only when
+  the branch exists on `origin`, and **unticked by default** so the remote is never removed unless you
+  ask. **An open pull request blocks it:** when the **GitHub CLI (`gh`)** reports a PR open for the
+  branch, the checkbox is disabled and the strip names the PR (`PR #42 · <title>`) with an **Open pull
+  request ↗** link to open it in the browser — close or merge it first. PR detection degrades
+  gracefully: if `gh` isn't installed, isn't authenticated, or the remote isn't GitHub, the option is
+  simply offered without a PR note. The confirmed delete still removes the worktree and the **local**
+  branch as before; the flight log notes the origin branch when it was deleted.
+
 ### Changed
 
 - **The main screen was redesigned around inline discovery** (per the Claude Design handoff in

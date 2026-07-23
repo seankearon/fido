@@ -13,6 +13,7 @@ internal sealed class FidoServices
     public SolutionFinder Finder { get; init; } = new();
     public WorkingTreeFinder WorkingTreeFinder { get; init; } = new();
     public IEditorLauncher Launcher { get; init; } = new EditorLauncher();
+    public GitHubCli GitHub { get; init; } = new();
 
     /// <summary>Dialog layer; when null the window installs a real <see cref="AvaloniaDialogService"/> owned by itself.</summary>
     public IDialogService? Dialogs { get; init; }

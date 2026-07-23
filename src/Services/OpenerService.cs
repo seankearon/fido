@@ -37,19 +37,22 @@ public sealed class OpenerService
     private readonly WorkingTreeFinder _workingTreeFinder;
     private readonly Action<string> _log;
     private readonly Action<string> _liveLog;
+    private readonly GitHubCli _gitHub;
 
     /// <summary>Retries the transient failures the worktree/branch deletion commands hit (locked files, ref
     /// <c>.lock</c> races, network blips), narrating each retry into the flight log. See <see cref="GitRetry"/>.</summary>
     private readonly ResiliencePipeline<ProcessResult> _deletionRetry;
 
     public OpenerService(GitService git, SolutionFinder finder, WorkingTreeFinder workingTreeFinder,
-        Action<string>? log = null, Action<string>? liveLog = null, GitRetryOptions? deletionRetry = null)
+        Action<string>? log = null, Action<string>? liveLog = null, GitRetryOptions? deletionRetry = null,
+        GitHubCli? gitHub = null)
     {
         _git = git;
         _finder = finder;
         _workingTreeFinder = workingTreeFinder;
         _log = log ?? (_ => { });
         _liveLog = liveLog ?? (_ => { });
+        _gitHub = gitHub ?? new GitHubCli();
 
         var retryOptions = deletionRetry ?? GitRetryOptions.Default;
         _deletionRetry = GitRetry.BuildPipeline(retryOptions, attempt =>
@@ -526,7 +529,9 @@ public sealed class OpenerService
                            || await _git.RemoteHasBranchAsync(mainPath, branch, ct);
         var changes = await _git.GetStatusAsync(full, ct);
         var orphaned = await _git.CountOrphanedCommitsAsync(mainPath, branch, ct);
-        return new WorktreeDeletion(mainPath, full, branch, remoteExists, changes, orphaned);
+        // Only worth asking gh when there's a remote branch to delete; an open PR blocks that deletion.
+        var openPr = remoteExists ? await _gitHub.FindOpenPullRequestAsync(mainPath, branch, ct) : null;
+        return new WorktreeDeletion(mainPath, full, branch, remoteExists, changes, orphaned, openPr);
     }
 
     /// <summary>

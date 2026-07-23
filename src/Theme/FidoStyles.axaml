@@ -543,4 +543,27 @@
         <Setter Property="Background" Value="{DynamicResource FidoGearHoverBg}" />
     </Style>
 
+    <!-- Remote-branch opt-in checkbox + PR link inside the delete confirm strip -->
+    <Style Selector="CheckBox.remoteopt">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoDangerConfirmText}" />
+    </Style>
+
+    <Style Selector="Button.prlink">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentText}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4,2" />
+    </Style>
+    <Style Selector="Button.prlink /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.prlink:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
+    </Style>
+
 </Styles>

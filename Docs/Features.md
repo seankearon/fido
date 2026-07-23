@@ -156,9 +156,16 @@ up a branch you're finished with:
   backs out, and the destructive buttons sit outside the keyboard tab order so they
   can't be fired by a stray keypress.
 - On confirmation Fido **removes the linked worktree** and **deletes the local
-  branch** — and nothing else. **The branch on `origin` is never touched.** The git
-  steps run from the clone's **main working tree**, so the worktree is dropped
-  cleanly; a dirty worktree is force-removed after the warning.
+  branch**. When the branch is also on `origin`, the confirm strip offers an **opt-in
+  checkbox — _Also delete the remote branch `origin/<branch>`_** — left **unticked by
+  default**, so the remote is never touched unless you ask. **An open pull request
+  blocks it:** when the **GitHub CLI (`gh`)** reports a PR open for the branch, the
+  checkbox is **disabled** and the strip names the PR (`PR #42 · <title>`) with an
+  **Open pull request ↗** link — close or merge it on GitHub first. PR detection
+  degrades gracefully: if `gh` isn't installed, isn't authenticated, or the remote
+  isn't GitHub, the option is simply offered without a PR note. The git steps run from
+  the clone's **main working tree**, so the worktree is dropped cleanly; a dirty
+  worktree is force-removed after the warning.
 - Each git step is **retried on transient failures** so a fleeting hiccup doesn't
   leave a half-tidied branch: a worktree file still held open by an editor or
   antivirus scan (common on Windows), or a git ref/index `.lock` left by a racing git
@@ -367,7 +374,7 @@ the next save writes to the new location.
 | Multiple locations | Every checkout shown, labelled **worktree** / **main clone** — you choose which to act on |
 | Open gate | Open & delete actions unlock only when discovery **finds** the branch |
 | Open target | Rider / Visual Studio: the chosen `.sln` / `.slnx` / `.slnf` chip or the folder; every other tool: the folder |
-| Delete worktree | Inline two-step confirm; removes the worktree + **local** branch (never the remote); retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
+| Delete worktree | Inline two-step confirm; removes the worktree + **local** branch, with an **opt-in to also delete the remote branch** (unticked by default, disabled while an open PR — via `gh` — blocks it, linking to the PR); retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
