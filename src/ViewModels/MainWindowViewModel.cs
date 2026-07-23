@@ -394,6 +394,32 @@ public sealed class MainWindowViewModel : ObservableObject
             Phase = DiscoveryPhase.NotFound;
     }
 
+    /// <summary>
+    /// Swaps a just-placed card for the real checkout it became: a <see cref="TargetKind.NewWorktree"/>
+    /// whose worktree was created turns into a <see cref="TargetKind.Worktree"/>, a
+    /// <see cref="TargetKind.SwitchMainClone"/> whose main tree was switched turns into a
+    /// <see cref="TargetKind.MainClone"/>. Opening the card again then launches the folder that now
+    /// exists instead of trying to place the branch a second time — which git rejects, because the
+    /// branch is already checked out. Selection follows the swapped card so the just-opened target stays
+    /// current (and, for a new worktree, becomes deletable without waiting for a rescan).
+    /// </summary>
+    public void ReplaceTarget(TargetCard existing, DiscoveredTarget materialised)
+    {
+        var index = Targets.IndexOf(existing);
+        if (index < 0) return;
+
+        var wasSelected = ReferenceEquals(_selectedTarget, existing);
+        var card = new TargetCard(materialised);
+        Targets[index] = card;
+
+        // Replacing the selected item can bounce the list's SelectedItem through null; set it back
+        // explicitly so selection — and everything gated on it — lands on the materialised card.
+        if (wasSelected) SelectedTarget = card;
+
+        OnPropertyChanged(nameof(HasMultipleTargets));
+        OnPropertyChanged(nameof(MultiTargetHelperText));
+    }
+
     // --- Auto-close countdown ---------------------------------------------------------
 
     private bool _isClosingCountdown;
