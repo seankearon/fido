@@ -280,25 +280,26 @@
                             <StackPanel Spacing="9">
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <TextBlock Classes="label" Text="OPEN" VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0" Spacing="6"
-                                                HorizontalAlignment="Left">
-                                        <Border Background="{DynamicResource FidoChipBg}"
-                                                BorderBrush="{DynamicResource FidoChipBorder}" BorderThickness="1"
-                                                CornerRadius="7" Padding="10,4" MaxWidth="380" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding SelectedPath}" FontSize="12.5"
-                                                       Foreground="{DynamicResource FidoTextPrimary}"
-                                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedPath}" />
-                                        </Border>
+                                    <!-- Chip sits directly in the star column so it ellipsises to the width actually
+                                         available and never overflows as the window narrows toward its minimum. -->
+                                    <Border Grid.Column="1" Background="{DynamicResource FidoChipBg}"
+                                            BorderBrush="{DynamicResource FidoChipBorder}" BorderThickness="1"
+                                            CornerRadius="7" Padding="10,4" Margin="10,0" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding SelectedPath}" FontSize="12.5"
+                                                   Foreground="{DynamicResource FidoTextPrimary}"
+                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SelectedPath}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                                                VerticalAlignment="Center">
                                         <!-- Copy the selected working-tree path to the clipboard -->
                                         <Button x:Name="CopyPathButton" Classes="copypath" Click="OnCopyPathClick"
-                                                VerticalAlignment="Center" IsTabStop="False"
-                                                ToolTip.Tip="Copy path to clipboard">
+                                                IsTabStop="False" ToolTip.Tip="Copy path to clipboard">
                                             <Path Width="14" Height="14" Stretch="Uniform"
                                                   Data="M11,9 L20,9 A2,2 0 0 1 22,11 L22,20 A2,2 0 0 1 20,22 L11,22 A2,2 0 0 1 9,20 L9,11 A2,2 0 0 1 11,9 Z M5,15 L4,15 A2,2 0 0 1 2,13 L2,4 A2,2 0 0 1 4,2 L13,2 A2,2 0 0 1 15,4 L15,5" />
                                         </Button>
+                                        <TextBlock Text="{Binding SelectedKindLabel}" FontSize="12"
+                                                   Foreground="{DynamicResource FidoTextMuted}" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <TextBlock Grid.Column="2" Text="{Binding SelectedKindLabel}" FontSize="12"
-                                               Foreground="{DynamicResource FidoTextMuted}" VerticalAlignment="Center" />
                                 </Grid>
 
                                 <StackPanel IsVisible="{Binding HasSolutionChips}" Spacing="9">
