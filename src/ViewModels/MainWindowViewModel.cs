@@ -235,6 +235,9 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _deleteConfirmPath = "";
     private string _deleteConfirmBranch = "";
     private string _deleteConfirmWarnings = "";
+    private bool _remoteBranchExists;
+    private bool _deleteRemoteBranch;
+    private PullRequestInfo? _openPullRequest;
 
     /// <summary>True when the scanned branch is a configured default branch (main/master) — those are
     /// never deletable, even from a worktree. Set by the orchestrator when a scan completes.</summary>
@@ -313,11 +316,62 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool HasDeleteConfirmWarnings => _deleteConfirmWarnings.Length > 0;
 
+    /// <summary>True when origin has this branch — the confirm strip then offers to delete it too.</summary>
+    public bool RemoteBranchExists
+    {
+        get => _remoteBranchExists;
+        private set
+        {
+            if (!SetField(ref _remoteBranchExists, value)) return;
+            OnPropertyChanged(nameof(ShowRemoteBranchOption));
+            OnPropertyChanged(nameof(CanDeleteRemoteBranch));
+        }
+    }
+
+    /// <summary>The "also delete the remote branch" row shows only when there's a remote branch to delete.</summary>
+    public bool ShowRemoteBranchOption => _remoteBranchExists;
+
+    /// <summary>The remote-branch delete opt-in — unticked by default (the safe choice), and forced off /
+    /// disabled while an open pull request blocks it.</summary>
+    public bool DeleteRemoteBranch
+    {
+        get => _deleteRemoteBranch;
+        set => SetField(ref _deleteRemoteBranch, value);
+    }
+
+    /// <summary>The remote-branch checkbox is enabled only when there's a remote branch and no open PR.</summary>
+    public bool CanDeleteRemoteBranch => _remoteBranchExists && _openPullRequest is null;
+
+    /// <summary>True when an open pull request blocks the remote-branch delete — the strip surfaces/links it.</summary>
+    public bool HasOpenPullRequest => _openPullRequest is not null;
+
+    /// <summary>The blocking PR's caption, e.g. <c>PR #42 · Add the widget</c>; empty when none.</summary>
+    public string OpenPullRequestLabel =>
+        _openPullRequest is null ? "" : $"PR #{_openPullRequest.Number} · {_openPullRequest.Title}";
+
+    /// <summary>The blocking PR's web URL, opened from the strip; empty when none.</summary>
+    public string OpenPullRequestUrl => _openPullRequest?.Url ?? "";
+
+    /// <summary>The remote-branch option's caption, naming the ref that would be deleted.</summary>
+    public string RemoteBranchOptionText => $"Also delete the remote branch origin/{_deleteConfirmBranch}";
+
     /// <summary>Swaps the delete button for the confirm strip, spelling out exactly what will happen.</summary>
     public void ArmDeleteConfirm(WorktreeDeletion plan)
     {
         DeleteConfirmPath = plan.WorktreePath;
         DeleteConfirmBranch = plan.Branch;
+
+        // Remote-branch opt-in + PR gate. Default the checkbox OFF (opt-in); it's disabled outright when a
+        // PR blocks it. RemoteBranchExists is set last so its change notifications see the final PR state.
+        _openPullRequest = plan.OpenPullRequest;
+        DeleteRemoteBranch = false;
+        RemoteBranchExists = plan.RemoteBranchExists;
+        OnPropertyChanged(nameof(RemoteBranchOptionText));
+        OnPropertyChanged(nameof(HasOpenPullRequest));
+        OnPropertyChanged(nameof(OpenPullRequestLabel));
+        OnPropertyChanged(nameof(OpenPullRequestUrl));
+        OnPropertyChanged(nameof(CanDeleteRemoteBranch));
+        OnPropertyChanged(nameof(ShowRemoteBranchOption));
 
         var warnings = new List<string>();
         if (plan.OutstandingChanges.Count > 0)

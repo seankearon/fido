@@ -405,6 +405,109 @@ public class DeleteWorktreeTests
         });
     }
 
+    [Test]
+    public async Task Ticking_the_remote_option_deletes_origin_when_no_pull_request_blocks_it()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.PushBranch(worktree, "feature/x");   // published to origin, no PR
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs, gitHub: FakeGitHub.None);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            var vm = window.Vm();
+
+            // The remote option shows (origin has the branch) and is enabled (no PR blocks it).
+            await Assert.That(vm.ShowRemoteBranchOption).IsTrue();
+            await Assert.That(vm.CanDeleteRemoteBranch).IsTrue();
+            await Assert.That(vm.HasOpenPullRequest).IsFalse();
+
+            window.SetChecked("DeleteRemoteCheck", true);
+            await Assert.That(vm.DeleteRemoteBranch).IsTrue();
+
+            await window.ConfirmDeleteAsync();
+
+            var git = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            // The opt-in was honoured — the branch on origin is gone too.
+            await Assert.That(await git.RemoteHasBranchAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(window.LogText()).Contains("origin/feature/x");
+        });
+    }
+
+    [Test]
+    public async Task An_open_pull_request_blocks_the_remote_delete_and_surfaces_a_link()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.PushBranch(worktree, "feature/x");
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var gh = FakeGitHub.WithOpenPr(7, "https://github.com/acme/app/pull/7", "Add feature x");
+        var services = world.BuildServices([root], rider, dialogs, gitHub: gh);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            Screenshots.Save(window, "D-delete-remote-pr-blocked");
+            var vm = window.Vm();
+
+            // The remote option shows but is disabled, and the PR is surfaced with its link.
+            await Assert.That(vm.ShowRemoteBranchOption).IsTrue();
+            await Assert.That(vm.HasOpenPullRequest).IsTrue();
+            await Assert.That(vm.CanDeleteRemoteBranch).IsFalse();
+            await Assert.That(vm.OpenPullRequestLabel).Contains("#7");
+            await Assert.That(vm.OpenPullRequestLabel).Contains("Add feature x");
+            await Assert.That(vm.OpenPullRequestUrl).IsEqualTo("https://github.com/acme/app/pull/7");
+
+            // Even if the flag is forced on, the delete must not touch origin while a PR blocks it.
+            vm.DeleteRemoteBranch = true;
+            await window.ConfirmDeleteAsync();
+
+            var git = new GitService();
+            await Assert.That(Directory.Exists(worktree)).IsFalse();
+            await Assert.That(await git.LocalBranchExistsAsync(clone, "feature/x")).IsFalse();
+            await Assert.That(await git.RemoteHasBranchAsync(clone, "feature/x")).IsTrue();   // origin untouched
+        });
+    }
+
+    [Test]
+    public async Task The_remote_option_is_hidden_when_the_branch_is_not_on_origin()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.AddWorktree(clone, "feature/x");   // never pushed — no remote branch
+
+        var rider = new FakeEditorLauncher();
+        var dialogs = new FakeDialogService();
+        var services = world.BuildServices([root], rider, dialogs);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            await window.RequestDeleteAsync();
+            var vm = window.Vm();
+            await Assert.That(vm.ShowRemoteBranchOption).IsFalse();
+            await Assert.That(vm.CanDeleteRemoteBranch).IsFalse();
+        });
+    }
+
     /// <summary>True when <paramref name="args"/> contains <paramref name="first"/> immediately followed by
     /// <paramref name="second"/> — used to spot the git subcommand under any leading <c>-c key=value</c> flags.</summary>
     private static bool HasSubcommand(IReadOnlyList<string> args, string first, string second)

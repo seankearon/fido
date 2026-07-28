@@ -271,4 +271,29 @@ public class OpenerServiceTests
         await Assert.That(await git.GetCurrentBranchAsync(path)).IsEqualTo("feature/x");   // really on the branch
         await Assert.That(await git.RemoteBranchExistsAsync(clone, "feature/x")).IsTrue(); // fetched as a side effect
     }
+
+    [Test]
+    public async Task An_open_pull_request_withholds_the_remote_delete_at_the_service_layer()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/x");
+        world.PushBranch(worktree, "feature/x");
+
+        var opener = new OpenerService(new GitService(), new SolutionFinder(), new WorkingTreeFinder());
+        var plan = new WorktreeDeletion(clone, Path.GetFullPath(worktree), "feature/x",
+            RemoteBranchExists: true, OutstandingChanges: Array.Empty<string>(), OrphanedCommits: 0,
+            OpenPullRequest: new PullRequestInfo(3, "https://example/pull/3", "wip"));
+
+        // Even asking to delete the remote (choice.All), an open PR must keep origin/feature/x intact.
+        var outcome = await opener.DeleteWorktreeAsync(plan, WorktreeDeletionChoice.All);
+
+        await Assert.That(outcome.WorktreeRemoved).IsTrue();
+        await Assert.That(outcome.LocalBranchDeleted).IsTrue();
+        await Assert.That(outcome.RemoteBranchDeleted).IsFalse();
+        await Assert.That(outcome.RemoteDeleteFailed).IsFalse();
+        await Assert.That(await new GitService().RemoteHasBranchAsync(clone, "feature/x")).IsTrue();
+    }
 }

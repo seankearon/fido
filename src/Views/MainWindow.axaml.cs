@@ -100,7 +100,7 @@ public partial class MainWindow : Window
         SystemMenu.EnableAltSpace(this);
 
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
-        _opener = new OpenerService(_git, services.Finder, services.WorkingTreeFinder, _vm.AppendLog, _vm.AppendLiveLog);
+        _opener = new OpenerService(_git, services.Finder, services.WorkingTreeFinder, _vm.AppendLog, _vm.AppendLiveLog, gitHub: services.GitHub);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
 
         var startup = ApplyStartupArgs();
@@ -409,24 +409,28 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The confirmed delete: removes the worktree and its local branch (never the remote — that lives
-    /// in Settings-free land now), drops the card from the results, and re-selects the next target.
-    /// When git can't remove the folder (typically a path too long for the OS) the user is offered the
-    /// permanent, Recycle-Bin-bypassing folder delete — still a modal, it's exceptional error recovery,
-    /// not part of the redesigned happy path. Internal for tests.
+    /// The confirmed delete: removes the worktree and its local branch always, and the branch on
+    /// <c>origin</c> too when the user ticked the opt-in and no open pull request blocks it — then drops
+    /// the card from the results and re-selects the next target. When git can't remove the folder
+    /// (typically a path too long for the OS) the user is offered the permanent, Recycle-Bin-bypassing
+    /// folder delete — still a modal, it's exceptional error recovery, not part of the redesigned happy
+    /// path. Internal for tests.
     /// </summary>
     internal async Task ConfirmDeleteAsync()
     {
         if (_pendingDeletePlan is not { } plan || _pendingDeleteCard is not { } card) return;
 
-        var choice = new WorktreeDeletionChoice(Worktree: true, LocalBranch: true, RemoteBranch: false);
+        // Remote delete only when the user ticked it, origin actually has the branch, and no open PR blocks it.
+        var deleteRemote = _vm.DeleteRemoteBranch && plan.RemoteBranchExists && !plan.RemoteDeletionBlocked;
+        var choice = new WorktreeDeletionChoice(Worktree: true, LocalBranch: true, RemoteBranch: deleteRemote);
         _vm.IsDeleting = true;
         _vm.AppendLog($"🗑 Deleting worktree at {plan.WorktreePath}…");
         try
         {
+            WorktreeDeletionOutcome outcome;
             try
             {
-                await _opener.DeleteWorktreeAsync(plan, choice);
+                outcome = await _opener.DeleteWorktreeAsync(plan, choice);
             }
             catch (WorktreeRemovalException ex)
             {
@@ -438,10 +442,16 @@ public partial class MainWindow : Window
                     _vm.AppendLog($"⚠ Couldn't remove the worktree for '{plan.Branch}' — left in place.");
                     return;
                 }
-                await _opener.ForceDeleteWorktreeAsync(plan, choice);
+                outcome = await _opener.ForceDeleteWorktreeAsync(plan, choice);
             }
 
-            _vm.AppendLog($"✓ Removed worktree & branch '{plan.Branch}'.");
+            if (outcome.RemoteDeleteFailed)
+                _vm.AppendLog($"⚠ Removed worktree & branch '{plan.Branch}', but origin/{plan.Branch} could not be deleted — see log.");
+            else
+            {
+                var remoteNote = outcome.RemoteBranchDeleted ? $" + origin/{plan.Branch}" : "";
+                _vm.AppendLog($"✓ Removed worktree & branch '{plan.Branch}'{remoteNote}.");
+            }
             // Only drop the card if it's still part of the current results — a scan that superseded
             // this delete owns the list (and the phase machine) now.
             if (_vm.Targets.Contains(card))
@@ -473,6 +483,14 @@ public partial class MainWindow : Window
         _vm.CancelDeleteConfirm();
         _pendingDeletePlan = null;
         _pendingDeleteCard = null;
+    }
+
+    private void OnOpenPullRequestClick(object? sender, RoutedEventArgs e)
+    {
+        var url = _vm.OpenPullRequestUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+        if (!UrlLauncher.Open(url))
+            _vm.AppendLog($"⚠ Couldn't open the pull request — {url}");
     }
 
     // --- Default tool popover / settings ---------------------------------------------------

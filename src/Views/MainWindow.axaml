@@ -394,6 +394,25 @@
                                                Text="{Binding DeleteConfirmWarnings}" TextWrapping="Wrap"
                                                FontSize="12.5" FontWeight="SemiBold"
                                                Foreground="{DynamicResource FidoDangerEmphasis}" />
+                                    <!-- Opt-in: also delete the remote branch — disabled, with a link, when a PR is open -->
+                                    <StackPanel IsVisible="{Binding ShowRemoteBranchOption}" Spacing="6">
+                                        <CheckBox x:Name="DeleteRemoteCheck" Classes="remoteopt"
+                                                  IsChecked="{Binding DeleteRemoteBranch, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanDeleteRemoteBranch}"
+                                                  Content="{Binding RemoteBranchOptionText}" />
+                                        <StackPanel IsVisible="{Binding HasOpenPullRequest}" Orientation="Horizontal"
+                                                    Spacing="8" Margin="26,0,0,0">
+                                            <TextBlock VerticalAlignment="Center" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource FidoDangerEmphasis}"
+                                                       Text="{Binding OpenPullRequestLabel}" />
+                                            <Button x:Name="OpenPrButton" Classes="prlink" Click="OnOpenPullRequestClick"
+                                                    Content="Open pull request ↗" ToolTip.Tip="{Binding OpenPullRequestUrl}" />
+                                        </StackPanel>
+                                        <TextBlock IsVisible="{Binding HasOpenPullRequest}" Margin="26,0,0,0"
+                                                   FontSize="11.5" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource FidoTextMuted}"
+                                                   Text="A pull request is open for this branch — close or merge it on GitHub before deleting origin." />
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                                         <Button Classes="confirmcancel" Content="Cancel" Click="OnDeleteCancelClick"
                                                 IsEnabled="{Binding !IsDeleting}" />

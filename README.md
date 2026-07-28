@@ -8,7 +8,8 @@ that branch, lists them right on the main screen — clearly labelled — and op
 solution or folder in your editor. Set a **default tool** for the big Open button; every tool is a
 **Ctrl+1 … Ctrl+9** away. It can also drop you into a **terminal** or open the folder in your
 **file explorer** — on Windows, macOS, and Linux. Finished with a branch? Delete its worktree and
-local branch from the same screen, with an inline confirm.
+local branch — and, optionally, its remote branch too (unless an open PR says otherwise) — from the
+same screen, with an inline confirm.
 
 <p align="center">
   <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
