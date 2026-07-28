@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Fido.Models;
@@ -491,6 +492,36 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(url)) return;
         if (!UrlLauncher.Open(url))
             _vm.AppendLog($"⚠ Couldn't open the pull request — {url}");
+    }
+
+    private async void OnCopyPathClick(object? sender, RoutedEventArgs e) => await CopySelectedPathAsync();
+
+    /// <summary>
+    /// Copies the selected target's working-tree path to the clipboard (the ellipsised card path is
+    /// otherwise unreadable and un-selectable), narrating the copy in the flight log. Best-effort: a
+    /// missing or throwing clipboard is reported, never crashes the async-void click. Internal for tests.
+    /// </summary>
+    internal async Task CopySelectedPathAsync()
+    {
+        var path = _vm.SelectedPath;
+        if (string.IsNullOrEmpty(path)) return;
+
+        var clipboard = Clipboard;
+        if (clipboard is null)
+        {
+            _vm.AppendLog("⚠ Clipboard unavailable — couldn't copy the path.");
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(path);
+            _vm.AppendLog($"📋 Copied path to clipboard: {path}");
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't copy the path: {ex.Message}");
+        }
     }
 
     // --- Default tool popover / settings ---------------------------------------------------

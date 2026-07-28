@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Copy the selected working-tree path to the clipboard.** The OPEN strip now has a small **copy
+  button** beside the path, and the ellipsised card and strip paths carry a **tooltip with the full
+  path** — so a long worktree path (previously truncated and un-selectable) can be read in full and
+  grabbed in one click. The copy is confirmed in the flight log.
+
 - **Optionally delete the remote branch when deleting a worktree.** The inline delete confirm strip
   now offers an opt-in **_Also delete the remote branch `origin/<branch>`_** checkbox — shown only when
   the branch exists on `origin`, and **unticked by default** so the remote is never removed unless you
@@ -69,6 +74,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     with the Dark theme re-derived in the same warm hues, anchored on the logo tile. The flight log
     keeps the FIDO aviation voice, now colour-coded per line kind (accent/ok/warn/muted/plain), and the
     window height hugs its content.
+
+### Fixed
+
+- **An existing worktree outside the search roots is now detected and offered to open.** Discovery
+  used to recognise a branch's checkout only where the folder itself sat under a configured search
+  root, so a worktree kept in a central directory, nested past the scan depth, or created inside the
+  main clone went unseen — and Fido offered to **create** a new worktree instead, which git rejected
+  with _"`<branch>` is already used by worktree at …"_. Discovery now asks git itself
+  (`git worktree list`) for each scanned clone's worktrees, so any checkout of the branch — wherever
+  it lives on disk — is surfaced as an openable **worktree** (or **main clone**) card.
 
 ### Removed
 

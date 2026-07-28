@@ -106,6 +106,26 @@ public class OpenerServiceTests
     }
 
     [Test]
+    public async Task DiscoverTargets_finds_a_worktree_that_lives_outside_the_search_roots()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var external = world.AddExternalWorktree(clone, "feature/x");   // checked out, but outside the scan
+        var config = world.Config(root);
+
+        var targets = await NewOpener().DiscoverTargetsAsync(config, "feature/x");
+
+        // The existing worktree is surfaced as a real, openable Worktree — never a placement card that
+        // git would reject with "'feature/x' is already used by worktree at …".
+        await Assert.That(targets.Count).IsEqualTo(1);
+        await Assert.That(targets[0].Kind).IsEqualTo(TargetKind.Worktree);
+        await Assert.That(Path.GetFullPath(targets[0].Path)).IsEqualTo(Path.GetFullPath(external));
+        await Assert.That(Path.GetFullPath(targets[0].MainPath)).IsEqualTo(Path.GetFullPath(clone));
+    }
+
+    [Test]
     public async Task Main_context_reports_a_dirty_working_tree()
     {
         using var world = new TestRepoWorld();
