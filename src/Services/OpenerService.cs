@@ -91,14 +91,19 @@ public sealed class OpenerService
         => _finder.Find([folder], SolutionGlobs, config.SearchDepth);
 
     /// <summary>
-    /// Inline discovery for the main screen: scans the search roots for git working trees currently on
+    /// Inline discovery for the main screen: scans the search roots to reach every git clone, then asks
+    /// git itself — <c>git worktree list</c> — which of that clone's working trees is on
     /// <paramref name="branch"/> and describes each as a <see cref="DiscoveredTarget"/> — linked worktree
     /// or main clone, owning repo name, the solution files inside it, and when it last changed. Worktrees
-    /// are listed before main clones (they're the likelier target, and only they can be deleted). When the
-    /// branch is checked out <em>nowhere</em>, the scanned clones are consulted instead: any whose refs
-    /// contain the branch — a local branch, the cached <c>origin</c> tracking ref, or (as a last resort)
-    /// a live <c>ls-remote</c> — is offered as a <see cref="TargetKind.NewWorktree"/> that opening will
-    /// create. The blocking directory scans run on the thread pool: this is called from a
+    /// are listed before main clones (they're the likelier target, and only they can be deleted). Asking
+    /// git rather than matching the scanned folders means a worktree that lives <em>outside</em> the
+    /// search roots — a central worktree directory, one nested past <see cref="AppConfig.SearchDepth"/>,
+    /// or one created inside the main tree — is still found and offered to open, instead of slipping
+    /// through to a placement card that git would reject because the branch is already checked out there.
+    /// When the branch is checked out <em>nowhere</em>, the scanned clones are consulted instead: any
+    /// whose refs contain the branch — a local branch, the cached <c>origin</c> tracking ref, or (as a
+    /// last resort) a live <c>ls-remote</c> — is offered as a <see cref="TargetKind.NewWorktree"/> that
+    /// opening will create. The blocking directory scans run on the thread pool: this is called from a
     /// keystroke-debounced loop, so it must never stall the UI thread the way the older dialog-driven
     /// flow could afford to. <paramref name="onTreeCount"/> reports how many working trees are being
     /// checked as soon as the enumeration finishes, so the UI can narrate "Scanning N working tree(s)…".
@@ -110,30 +115,40 @@ public sealed class OpenerService
         onTreeCount?.Invoke(trees.Count);
 
         var targets = new List<DiscoveredTarget>();
-        // Every clone seen during the scan, keyed by its main working tree — the candidate pool for
-        // the create-a-worktree offer when the branch turns out to be checked out nowhere.
-        var clones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Every clone reached from the scan, keyed by its main working tree: both the candidate pool for
+        // the create-a-worktree offer (when the branch is checked out nowhere) and the dedup key that
+        // stops one clone's worktrees being enumerated once per working tree the scan happened to surface.
+        var clones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var dir in trees)
         {
             ct.ThrowIfCancellationRequested();
             var mainPath = await _git.GetMainWorktreePathAsync(dir, ct) ?? dir;
-            clones.TryAdd(mainPath, mainPath);
+            if (!clones.Add(mainPath)) continue;   // this clone's worktrees are already accounted for
 
-            if (!string.Equals(await _git.GetCurrentBranchAsync(dir, ct), branch, StringComparison.Ordinal))
-                continue;
+            // Ask git for every worktree of this clone — authoritative, so a worktree living outside the
+            // search roots is still surfaced. The first entry git reports is the main tree; the rest are
+            // linked worktrees, which are the only removable ones.
+            foreach (var wt in await _git.ListWorktreesAsync(mainPath, ct))
+            {
+                if (!string.Equals(wt.Branch, branch, StringComparison.Ordinal)) continue;
 
-            var kind = await _git.IsLinkedWorktreeAsync(dir, ct) ? TargetKind.Worktree : TargetKind.MainClone;
-            var solutions = await Task.Run(() => FindSolutionsInFolder(dir, config), ct);
+                var full = Path.GetFullPath(wt.Path);
+                if (!seenPaths.Add(full)) continue;
 
-            DateTime? updated = null;
-            try { updated = Directory.GetLastWriteTimeUtc(dir); }
-            catch { /* advisory meta only — an unreadable timestamp shouldn't hide the target */ }
+                var kind = wt.IsMain ? TargetKind.MainClone : TargetKind.Worktree;
+                var solutions = await Task.Run(() => FindSolutionsInFolder(full, config), ct);
 
-            targets.Add(new DiscoveredTarget(dir, kind, RepoNameOf(mainPath), mainPath, solutions, updated));
+                DateTime? updated = null;
+                try { updated = Directory.GetLastWriteTimeUtc(full); }
+                catch { /* advisory meta only — an unreadable timestamp shouldn't hide the target */ }
+
+                targets.Add(new DiscoveredTarget(full, kind, RepoNameOf(mainPath), mainPath, solutions, updated));
+            }
         }
 
         if (targets.Count == 0)
-            targets.AddRange(await FindPlacementCandidatesAsync(clones.Keys, branch, config, ct));
+            targets.AddRange(await FindPlacementCandidatesAsync(clones, branch, config, ct));
 
         // Stable sort: worktrees ahead of main clones; among placement offers, the safer
         // create-a-worktree card leads and the switch-the-main-tree card follows.

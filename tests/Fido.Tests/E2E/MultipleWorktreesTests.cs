@@ -58,4 +58,44 @@ public class MultipleWorktreesTests
             await Assert.That(launched).EndsWith("Foo.sln");
         });
     }
+
+    /// <summary>
+    /// Regression: a worktree that lives <em>outside</em> the search roots (a central worktree directory,
+    /// a tree nested past the scan depth, or one inside the main clone) is still detected — via
+    /// <c>git worktree list</c> — and offered as an openable worktree, rather than slipping through to a
+    /// "new worktree" placement card that git would reject because the branch is already checked out.
+    /// </summary>
+    [Test]
+    public async Task A_worktree_outside_the_search_roots_is_offered_to_open_not_recreated()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var external = world.AddExternalWorktree(clone, "feature/x");   // lives outside the search root
+
+        var rider = new FakeEditorLauncher();
+        var services = world.BuildServices([root], rider, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/x");
+            var vm = window.Vm();
+
+            // One card, and it's the existing worktree — not a placement offer.
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
+            await Assert.That(vm.Targets.Count).IsEqualTo(1);
+            await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+            await Assert.That(vm.Targets[0].IsNewWorktree).IsFalse();
+            await Assert.That(Paths.StartsWith(vm.SelectedPath, external)).IsTrue();
+            await Assert.That(vm.CanDelete).IsTrue();   // a real linked worktree, so deletable
+
+            // Opening launches straight into the existing worktree — no re-add, no error.
+            await window.OpenWithAsync(new Editor { Name = "Rider", Kind = EditorKind.Rider });
+            await Assert.That(rider.Launches.Count).IsEqualTo(1);
+            await Assert.That(Paths.StartsWith(rider.LastLaunch!.Value.Target, external)).IsTrue();
+            await Assert.That(rider.LastLaunch!.Value.Target).EndsWith("Foo.sln");
+            await Assert.That(window.LogText().Contains("worktree add failed")).IsFalse();
+        });
+    }
 }

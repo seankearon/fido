@@ -109,6 +109,19 @@ public sealed class TestRepoWorld : IDisposable
         return path;
     }
 
+    /// <summary>
+    /// Adds a linked worktree on a new branch at a location <em>outside</em> every search root (under a
+    /// central worktree directory in the world root), mirroring a user who keeps worktrees somewhere the
+    /// scan never descends into. Returns the worktree path.
+    /// </summary>
+    public string AddExternalWorktree(string clonePath, string branch)
+    {
+        var path = Path.Combine(Root, "external-worktrees", Sanitize(branch));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Git(clonePath, "worktree", "add", "-b", branch, path);
+        return path;
+    }
+
     /// <summary>Pushes <paramref name="branch"/> from <paramref name="repoOrWorktreePath"/> to origin (sets upstream).</summary>
     public void PushBranch(string repoOrWorktreePath, string branch) =>
         Git(repoOrWorktreePath, "push", "-u", "origin", branch);
