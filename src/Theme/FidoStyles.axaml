@@ -566,8 +566,8 @@
         <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
     </Style>
 
-    <!-- Copy-to-clipboard icon button (next to the selected path in the OPEN strip) -->
-    <Style Selector="Button.copypath">
+    <!-- Small ghost icon button: copy-to-clipboard beside the selected path, copy/save on the flight log -->
+    <Style Selector="Button.iconaction">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="5" />
@@ -575,23 +575,30 @@
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Opacity" Value="0.6" />
     </Style>
-    <Style Selector="Button.copypath Path">
+    <Style Selector="Button.iconaction Path">
         <Setter Property="Stroke" Value="{DynamicResource FidoTextMuted}" />
         <Setter Property="StrokeThickness" Value="1.8" />
         <Setter Property="StrokeLineCap" Value="Round" />
         <Setter Property="StrokeJoin" Value="Round" />
     </Style>
-    <Style Selector="Button.copypath /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.iconaction /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="Transparent" />
     </Style>
-    <Style Selector="Button.copypath:pointerover">
+    <Style Selector="Button.iconaction:pointerover">
         <Setter Property="Opacity" Value="1" />
     </Style>
-    <Style Selector="Button.copypath:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.iconaction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource FidoGearHoverBg}" />
     </Style>
-    <Style Selector="Button.copypath:pointerover Path">
+    <Style Selector="Button.iconaction:pointerover Path">
         <Setter Property="Stroke" Value="{DynamicResource FidoAccentText}" />
+    </Style>
+    <!-- Nothing to act on yet (an empty flight log): dimmed, and no hover lift -->
+    <Style Selector="Button.iconaction:disabled">
+        <Setter Property="Opacity" Value="0.25" />
+    </Style>
+    <Style Selector="Button.iconaction:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
     </Style>
 
 </Styles>

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The flight log grows with the window, and its text can be copied or saved.** Drag Fido taller and
+  every spare pixel now goes to the **flight log** instead of to a gap above it — the upper section
+  keeps the room its content needs and the log takes the rest; shrink the window and the log falls back
+  to its compact box while the upper section scrolls as before. Two new buttons on the **Flight log**
+  rule lift the narration out: **copy** puts the whole log (every line, not just the visible ones) on
+  the clipboard as plain text, and **save** writes it to a text file you pick, suggesting a dated name
+  like `fido-flight-log-20260806-142317.txt`. Both are disabled until there's something to hand over,
+  and both confirm themselves in the log.
+
 - **Copy the selected working-tree path to the clipboard.** The OPEN strip now has a small **copy
   button** beside the path, and the ellipsised card and strip paths carry a **tooltip with the full
   path** — so a long worktree path (previously truncated and un-selectable) can be read in full and

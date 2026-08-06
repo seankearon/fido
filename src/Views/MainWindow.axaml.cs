@@ -21,6 +21,13 @@ public partial class MainWindow : Window
     /// <summary>How long the branch box stays quiet before a scan fires (Enter fires immediately).</summary>
     internal static readonly TimeSpan ScanDebounce = TimeSpan.FromMilliseconds(600);
 
+    /// <summary>
+    /// The flight log's content-sized ceiling from the redesign: with the window only as tall as its
+    /// content the panel grows with the lines up to this, and no further. Past it the panel is sized by
+    /// the window's slack instead — see <see cref="UpdateFlightLogHeight"/>.
+    /// </summary>
+    private const double LogContentMaxHeight = 150;
+
     private readonly MainWindowViewModel _vm = new();
     private readonly ConfigService _configService;
     private readonly GitService _git;
@@ -103,6 +110,11 @@ public partial class MainWindow : Window
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
         _opener = new OpenerService(_git, services.Finder, services.WorkingTreeFinder, _vm.AppendLog, _vm.AppendLiveLog, gitHub: services.GitHub);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
+
+        // The flight log absorbs whatever vertical room the rest of the screen doesn't need, so a taller
+        // window means a taller log rather than a gap above it. Re-run after every layout pass: the
+        // window can be resized, and the upper stack's own height moves with the discovery results.
+        LayoutUpdated += (_, _) => UpdateFlightLogHeight();
 
         var startup = ApplyStartupArgs();
         Opened += (_, _) =>
@@ -524,6 +536,123 @@ public partial class MainWindow : Window
         }
     }
 
+    // --- Flight log -----------------------------------------------------------------------
+
+    private void ScrollLogToEnd() => LogScroller.Offset = new Vector(0, LogScroller.Extent.Height);
+
+    /// <summary>
+    /// Hands the flight log every pixel the rest of the screen isn't using, so making the window taller
+    /// grows the log panel rather than opening a gap above it. With no slack to give — a short window, or
+    /// a discovery list filling it — the panel falls back to the redesign's content-sized 104…150 box and
+    /// the upper section scrolls as before.
+    /// </summary>
+    private void UpdateFlightLogHeight()
+    {
+        // While the window is still auto-sizing to its content there is no slack by definition — the
+        // height is whatever the screen asked for — and taking any would start a fight the two can't
+        // finish: the window trails the panel by a layout pass, so it would shrink back to the panel's
+        // old height, hand out that difference again, and never settle. Avalonia drops SizeToContent the
+        // moment the user drags an edge, which is exactly when there is room to give.
+        if (SizeToContent is SizeToContent.Height or SizeToContent.WidthAndHeight)
+        {
+            ResetFlightLogHeight();
+            return;
+        }
+
+        // The upper section scrolls, so it never needs more than its content's height: what's left of the
+        // window after that, the log's own label row, and the countdown bar belongs to the panel. Both
+        // subtrahends are *desired* heights — unchanged by what the panel is actually given — so with the
+        // window's height fixed this lands in one further layout pass.
+        var chrome = LogRegion.DesiredSize.Height - LogPanel.DesiredSize.Height;   // label row + gaps + margin
+        var spare = RootGrid.Bounds.Height
+                    - UpperStack.DesiredSize.Height
+                    - CountdownBar.DesiredSize.Height
+                    - chrome;
+
+        if (spare <= LogContentMaxHeight)
+        {
+            ResetFlightLogHeight();
+            return;
+        }
+
+        // Sub-pixel drift isn't worth a whole layout pass to chase.
+        if (Math.Abs(spare - LogPanel.Height) < 1) return;
+        LogPanel.MaxHeight = double.PositiveInfinity;
+        LogPanel.Height = spare;
+    }
+
+    /// <summary>Back to the redesign's content-sized panel: 104px, growing with the lines to 150px.</summary>
+    private void ResetFlightLogHeight()
+    {
+        LogPanel.Height = double.NaN;
+        LogPanel.MaxHeight = LogContentMaxHeight;
+    }
+
+    private async void OnCopyLogClick(object? sender, RoutedEventArgs e) => await CopyFlightLogAsync();
+
+    private async void OnSaveLogClick(object? sender, RoutedEventArgs e) => await SaveFlightLogAsync();
+
+    /// <summary>
+    /// Copies the whole flight log to the clipboard as plain text — the panel shows only its last few
+    /// lines, and a launch that went wrong is worth pasting somewhere. Best-effort: a missing or throwing
+    /// clipboard is reported, never crashes the async-void click. Internal for tests.
+    /// </summary>
+    internal async Task CopyFlightLogAsync()
+    {
+        var text = _vm.LogText;
+        if (text.Length == 0) return;
+        var lines = _vm.Log.Count;
+
+        var clipboard = Clipboard;
+        if (clipboard is null)
+        {
+            _vm.AppendLog("⚠ Clipboard unavailable — couldn't copy the flight log.");
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(text);
+            _vm.AppendLog($"📋 Copied {lines} flight-log line(s) to the clipboard.");
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't copy the flight log: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Saves the flight log to a text file the user picks. Cancelling the picker is silent — nothing was
+    /// asked for; a save that fails says so in the log itself. Internal for tests.
+    /// </summary>
+    internal async Task SaveFlightLogAsync()
+    {
+        var text = _vm.LogText;
+        if (text.Length == 0) return;
+
+        string? path;
+        try
+        {
+            path = await _dialogs.PickFlightLogPathAsync($"fido-flight-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't open the save dialog: {ex.Message}");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            await File.WriteAllTextAsync(path, text + Environment.NewLine);
+            _vm.AppendLog($"✓ Flight log saved to {path}");
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't save the flight log: {ex.Message}");
+        }
+    }
+
     // --- Default tool popover / settings ---------------------------------------------------
 
     /// <summary>Rebuilds the gear popover's radio list from config, ticking the persisted default.</summary>
@@ -780,8 +909,6 @@ public partial class MainWindow : Window
     /// (starts discovery), the explicitly named tool (drives the one-shot auto-open), any tool id that
     /// didn't match, and whether <c>--folder</c> asked the run to start on the Folder chip.</summary>
     private sealed record StartupPlan(bool BranchProvided, Editor? Tool, string? UnknownToolSlug, bool PreferFolder);
-
-    private void ScrollLogToEnd() => LogScroller.Offset = new Vector(0, LogScroller.Extent.Height);
 
     // --- Auto-close -----------------------------------------------------------------------
 

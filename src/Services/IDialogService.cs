@@ -19,4 +19,10 @@ public interface IDialogService
 
     /// <summary>Opens the settings dialog (modal).</summary>
     Task ShowSettingsAsync(AppConfig config, ConfigService configService);
+
+    /// <summary>
+    /// Asks where to save the flight log, offering <paramref name="suggestedFileName"/>. Returns the
+    /// chosen path, or null when the user cancelled (or the platform has no save picker).
+    /// </summary>
+    Task<string?> PickFlightLogPathAsync(string suggestedFileName);
 }
