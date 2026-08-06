@@ -556,29 +556,26 @@ public sealed class OpenerService
     /// Runs from the clone's main tree. Each git step is wrapped in <see cref="GitRetry"/>, so a
     /// <em>transient</em> failure — a worktree file still locked by an editor, a racing ref <c>.lock</c>, a
     /// network blip on the origin delete — is retried a few times (narrated in the log) before it counts; a
-    /// permanent failure fails on the first attempt. A failed worktree removal throws a
-    /// <see cref="WorktreeRemovalException"/> (so the caller can offer <see cref="ForceDeleteWorktreeAsync"/> as
-    /// a fallback); a failed local-branch delete throws (the local cleanup couldn't proceed); a failed
-    /// <em>remote</em> delete is logged and reflected in the returned outcome rather than throwing, because any
-    /// local cleanup is already done and re-running wouldn't undo it.
+    /// permanent failure fails on the first attempt.
+    /// <para>The three targets are independent and <em>tolerant</em>: a step that fails no longer abandons the
+    /// ones after it, and one whose target had <em>already</em> gone (a branch someone deleted on the server, a
+    /// folder cleared by hand) is reported as success — see <see cref="GitAlreadyGone"/>. Everything lands in
+    /// the returned <see cref="WorktreeDeletionOutcome"/>, whose
+    /// <see cref="WorktreeDeletionOutcome.Outstanding"/> names just what's still standing, for a retry that
+    /// re-runs only those steps. The one exception is a genuinely failed worktree removal, which still
+    /// throws a <see cref="WorktreeRemovalException"/> so the caller can offer
+    /// <see cref="ForceDeleteWorktreeAsync"/> as a fallback.</para>
     /// </summary>
     public async Task<WorktreeDeletionOutcome> DeleteWorktreeAsync(
         WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
     {
-        var worktreeRemoved = false;
+        var steps = new List<WorktreeDeletionStep>();
 
         if (choice.Worktree)
-        {
-            _log($"Removing worktree at {plan.WorktreePath}…");
-            var remove = await GitRetry.ExecuteAsync(_deletionRetry, "worktree remove",
-                token => _git.WorktreeRemoveAsync(plan.MainWorktreePath, plan.WorktreePath, force: plan.HasOutstandingChanges, token), ct);
-            if (!remove.Success)
-                throw new WorktreeRemovalException(plan.WorktreePath, remove.Message);
-            _log("Worktree removed.");
-            worktreeRemoved = true;
-        }
+            steps.Add(await RemoveWorktreeAsync(plan, ct));
 
-        return await DeleteBranchesAsync(plan, choice, worktreeRemoved, ct);
+        steps.AddRange(await DeleteBranchesAsync(plan, choice, ct));
+        return new WorktreeDeletionOutcome(steps);
     }
 
     /// <summary>
@@ -587,43 +584,100 @@ public sealed class OpenerService
     /// recursive delete that <em>bypasses the Recycle Bin</em> and, on Windows, uses an extended-length path so
     /// it isn't defeated by the same limit that stopped git), then prunes git's now-dangling worktree
     /// registration so the branch is free to delete, and finishes the ticked branch deletions. The caller must
-    /// have confirmed the destructive folder delete first.
+    /// have confirmed the destructive folder delete first. A folder that even this can't remove is reported as
+    /// a failed step rather than thrown — the branch deletions still run, and the outcome carries the retry.
     /// </summary>
     public async Task<WorktreeDeletionOutcome> ForceDeleteWorktreeAsync(
         WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct = default)
     {
-        _log($"Force-deleting worktree folder {plan.WorktreePath} (bypassing the Recycle Bin)…");
-        await Task.Run(() => ForceDeleteFolder(plan.WorktreePath), ct);
-        _log("Worktree folder deleted; pruning git's worktree registration…");
+        var steps = new List<WorktreeDeletionStep> { await ForceRemoveFolderAsync(plan, ct) };
+        steps.AddRange(await DeleteBranchesAsync(plan, choice, ct));
+        return new WorktreeDeletionOutcome(steps);
+    }
 
-        var prune = await _git.PruneWorktreesAsync(plan.MainWorktreePath, ct);
+    /// <summary>
+    /// Removes the linked worktree, retrying transient failures. A worktree git no longer knows about counts as
+    /// <see cref="DeletionStepStatus.AlreadyGone"/> (its registration is pruned so the branch is free to
+    /// delete); anything else throws <see cref="WorktreeRemovalException"/> so the caller can offer the
+    /// disk-level fallback.
+    /// </summary>
+    private async Task<WorktreeDeletionStep> RemoveWorktreeAsync(WorktreeDeletion plan, CancellationToken ct)
+    {
+        _log($"Removing worktree at {plan.WorktreePath}…");
+        var remove = await GitRetry.ExecuteAsync(_deletionRetry, "worktree remove",
+            token => _git.WorktreeRemoveAsync(plan.MainWorktreePath, plan.WorktreePath, force: plan.HasOutstandingChanges, token), ct);
+
+        if (remove.Success)
+        {
+            _log("Worktree removed.");
+            return new WorktreeDeletionStep(DeletionTarget.Worktree, DeletionStepStatus.Deleted);
+        }
+
+        // Nothing to remove isn't a failure. git knows a worktree by its registration, so "not a working tree"
+        // — or a folder that simply isn't on disk any more (removed by hand, or by an earlier attempt that
+        // stumbled later on) — means we're already where the user asked to be. Prune the stale registration so
+        // the branch is no longer considered checked out, and carry on to the branches.
+        if (GitAlreadyGone.Worktree(remove) || !Directory.Exists(plan.WorktreePath))
+        {
+            _log($"Worktree at {plan.WorktreePath} was already gone — pruning git's registration.");
+            await PruneAsync(plan.MainWorktreePath, ct);
+            return new WorktreeDeletionStep(DeletionTarget.Worktree, DeletionStepStatus.AlreadyGone, remove.Message);
+        }
+
+        throw new WorktreeRemovalException(plan.WorktreePath, remove.Message);
+    }
+
+    /// <summary>Deletes the worktree folder straight from disk and prunes git's registration, reporting a
+    /// folder that resisted even that as a failed step rather than throwing.</summary>
+    private async Task<WorktreeDeletionStep> ForceRemoveFolderAsync(WorktreeDeletion plan, CancellationToken ct)
+    {
+        _log($"Force-deleting worktree folder {plan.WorktreePath} (bypassing the Recycle Bin)…");
+        try
+        {
+            await Task.Run(() => ForceDeleteFolder(plan.WorktreePath), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log($"[!] The worktree folder {plan.WorktreePath} could not be deleted: {ex.Message}");
+            return new WorktreeDeletionStep(DeletionTarget.Worktree, DeletionStepStatus.Failed, ex.Message);
+        }
+
+        _log("Worktree folder deleted; pruning git's worktree registration…");
+        await PruneAsync(plan.MainWorktreePath, ct);
+        return new WorktreeDeletionStep(DeletionTarget.Worktree, DeletionStepStatus.Deleted);
+    }
+
+    /// <summary>Drops git's registration of any worktree whose folder has gone. Advisory — a prune that
+    /// complains is narrated but never fails the deletion.</summary>
+    private async Task PruneAsync(string mainWorktreePath, CancellationToken ct)
+    {
+        var prune = await _git.PruneWorktreesAsync(mainWorktreePath, ct);
         if (!prune.Success)
             _log($"[!] git worktree prune reported: {prune.Message}");
-
-        return await DeleteBranchesAsync(plan, choice, worktreeRemoved: true, ct);
     }
 
     /// <summary>
     /// Deletes the local branch and the branch on <c>origin</c> per <paramref name="choice"/> (the shared tail
-    /// of both <see cref="DeleteWorktreeAsync"/> and <see cref="ForceDeleteWorktreeAsync"/>, run once the
-    /// worktree is gone). A failed local delete throws; a failed remote delete is logged and flagged in the
-    /// outcome rather than thrown. See <see cref="DeleteWorktreeAsync"/> for the retry semantics.
+    /// of both <see cref="DeleteWorktreeAsync"/> and <see cref="ForceDeleteWorktreeAsync"/>). Neither throws:
+    /// each reports its own step, and a failed local delete no longer withholds the remote one — they're
+    /// independent, and the outcome says exactly which of them is still standing.
     /// </summary>
-    private async Task<WorktreeDeletionOutcome> DeleteBranchesAsync(
-        WorktreeDeletion plan, WorktreeDeletionChoice choice, bool worktreeRemoved, CancellationToken ct)
+    private async Task<List<WorktreeDeletionStep>> DeleteBranchesAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, CancellationToken ct)
     {
+        var steps = new List<WorktreeDeletionStep>();
         var dir = plan.MainWorktreePath;
-        bool localDeleted = false, remoteDeleted = false, remoteFailed = false;
 
         if (choice.LocalBranch)
         {
             _log($"Deleting local branch '{plan.Branch}'…");
             var branchResult = await GitRetry.ExecuteAsync(_deletionRetry, "local branch delete",
                 token => _git.DeleteLocalBranchAsync(dir, plan.Branch, token), ct);
-            if (!branchResult.Success)
-                throw new InvalidOperationException($"git branch -D failed: {branchResult.Message}");
-            _log($"Local branch '{plan.Branch}' deleted.");
-            localDeleted = true;
+            steps.Add(Report(DeletionTarget.LocalBranch, branchResult,
+                GitAlreadyGone.LocalBranch,
+                deleted: $"Local branch '{plan.Branch}' deleted.",
+                alreadyGone: $"Local branch '{plan.Branch}' was already gone — nothing to delete.",
+                failed: $"Local branch '{plan.Branch}' could not be deleted"));
         }
 
         // An open pull request withholds the remote delete even when the caller ticked it — deleting
@@ -631,27 +685,41 @@ public sealed class OpenerService
         if (choice.RemoteBranch && plan.RemoteBranchExists && !plan.RemoteDeletionBlocked)
         {
             _log($"Deleting remote branch origin/{plan.Branch}…");
-            // Retrying the push is safe — deleting an already-gone branch is a no-op in effect. One rare,
-            // non-destructive wrinkle: if a transient drop happens *after* origin deleted the ref but before
-            // git reads the ack, the retry sees "remote ref does not exist" (permanent) and reports failure
-            // though the branch is in fact gone. We don't infer success from that message — on a first attempt
-            // it legitimately means the ref was already gone, which callers surface as a NO-GO — so we accept
-            // the occasional misleading report over guessing.
+            // Retrying the push is safe — deleting an already-gone branch is a no-op in effect, and git says so
+            // ("remote ref does not exist"), which lands as AlreadyGone rather than a failure. That also settles
+            // the one rare wrinkle: a transient drop *after* origin deleted the ref but before git read the ack
+            // used to report failure though the branch was in fact gone.
             var remoteResult = await GitRetry.ExecuteAsync(_deletionRetry, "remote branch delete",
                 token => _git.DeleteRemoteBranchAsync(dir, plan.Branch, token), ct);
-            if (remoteResult.Success)
-            {
-                _log($"Remote branch origin/{plan.Branch} deleted.");
-                remoteDeleted = true;
-            }
-            else
-            {
-                _log($"[!] Remote branch origin/{plan.Branch} could not be deleted: {remoteResult.Message}");
-                remoteFailed = true;
-            }
+            steps.Add(Report(DeletionTarget.RemoteBranch, remoteResult,
+                GitAlreadyGone.RemoteBranch,
+                deleted: $"Remote branch origin/{plan.Branch} deleted.",
+                alreadyGone: $"Remote branch origin/{plan.Branch} was already gone — nothing to delete.",
+                failed: $"Remote branch origin/{plan.Branch} could not be deleted"));
         }
 
-        return new WorktreeDeletionOutcome(worktreeRemoved, localDeleted, remoteDeleted, remoteFailed);
+        return steps;
+    }
+
+    /// <summary>Narrates one branch-delete result into the flight log and turns it into its step: success,
+    /// nothing-to-do (per <paramref name="isAlreadyGone"/>), or a failure the caller can retry.</summary>
+    private WorktreeDeletionStep Report(DeletionTarget target, ProcessResult result,
+        Func<ProcessResult, bool> isAlreadyGone, string deleted, string alreadyGone, string failed)
+    {
+        if (result.Success)
+        {
+            _log(deleted);
+            return new WorktreeDeletionStep(target, DeletionStepStatus.Deleted);
+        }
+
+        if (isAlreadyGone(result))
+        {
+            _log(alreadyGone);
+            return new WorktreeDeletionStep(target, DeletionStepStatus.AlreadyGone, result.Message);
+        }
+
+        _log($"[!] {failed}: {result.Message}");
+        return new WorktreeDeletionStep(target, DeletionStepStatus.Failed, result.Message);
     }
 
     /// <summary>

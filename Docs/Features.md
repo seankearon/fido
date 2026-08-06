@@ -172,6 +172,22 @@ up a branch you're finished with:
   process. Fido retries a few times with a short, backing-off wait — each attempt
   narrated in the flight log — while **permanent** refusals still fail fast on the
   first try.
+- **The three targets are independent, and nothing-to-do isn't failure.** The worktree,
+  the local branch and the branch on `origin` are each attempted and reported on
+  separately: one that fails no longer abandons the ones after it, and the flight log's
+  closing line says exactly what went and what didn't (*"✓ Removed worktree & branch
+  `feature/x` + origin/feature/x."*). A target that had **already gone** — a branch the
+  server dropped on merge, a folder cleared by hand, a worktree git no longer knows
+  about — is reported as **done**, not as an error: *"✓ Removed worktree & branch
+  `feature/x` — origin/feature/x was already gone."* A `⚠` is spent only on something
+  you asked for that is genuinely **still there**.
+- **Retry what's left.** When something does survive the delete, an inline **Retry**
+  strip appears with what's still standing, git's own words for why, and a **Retry** /
+  **Dismiss** pair. Retrying re-runs **only the outstanding step** — a worktree and
+  local branch that already went are not touched again — and the closing report then
+  covers the whole attempt. The strip sits outside the delete row so it outlives the
+  card you just deleted; **Dismiss** or **Esc** drops the offer without touching
+  anything on disk, and a fresh scan clears it as stale.
 - **Long filenames & a force-delete fallback.** Deep worktrees can trip Windows'
   **260-character `MAX_PATH`** limit — a `node_modules` tree or generated output whose
   paths are too long — and a delete then fails with **`filename too long`** /
@@ -299,7 +315,8 @@ log (`📋 Copied 8 flight-log line(s) to the clipboard.`, `✓ Flight log saved
 - **Ctrl+1 … Ctrl+9** open the selected target with the corresponding configured tool
   (the same tools shown as buttons), gated — like the buttons — on discovery having
   **found** the branch.
-- **Esc** backs out of a pending delete confirmation.
+- **Esc** backs out of a pending delete confirmation — or, once a delete has run,
+  dismisses the **Retry** strip a part-way delete left behind.
 - **Settings dialog:** `Enter` saves, `Esc` cancels.
 - **`Alt+Space`** opens the window's native **system menu** (Move, Size, Minimize, Maximize, Close)
   on any window — the same menu reached from the title-bar icon or a title-bar right-click.
@@ -390,6 +407,7 @@ the next save writes to the new location.
 | Open gate | Open & delete actions unlock only when discovery **finds** the branch |
 | Open target | Rider / Visual Studio: the chosen `.sln` / `.slnx` / `.slnf` chip or the folder; every other tool: the folder |
 | Delete worktree | Inline two-step confirm; removes the worktree + **local** branch, with an **opt-in to also delete the remote branch** (unticked by default, disabled while an open PR — via `gh` — blocks it, linking to the PR); retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
+| Delete reporting | Each target reported separately — **already gone counts as done**, not as failure; anything genuinely left behind gets an inline **Retry** strip that re-runs just that step |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |

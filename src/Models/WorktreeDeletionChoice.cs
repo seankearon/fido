@@ -12,14 +12,13 @@ public sealed record WorktreeDeletionChoice(bool Worktree, bool LocalBranch, boo
 
     /// <summary>Everything ticked — the default when all three targets are present.</summary>
     public static WorktreeDeletionChoice All { get; } = new(true, true, true);
-}
 
-/// <summary>What a delete actually removed, so the caller can report it accurately.</summary>
-public sealed record WorktreeDeletionOutcome(
-    bool WorktreeRemoved,
-    bool LocalBranchDeleted,
-    bool RemoteBranchDeleted,
-    bool RemoteDeleteFailed)
-{
-    public bool AnyDeleted => WorktreeRemoved || LocalBranchDeleted || RemoteBranchDeleted;
+    /// <summary>True when <paramref name="target"/> is ticked — the selection read one target at a time.</summary>
+    public bool Includes(DeletionTarget target) => target switch
+    {
+        DeletionTarget.Worktree => Worktree,
+        DeletionTarget.LocalBranch => LocalBranch,
+        DeletionTarget.RemoteBranch => RemoteBranch,
+        _ => false,
+    };
 }

@@ -57,6 +57,14 @@ public partial class MainWindow : Window
     private WorktreeDeletion? _pendingDeletePlan;
     private TargetCard? _pendingDeleteCard;
 
+    /// <summary>What a part-way delete left behind, held while the retry strip offers another go: the same
+    /// plan, the steps still outstanding, and everything earlier passes already removed (so the report after
+    /// a successful retry describes the whole attempt).</summary>
+    private WorktreeDeletion? _retryPlan;
+    private TargetCard? _retryCard;
+    private WorktreeDeletionChoice _retryChoice = new(false, false, false);
+    private WorktreeDeletionOutcome _retryOutcome = WorktreeDeletionOutcome.Nothing;
+
     /// <summary>Guards the popover radio handlers while the list itself is being rebuilt.</summary>
     private bool _rebuildingToolChoices;
 
@@ -443,60 +451,140 @@ public partial class MainWindow : Window
         // Remote delete only when the user ticked it, origin actually has the branch, and no open PR blocks it.
         var deleteRemote = _vm.DeleteRemoteBranch && plan.RemoteBranchExists && !plan.RemoteDeletionBlocked;
         var choice = new WorktreeDeletionChoice(Worktree: true, LocalBranch: true, RemoteBranch: deleteRemote);
-        _vm.IsDeleting = true;
         _vm.AppendLog($"🗑 Deleting worktree at {plan.WorktreePath}…");
         try
         {
-            WorktreeDeletionOutcome outcome;
-            try
-            {
-                outcome = await _opener.DeleteWorktreeAsync(plan, choice);
-            }
-            catch (WorktreeRemovalException ex)
-            {
-                // git gave up on the folder (usually a path too long). Offer to delete it straight from disk.
-                _vm.AppendLog($"⚠ git couldn't remove the worktree: {ex.Message}");
-                var force = await _dialogs.ConfirmForceDeleteWorktreeFolderAsync(new WorktreeForceDelete(ex.WorktreePath, ex.Message));
-                if (!force)
-                {
-                    _vm.AppendLog($"⚠ Couldn't remove the worktree for '{plan.Branch}' — left in place.");
-                    return;
-                }
-                outcome = await _opener.ForceDeleteWorktreeAsync(plan, choice);
-            }
-
-            if (outcome.RemoteDeleteFailed)
-                _vm.AppendLog($"⚠ Removed worktree & branch '{plan.Branch}', but origin/{plan.Branch} could not be deleted — see log.");
-            else
-            {
-                var remoteNote = outcome.RemoteBranchDeleted ? $" + origin/{plan.Branch}" : "";
-                _vm.AppendLog($"✓ Removed worktree & branch '{plan.Branch}'{remoteNote}.");
-            }
-            // Only drop the card if it's still part of the current results — a scan that superseded
-            // this delete owns the list (and the phase machine) now.
-            if (_vm.Targets.Contains(card))
-                _vm.RemoveTarget(card);
-        }
-        catch (Exception ex)
-        {
-            _vm.AppendLog($"⚠ {ex.Message}");
-            // A part-way failure can still have removed the folder (e.g. the branch delete failed
-            // after the worktree went) — don't leave a card pointing at nothing.
-            if (!Directory.Exists(card.Target.Path) && _vm.Targets.Contains(card))
-                _vm.RemoveTarget(card);
+            await RunDeletionAsync(plan, choice, card, WorktreeDeletionOutcome.Nothing);
         }
         finally
         {
-            _vm.IsDeleting = false;
             _vm.CancelDeleteConfirm();
             _pendingDeletePlan = null;
             _pendingDeleteCard = null;
         }
     }
 
+    /// <summary>
+    /// Another go at whatever the last delete left standing — the retry strip's button. Only the outstanding
+    /// steps re-run (a worktree and local branch that already went are not touched again), and the report that
+    /// follows covers the whole attempt, not just this pass. Internal for tests.
+    /// </summary>
+    internal async Task RetryDeleteAsync()
+    {
+        if (!_vm.IsDeleteRetryPending || _retryPlan is not { } plan) return;
+
+        var choice = _retryChoice;
+        var sofar = _retryOutcome;
+        _vm.AppendLog($"🗑 Retrying the delete for '{plan.Branch}'…");
+        await RunDeletionAsync(plan, choice, _retryCard, sofar);
+    }
+
+    /// <summary>
+    /// Runs one deletion pass — the first attempt or a retry — and settles what follows: the flight-log
+    /// report, the card, and the retry offer. Every step is reported rather than thrown (see
+    /// <see cref="OpenerService.DeleteWorktreeAsync"/>), so a part-way failure lands here with an outcome
+    /// naming exactly what is still standing; <paramref name="sofar"/> carries what earlier passes already
+    /// removed so the summary describes the whole attempt.
+    /// </summary>
+    private async Task RunDeletionAsync(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, TargetCard? card, WorktreeDeletionOutcome sofar)
+    {
+        _vm.IsDeleting = true;
+        _vm.ClearDeleteRetry();
+        var outcome = sofar;
+        var unreported = "";
+        try
+        {
+            try
+            {
+                outcome = sofar.Merge(await _opener.DeleteWorktreeAsync(plan, choice));
+                _vm.AppendLog(DeletionReport.Summary(outcome, plan.Branch));
+            }
+            catch (WorktreeRemovalException ex)
+            {
+                // git gave up on the folder (usually a path too long). Offer to delete it straight from disk.
+                _vm.AppendLog($"⚠ git couldn't remove the worktree: {ex.Message}");
+                var force = await _dialogs.ConfirmForceDeleteWorktreeFolderAsync(new WorktreeForceDelete(ex.WorktreePath, ex.Message));
+                if (force)
+                {
+                    outcome = sofar.Merge(await _opener.ForceDeleteWorktreeAsync(plan, choice));
+                    _vm.AppendLog(DeletionReport.Summary(outcome, plan.Branch));
+                }
+                else
+                {
+                    // Declined — the worktree stays, and so does the offer to try again later.
+                    _vm.AppendLog($"⚠ Couldn't remove the worktree for '{plan.Branch}' — left in place.");
+                    outcome = sofar.Merge(new WorktreeDeletionOutcome(
+                        [new WorktreeDeletionStep(DeletionTarget.Worktree, DeletionStepStatus.Failed, ex.Message)]));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Whatever the steps couldn't absorb — git failing to start, an IO error mid-delete. Report it and
+            // let the settle below offer a retry of everything that's still outstanding.
+            _vm.AppendLog($"⚠ {ex.Message}");
+            unreported = ex.Message;
+        }
+        finally
+        {
+            _vm.IsDeleting = false;
+            SettleDeletion(plan, choice, card, outcome, unreported);
+        }
+    }
+
+    /// <summary>
+    /// The aftermath of a deletion pass: drop the card once its folder has actually gone, then either clear the
+    /// retry offer (everything asked for is gone) or arm it against exactly what's left — remembering the plan
+    /// so <see cref="RetryDeleteAsync"/> can re-run just those steps.
+    /// </summary>
+    private void SettleDeletion(
+        WorktreeDeletion plan, WorktreeDeletionChoice choice, TargetCard? card, WorktreeDeletionOutcome outcome,
+        string unreportedFailure = "")
+    {
+        // Drop the card once the worktree it points at has gone — including when a later step failed, so a
+        // card is never left pointing at nothing. Only if it's still part of the current results, mind: a scan
+        // that superseded this delete owns the list (and the phase machine) now.
+        var worktreeGone = card is not null
+                           && (outcome.IsGone(DeletionTarget.Worktree) || !Directory.Exists(card.Target.Path));
+        if (worktreeGone && _vm.Targets.Contains(card!))
+            _vm.RemoveTarget(card!);
+
+        var outstanding = outcome.Outstanding(choice);
+        if (!outstanding.AnySelected)
+        {
+            _retryPlan = null;
+            _retryCard = null;
+            _vm.ClearDeleteRetry();
+            return;
+        }
+
+        _retryPlan = plan;
+        _retryCard = card;
+        _retryChoice = outstanding;
+        _retryOutcome = outcome;
+
+        // git's own words where the steps produced them; the escaped exception's otherwise.
+        var detail = DeletionReport.RetryDetail(outcome);
+        if (detail.Length == 0) detail = unreportedFailure;
+        _vm.ArmDeleteRetry(DeletionReport.RetryHeadline(outcome, outstanding, plan.Branch), detail);
+    }
+
+    /// <summary>Drops the retry offer without touching anything on disk — the leftovers stay where they are.</summary>
+    internal void DismissDeleteRetry()
+    {
+        _retryPlan = null;
+        _retryCard = null;
+        _vm.ClearDeleteRetry();
+    }
+
     private async void OnDeleteClick(object? sender, RoutedEventArgs e) => await RequestDeleteAsync();
 
     private async void OnDeleteConfirmClick(object? sender, RoutedEventArgs e) => await ConfirmDeleteAsync();
+
+    private async void OnDeleteRetryClick(object? sender, RoutedEventArgs e) => await RetryDeleteAsync();
+
+    private void OnDeleteRetryDismissClick(object? sender, RoutedEventArgs e) => DismissDeleteRetry();
 
     private void OnDeleteCancelClick(object? sender, RoutedEventArgs e)
     {
@@ -716,13 +804,21 @@ public partial class MainWindow : Window
     // --- Keyboard -------------------------------------------------------------------------
 
     // Ctrl+1…Ctrl+9 → open with tool index 0…8 (matching the accelerators on the buttons),
-    // gated on discovery having found the branch. Esc backs out of a pending delete confirm.
+    // gated on discovery having found the branch. Esc backs out of a pending delete confirm, or —
+    // once the delete has run — dismisses a retry offer left over from it.
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape && _vm.IsConfirmingDelete)
         {
             e.Handled = true;
             OnDeleteCancelClick(null, new RoutedEventArgs());
+            return;
+        }
+
+        if (e.Key == Key.Escape && _vm.IsDeleteRetryPending && !_vm.IsDeleting)
+        {
+            e.Handled = true;
+            DismissDeleteRetry();
             return;
         }
 
