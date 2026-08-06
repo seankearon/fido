@@ -435,6 +435,29 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+
+                        <!-- ==================== 5b. Delete retry strip ==================== -->
+                        <!-- What a part-way delete left behind, with another go at just that step. Outside the
+                             delete row on purpose: deleting the last card empties the results, and the offer
+                             has to outlive it. -->
+                        <Border IsVisible="{Binding IsDeleteRetryPending}" Background="{DynamicResource FidoDangerSoftBg}"
+                                BorderBrush="{DynamicResource FidoDangerBorder}" BorderThickness="1.5"
+                                CornerRadius="10" Padding="14,12">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="DeleteRetryHeadline" Text="{Binding DeleteRetryHeadline}"
+                                           TextWrapping="Wrap" FontSize="13"
+                                           Foreground="{DynamicResource FidoDangerConfirmText}" />
+                                <TextBlock IsVisible="{Binding HasDeleteRetryDetail}" Text="{Binding DeleteRetryDetail}"
+                                           TextWrapping="Wrap" FontSize="11.5" FontFamily="{DynamicResource FidoMono}"
+                                           Foreground="{DynamicResource FidoTextMuted}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <Button x:Name="DeleteRetryDismissButton" Classes="confirmcancel" Content="Dismiss"
+                                            Click="OnDeleteRetryDismissClick" IsEnabled="{Binding !IsDeleting}" />
+                                    <Button x:Name="DeleteRetryButton" Classes="dangersolid" Content="↻  Retry"
+                                            Click="OnDeleteRetryClick" IsEnabled="{Binding !IsDeleting}" IsTabStop="False" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                 </StackPanel>
 
             </StackPanel>

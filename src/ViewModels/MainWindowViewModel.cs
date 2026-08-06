@@ -390,6 +390,57 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>Backs out of a pending confirm (Esc, Cancel, or the selection changing).</summary>
     public void CancelDeleteConfirm() => IsConfirmingDelete = false;
 
+    // --- Delete retry strip -------------------------------------------------------------
+
+    private bool _isDeleteRetryPending;
+    private string _deleteRetryHeadline = "";
+    private string _deleteRetryDetail = "";
+
+    /// <summary>True when a delete left something standing (a branch on <c>origin</c> the push couldn't remove,
+    /// a folder still held open) and the retry strip is offering another go at just that step. It outlives the
+    /// deleted card — the strip sits outside the delete row, so it survives the results emptying.</summary>
+    public bool IsDeleteRetryPending
+    {
+        get => _isDeleteRetryPending;
+        private set => SetField(ref _isDeleteRetryPending, value);
+    }
+
+    /// <summary>What's still there, and what already went — the retry strip's one-line explanation.</summary>
+    public string DeleteRetryHeadline
+    {
+        get => _deleteRetryHeadline;
+        private set => SetField(ref _deleteRetryHeadline, value);
+    }
+
+    /// <summary>git's own words for the failure, shown under the headline; empty when it said nothing useful.</summary>
+    public string DeleteRetryDetail
+    {
+        get => _deleteRetryDetail;
+        private set
+        {
+            if (SetField(ref _deleteRetryDetail, value))
+                OnPropertyChanged(nameof(HasDeleteRetryDetail));
+        }
+    }
+
+    public bool HasDeleteRetryDetail => _deleteRetryDetail.Length > 0;
+
+    /// <summary>Offers a retry of whatever a delete left behind, spelling out what's outstanding.</summary>
+    public void ArmDeleteRetry(string headline, string detail)
+    {
+        DeleteRetryHeadline = headline;
+        DeleteRetryDetail = detail;
+        IsDeleteRetryPending = true;
+    }
+
+    /// <summary>Takes the retry offer away — it succeeded, was dismissed, or a fresh scan made it stale.</summary>
+    public void ClearDeleteRetry()
+    {
+        IsDeleteRetryPending = false;
+        DeleteRetryHeadline = "";
+        DeleteRetryDetail = "";
+    }
+
     // --- Scan lifecycle (driven by the window orchestrator) ---------------------------
 
     /// <summary>A fresh scan: clears the results, resets the log to the mission-control preamble, and
@@ -399,6 +450,7 @@ public sealed class MainWindowViewModel : ObservableObject
         ScannedBranch = branch;
         OnPropertyChanged(nameof(NotFoundBody));
         ScanningBody = $"Scanning working trees for '{branch}'…";
+        ClearDeleteRetry();   // a leftover from the last branch's delete has nothing to say about this scan
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));

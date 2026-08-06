@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A worktree delete that goes part-way now says so honestly — and offers a Retry.** The three things a
+  delete removes (the worktree, the local branch, the branch on `origin`) are attempted and reported
+  **separately**: a step that fails no longer abandons the ones after it, and the flight log's closing line
+  names exactly what went and what didn't. A target that had **already gone** — a branch the server dropped
+  on merge, a folder cleared by hand, a worktree git no longer knows about — is reported as **done** rather
+  than as an error (*"✓ Removed worktree & branch `feature/x` — origin/feature/x was already gone."*); a `⚠`
+  is now spent only on something you asked for that is genuinely **still there**. Previously a
+  `git push --delete` that came back with *"remote ref does not exist"* was reported as a failure even
+  though the worktree and local branch had been removed cleanly and the branch was, in fact, gone from
+  `origin`. Anything that does survive the delete gets an inline **Retry** strip — what's left, git's own
+  words for why, and **Retry** / **Dismiss**. Retrying re-runs **only the outstanding step** (a worktree and
+  branch that already went are not touched again) and the report that follows covers the whole attempt. The
+  strip outlives the card you just deleted; **Esc** or **Dismiss** drops the offer without touching anything
+  on disk, and a fresh scan clears it as stale.
+
 - **The flight log grows with the window, and its text can be copied or saved.** Drag Fido taller and
   every spare pixel now goes to the **flight log** instead of to a gap above it — the upper section
   keeps the room its content needs and the log takes the rest; shrink the window and the log falls back
