@@ -17,7 +17,17 @@ public sealed class FakeDialogService : IDialogService
     /// </summary>
     public Func<WorktreeForceDelete, bool> OnConfirmForceDelete { get; set; } = _ => false;
 
+    /// <summary>
+    /// Flight-log save responder, handed the suggested file name; defaults to returning null — the user
+    /// cancelled the picker. Return a path to have the log written there.
+    /// </summary>
+    public Func<string, string?> OnPickFlightLogPath { get; set; } = _ => null;
+
     public List<WorktreeForceDelete> ForceDeleteConfirmations { get; } = new();
+
+    /// <summary>Every suggested file name the flight-log save picker was opened with, in order.</summary>
+    public List<string> FlightLogSaveRequests { get; } = new();
+
     public int SettingsShownCount { get; private set; }
 
     public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
@@ -30,5 +40,11 @@ public sealed class FakeDialogService : IDialogService
     {
         SettingsShownCount++;
         return Task.CompletedTask;
+    }
+
+    public Task<string?> PickFlightLogPathAsync(string suggestedFileName)
+    {
+        FlightLogSaveRequests.Add(suggestedFileName);
+        return Task.FromResult(OnPickFlightLogPath(suggestedFileName));
     }
 }

@@ -14,12 +14,14 @@
         Background="{DynamicResource FidoWindowBg}">
 
     <!-- One window, one screen: header → inputs → discovery → open actions → delete → flight log.
-         The upper stack scrolls if the discovery list outgrows the window; the flight log keeps its
-         own min/max height near the bottom; the auto-close countdown pins beneath it. -->
-    <Grid Margin="30,26,30,24" RowDefinitions="*,Auto,Auto">
+         The upper stack scrolls if the discovery list outgrows the window; the flight log sits near the
+         bottom and takes whatever vertical slack the window has beyond the upper stack (see
+         MainWindow.UpdateFlightLogHeight); the auto-close countdown pins beneath it. -->
+    <Grid x:Name="RootGrid" Margin="30,26,30,24" RowDefinitions="*,Auto,Auto">
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="22">
+        <ScrollViewer x:Name="MainScroller" Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="UpperStack" Spacing="22">
 
                 <!-- ============================= 1. Header ============================= -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
@@ -292,7 +294,7 @@
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
                                                 VerticalAlignment="Center">
                                         <!-- Copy the selected working-tree path to the clipboard -->
-                                        <Button x:Name="CopyPathButton" Classes="copypath" Click="OnCopyPathClick"
+                                        <Button x:Name="CopyPathButton" Classes="iconaction" Click="OnCopyPathClick"
                                                 IsTabStop="False" ToolTip.Tip="Copy path to clipboard">
                                             <Path Width="14" Height="14" Stretch="Uniform"
                                                   Data="M11,9 L20,9 A2,2 0 0 1 22,11 L22,20 A2,2 0 0 1 20,22 L11,22 A2,2 0 0 1 9,20 L9,11 A2,2 0 0 1 11,9 Z M5,15 L4,15 A2,2 0 0 1 2,13 L2,4 A2,2 0 0 1 4,2 L13,2 A2,2 0 0 1 15,4 L15,5" />
@@ -439,13 +441,31 @@
         </ScrollViewer>
 
         <!-- ============================= 6. Flight log ============================= -->
-        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" Margin="0,20,0,0">
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,9">
+        <Grid x:Name="LogRegion" Grid.Row="1" RowDefinitions="Auto,Auto" Margin="0,20,0,0">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,9">
                 <TextBlock Grid.Column="0" Classes="label" Text="Flight log" VerticalAlignment="Center" />
                 <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoLogRule}"
-                        VerticalAlignment="Center" Margin="10,0,0,0" />
+                        VerticalAlignment="Center" Margin="10,0" />
+                <!-- Take the narration with you: the whole log to the clipboard, or out to a text file -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button x:Name="CopyLogButton" Classes="iconaction" Click="OnCopyLogClick"
+                            IsTabStop="False" IsEnabled="{Binding HasLog}"
+                            ToolTip.Tip="Copy the flight log to the clipboard">
+                        <Path Width="14" Height="14" Stretch="Uniform"
+                              Data="M11,9 L20,9 A2,2 0 0 1 22,11 L22,20 A2,2 0 0 1 20,22 L11,22 A2,2 0 0 1 9,20 L9,11 A2,2 0 0 1 11,9 Z M5,15 L4,15 A2,2 0 0 1 2,13 L2,4 A2,2 0 0 1 4,2 L13,2 A2,2 0 0 1 15,4 L15,5" />
+                    </Button>
+                    <Button x:Name="SaveLogButton" Classes="iconaction" Click="OnSaveLogClick"
+                            IsTabStop="False" IsEnabled="{Binding HasLog}"
+                            ToolTip.Tip="Save the flight log to a file">
+                        <Path Width="14" Height="14" Stretch="Uniform"
+                              Data="M12,3 V15 M8,11 L12,15 L16,11 M4,17 V20 A1,1 0 0 0 5,21 H19 A1,1 0 0 0 20,20 V17" />
+                    </Button>
+                </StackPanel>
             </Grid>
-            <Border Grid.Row="1" Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
+            <!-- MinHeight/MaxHeight are the design's content-sized panel (104 → 150 as lines land); an
+                 explicit Height set from code-behind takes over once the window has slack to give. -->
+            <Border x:Name="LogPanel" Grid.Row="1"
+                    Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
                     BorderThickness="1" CornerRadius="10" Padding="15,12" MinHeight="104" MaxHeight="150">
                 <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Log}">
@@ -464,7 +484,7 @@
         </Grid>
 
         <!-- Close countdown + "keep open" escape hatch; only while an auto-close is pending -->
-        <Border Grid.Row="2" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
+        <Border x:Name="CountdownBar" Grid.Row="2" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"
                 Background="{DynamicResource FidoGoBg}" BorderBrush="{DynamicResource FidoGo}"
                 BorderThickness="2,0,0,0" CornerRadius="0,5,5,0" Padding="14,10">
             <Grid ColumnDefinitions="Auto,*,Auto">

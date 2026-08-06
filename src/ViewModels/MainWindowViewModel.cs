@@ -16,6 +16,10 @@ namespace Fido.ViewModels;
 /// </summary>
 public sealed class MainWindowViewModel : ObservableObject
 {
+    public MainWindowViewModel() =>
+        // The log's copy/save actions are gated on there being something to hand over.
+        Log.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasLog));
+
     // --- Inputs -----------------------------------------------------------------------
 
     private string _branchName = "";
@@ -530,6 +534,15 @@ public sealed class MainWindowViewModel : ObservableObject
 
     /// <summary>Color-coded flight-log lines.</summary>
     public ObservableCollection<LogLine> Log { get; } = new();
+
+    /// <summary>True once the log has a line in it — enables the copy/save actions above the panel.</summary>
+    public bool HasLog => Log.Count > 0;
+
+    /// <summary>
+    /// The whole flight log as plain text, one line per entry — what the copy-to-clipboard and
+    /// save-to-file actions hand over. Colour levels are presentation only and don't survive the trip.
+    /// </summary>
+    public string LogText => string.Join(Environment.NewLine, Log.Select(line => line.Text));
 
     public void AppendLog(string message)
     {

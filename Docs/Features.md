@@ -275,6 +275,21 @@ green `✓` for successes, plain `▸` for actions — and failures call it stra
 lines for a branch that isn't checked out anywhere, a tool that can't be located, or a
 delete that went wrong.
 
+The panel **grows with the window**: drag Fido's bottom edge down and every spare pixel
+goes to the log rather than to a gap above it — the upper section keeps as much room as
+its content needs, and the log takes the rest. Shrink the window again and the log falls
+back to its compact box while the upper section scrolls.
+
+Two buttons on the **Flight log** rule take the narration with you:
+
+- **Copy** puts the whole log — every line, not just the visible ones — on the clipboard
+  as plain text.
+- **Save** writes it to a text file you pick, suggesting a dated name like
+  `fido-flight-log-20260806-142317.txt`.
+
+Both are disabled until there's something to hand over, and each confirms itself in the
+log (`📋 Copied 8 flight-log line(s) to the clipboard.`, `✓ Flight log saved to …`).
+
 ### Keyboard & shortcuts
 
 - The **branch** field is focused on launch. Typing debounces into a scan; **Enter**
