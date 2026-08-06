@@ -38,10 +38,10 @@ public class StartupAndValidationTests
                 var vm = window.Vm();
                 await Assert.That(vm.BranchName).IsEqualTo("main");
 
-                // Run the scan to completion deterministically (the Opened handler's own scan is
-                // fire-and-forget; ours supersedes it). One location — but with no tool named on
-                // the command line, presenting the result is all that happens.
-                await window.RunDiscoveryAsync();
+                // Await the scan the Opened handler started, rather than racing it with one of our
+                // own. One location — but with no tool named on the command line, presenting the
+                // result is all that happens.
+                await window.StartupScan;
 
                 await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
                 await Assert.That(vm.Targets.Count).IsEqualTo(1);
@@ -69,11 +69,13 @@ public class StartupAndValidationTests
         Program.StartupArgs = ["main", "rider"];   // bare branch, then a bare tool id
         try
         {
+            // Watch for the close from before the window is shown: the startup scan can find its one
+            // location, open Rider, and close Fido while Show() is still running — a subscription made
+            // inside the body would then be waiting for a close that already happened.
+            var closed = new TaskCompletionSource();
+
             await Harness.WithWindow(services, async window =>
             {
-                var closed = new TaskCompletionSource();
-                window.Closed += (_, _) => closed.TrySetResult();
-
                 // No interaction: naming a tool on the CLI auto-opens when the scan finds one location.
                 var launched = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
                 await Assert.That(launched).IsEqualTo((Task)launcher.FirstLaunch);
@@ -83,7 +85,7 @@ public class StartupAndValidationTests
                 // ...and a CLI-driven launch closes Fido (CloseAfterOpen.CommandLine, no delay).
                 var didClose = await Task.WhenAny(closed.Task, Task.Delay(TimeSpan.FromSeconds(10)));
                 await Assert.That(didClose).IsEqualTo((Task)closed.Task);
-            });
+            }, beforeShow: window => window.Closed += (_, _) => closed.TrySetResult());
         }
         finally
         {
@@ -110,7 +112,7 @@ public class StartupAndValidationTests
             await Harness.WithWindow(services, async window =>
             {
                 var vm = window.Vm();
-                await window.RunDiscoveryAsync();   // deterministic re-run of the startup scan
+                await window.StartupScan;   // the scan the Opened handler started, awaited to completion
 
                 // Both locations are presented as cards for the user to disambiguate...
                 await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.Found);
@@ -153,9 +155,9 @@ public class StartupAndValidationTests
                 var vm = window.Vm();
 
                 // The branch still scans (--branch prefills AND scans, per the handoff); the typo
-                // only disarms the one-shot auto-open. Await the flow deterministically — this call
-                // supersedes the Opened handler's fire-and-forget scan and inherits its one-shots.
-                await window.RunDiscoveryAsync();
+                // only disarms the one-shot auto-open. Await that very scan: starting a second one
+                // would clear the log the first had already written the warning into.
+                await window.StartupScan;
 
                 // The typo is reported after the scan (which resets the log), listing the ids that
                 // would have worked; the branch stays prefilled so the user can correct and retry.

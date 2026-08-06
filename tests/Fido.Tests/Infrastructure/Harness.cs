@@ -25,11 +25,18 @@ internal static class Harness
             }
         });
 
-    /// <summary>Builds and shows a real MainWindow with the injected services, runs <paramref name="body"/>, then closes it.</summary>
-    public static Task WithWindow(FidoServices services, Func<MainWindow, Task> body) =>
+    /// <summary>
+    /// Builds and shows a real MainWindow with the injected services, runs <paramref name="body"/>, then
+    /// closes it. <paramref name="beforeShow"/> sees the window before it is shown — the hook for anything
+    /// that must be watched from the first frame, since a CLI-driven run can launch its tool and close the
+    /// window while the window is being shown, before <paramref name="body"/> is ever reached.
+    /// </summary>
+    public static Task WithWindow(FidoServices services, Func<MainWindow, Task> body,
+        Action<MainWindow>? beforeShow = null) =>
         Ui.On(async () =>
         {
             var window = new MainWindow(services);
+            beforeShow?.Invoke(window);
             window.Show();
             UiTestExtensions.Pump();
             try

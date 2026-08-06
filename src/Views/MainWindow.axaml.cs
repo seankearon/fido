@@ -63,6 +63,13 @@ public partial class MainWindow : Window
     /// <summary>Live while a post-launch auto-close countdown is running; cancelling it aborts the close.</summary>
     private CancellationTokenSource? _closeCountdown;
 
+    /// <summary>
+    /// The discovery scan a CLI-supplied branch kicks off on open. Tests await this instead of starting a
+    /// scan of their own: whichever scan lands first consumes the run's one-shots (the auto-open, the
+    /// unknown-tool report) and a superseding scan clears the log, so racing it is a coin toss.
+    /// </summary>
+    internal Task StartupScan { get; private set; } = Task.CompletedTask;
+
     public MainWindow() : this(FidoServices.CreateDefault())
     {
     }
@@ -134,7 +141,7 @@ public partial class MainWindow : Window
                 _autoOpenTool = startup.Tool;
                 _startupUnknownToolSlug = startup.UnknownToolSlug;
                 _startupPreferFolder = startup.PreferFolder;
-                _ = RunDiscoveryAsync();
+                StartupScan = RunDiscoveryAsync();
             }
         };
     }
