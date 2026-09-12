@@ -1,0 +1,536 @@
+open System
+open System.Diagnostics
+open System.IO
+open System.Text.Json
+open System.Text.Json.Nodes
+open BuildLib
+
+// Fido's release build, modelled on Klippy.Build: a sequence of named stages, each timed
+// and reported, with the whole run summarised at the end. It publishes the app, packages
+// and signs the installers, and - only when asked - tags the repo and publishes a GitHub
+// release.
+//
+// Run it with:
+//     dotnet run --project build
+//     dotnet run --project build -- version:1.0.0
+//     dotnet run --project build -- release
+//
+// Without `release` nothing leaves the machine: no tag, no push, no version bump. That is
+// deliberate - see the Release stages at the bottom.
+
+let RepoFolder = findFirstParentFolderContainingFile ApplicationExeFolder "Fido.slnx"
+
+let AppProject    = RepoFolder +/ "src"   +/ "Fido.csproj"
+let TestProject   = RepoFolder +/ "tests" +/ "Fido.Tests" +/ "Fido.Tests.csproj"
+let ParcelProject = RepoFolder +/ "src"   +/ "Fido.parcel"
+let PropsFile     = RepoFolder +/ "Directory.Build.props"
+let VersionFile   = RepoFolder +/ "ver.txt"
+let BuildDir      = RepoFolder +/ "_build"
+let OutDir        = BuildDir   +/ "out"
+let DropFolder    = BuildDir   +/ "drop"
+
+let ReleaseBranch = "main"
+let WindowsRuntime = "win-x64"
+
+/// Both mac architectures: Parcel merges them into one universal bundle with lipo, so a
+/// single .dmg runs natively on Apple Silicon and Intel alike.
+let MacRuntimes = [ "osx-arm64"; "osx-x64" ]
+
+// --- arguments -------------------------------------------------------------
+
+let mutable applicationArgs: string array = [||]
+
+let hasArg name =
+    applicationArgs |> Array.exists (fun a -> String.Equals(a, name, StringComparison.OrdinalIgnoreCase))
+
+/// `version:1.2.0` pins the version instead of taking the next one from ver.txt. Fido has
+/// never been released, so the first run should pin `version:1.0.0`; after that the file
+/// carries it and the patch number increments on its own.
+let versionOverride =
+    lazy
+        (applicationArgs
+         |> Array.tryPick (fun a ->
+             if a.StartsWith("version:", StringComparison.OrdinalIgnoreCase) then
+                 Some(a.Substring(8) |> trim)
+             else
+                 None))
+
+// --- preflight -------------------------------------------------------------
+
+/// NativeAOT links with MSVC's linker, and the ILC targets reach it through
+/// vcvarsall.bat, which on VS 2026 calls `vswhere.exe` unqualified. When the VS Installer
+/// folder is not on PATH, that failure goes to stderr, MSBuild folds stdout and stderr
+/// together, and the noise lands inside $(CppLinker) - so the link command becomes
+/// "'vswhere.exe' is not recognized...;...link.exe" and fails with exit 123. It reads
+/// like a missing linker and is not.
+let ensureNativeLinkerIsReachable () =
+    let installerDir =
+        Environment.GetEnvironmentVariable "ProgramFiles(x86)"
+        +/ "Microsoft Visual Studio"
+        +/ "Installer"
+
+    let vswhere = installerDir +/ "vswhere.exe"
+
+    if not (File.Exists vswhere) then
+        failwith
+            $"vswhere.exe not found at {vswhere}. NativeAOT needs the MSVC toolchain: install the \
+              'Desktop development with C++' workload, or the Microsoft.VisualStudio.Component.VC.Tools.x86.x64 component."
+
+    let component' = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+
+    let found =
+        cmdInFolderReturningOutput RepoFolder vswhere $"-latest -products * -requires {component'} -property installationPath"
+        |> trim
+
+    if String.IsNullOrWhiteSpace found then
+        failwith
+            $"The MSVC native linker is missing (no install provides {component'}).\n\
+              Add it via the Visual Studio Installer > Modify > Individual components > search 'MSVC'."
+
+    Write.line $"Native linker present ({component'})"
+
+    // Put vswhere on PATH for this process; child dotnet/Parcel builds inherit it.
+    let path = Environment.GetEnvironmentVariable "PATH"
+
+    if not (path.Contains(installerDir, StringComparison.OrdinalIgnoreCase)) then
+        Environment.SetEnvironmentVariable("PATH", $"{installerDir};{path}")
+        Write.line "Added the VS Installer folder to PATH for this build (vswhere)"
+
+// --- local configuration ---------------------------------------------------
+
+/// The machine's private configuration: %USERPROFILE%\.config\shine.env, a KEY=value file
+/// with # comments, shared by every Shine build and never checked in. Anything here that
+/// identifies an Azure tenant, account or company belongs in that file, not in this repo,
+/// which is public.
+///
+/// Loaded into this process's environment (not the machine's), and only for keys that are
+/// not already set - so a value exported in the shell still wins, which is how CI or a
+/// one-off override would supply it. Child processes inherit the result, which is what
+/// lets Parcel read its own settings with the env: prefix.
+module ShineEnv =
+    let Path =
+        let home =
+            Environment.GetEnvironmentVariable "USERPROFILE"
+            |> Option.ofObj
+            |> Option.defaultWith (fun () -> Environment.GetEnvironmentVariable "HOME")
+
+        home +/ ".config" +/ "shine.env"
+
+    let load () =
+        if File.Exists Path then
+            let mutable loaded = 0
+
+            for raw in File.ReadAllLines Path do
+                let line = raw.Trim()
+
+                if line <> "" && not (line.StartsWith "#") then
+                    match line.IndexOf '=' with
+                    | i when i > 0 ->
+                        let key = line.Substring(0, i).Trim()
+                        let value = line.Substring(i + 1).Trim()
+
+                        if String.IsNullOrEmpty(Environment.GetEnvironmentVariable key) then
+                            Environment.SetEnvironmentVariable(key, value)
+                            loaded <- loaded + 1
+                    | _ -> ()
+
+            Write.line $"Loaded {loaded} value(s) from {Path}"
+        else
+            Write.line $"No {Path} - relying on the environment alone"
+
+// --- code signing ----------------------------------------------------------
+
+/// Azure Trusted Signing (formerly Azure Code Signing).
+///
+/// Parcel does the signing itself - the app exe, the NSIS uninstaller and the installer,
+/// all in the Package stage - given a .parcel file whose Win32Settings name the endpoint,
+/// account and certificate profile, and an Azure credential, which a service principal in
+/// AZURE_* variables satisfies.
+///
+/// None of that is in the checked-in .parcel file, which knows nothing about signing.
+/// Parcel's env: prefix would have been the obvious way to keep it out, but Parcel does
+/// not resolve it for these settings (the literal "env:..." reaches signtool, which fails
+/// with an internal error; the endpoint is rejected earlier still, as not a URL). So the
+/// build writes a signed copy of the project under _build instead - the original plus the
+/// signing block, with its relative paths made absolute so the copy works from there - and
+/// packs from that. The repo stays clean, nothing needs reverting, and a `parcel pack` on
+/// the checked-in file by hand still produces an unsigned build.
+///
+/// Why sign at all: an unsigned NSIS installer wrapping a large native binary is exactly
+/// the shape Defender's Wacatac.B!ml heuristic flags, and a quarantined download is a
+/// worse first impression than no installer at all.
+module AzureSigning =
+    /// Every variable Parcel or the build reads. Named in the shine.env Section__Key style.
+    let TenantId    = "CodeSigning__TenantId"
+    let ClientId    = "CodeSigning__ClientId"
+    let ClientSecret = "CodeSigning__ClientSecret"
+    let Endpoint    = "CodeSigning__Endpoint"
+    let AccountName = "CodeSigning__AccountName"
+    let ProfileName = "CodeSigning__CertificateProfileName"
+
+    let Required = [ TenantId; ClientId; ClientSecret; Endpoint; AccountName; ProfileName ]
+
+    let get name =
+        Environment.GetEnvironmentVariable name
+        |> Option.ofObj
+        |> Option.filter (String.IsNullOrWhiteSpace >> not)
+
+    /// Checked up front rather than left to Parcel, which would only fail after the
+    /// NativeAOT publish it runs first - several minutes in, with an Azure error that says
+    /// nothing about which variable was missing.
+    let ensureCredentialsArePresent () =
+        match Required |> List.filter (get >> Option.isNone) with
+        | [] -> Write.line "Code-signing configuration present"
+        | missing ->
+            failwith
+                $"""Code-signing configuration is missing: {String.Join(", ", missing)}.
+Add them to {ShineEnv.Path} (tenant, client id and secret of the Entra app registration
+that holds the Trusted Signing Certificate Profile Signer role; the endpoint, account
+and certificate profile of the Trusted Signing resource)."""
+
+    /// Adds the service-principal credentials to a child process, and only there.
+    let addTo (si: ProcessStartInfo) =
+        let value name = get name |> Option.defaultValue ""
+        si.EnvironmentVariables["AZURE_TENANT_ID"]     <- value TenantId
+        si.EnvironmentVariables["AZURE_CLIENT_ID"]     <- value ClientId
+        si.EnvironmentVariables["AZURE_CLIENT_SECRET"] <- value ClientSecret
+
+    /// Writes a copy of the .parcel project with the Trusted Signing block added and
+    /// returns its path. Paths in the project are relative to the file, so the copy,
+    /// living elsewhere, gets them as absolute. Only the two that exist today are
+    /// rewritten; Parcel would say soon enough if another appeared.
+    let writeSignedParcelProject (source: string) (destination: string) =
+        let sourceDir = Path.GetDirectoryName source
+        let project = JsonNode.Parse(File.ReadAllText source).AsObject()
+
+        let general = project["GeneralSettings"].AsObject()
+
+        for key in [ "NetProjectPath"; "Icon" ] do
+            match general[key] with
+            | null -> ()
+            | node -> general[key] <- JsonValue.Create(Path.GetFullPath(sourceDir +/ node.GetValue<string>()))
+
+        let win32 =
+            match project["Win32Settings"] with
+            | null ->
+                let o = JsonObject()
+                project["Win32Settings"] <- o
+                o
+            | node -> node.AsObject()
+
+        let value name = get name |> Option.defaultValue ""
+        win32["SigningType"]                           <- JsonValue.Create "AzureTrustedSigning"
+        win32["ArtifactSigningEndpoint"]               <- JsonValue.Create(value Endpoint)
+        win32["ArtifactSigningCodeSigningAccountName"] <- JsonValue.Create(value AccountName)
+        win32["ArtifactSigningCertificateProfileName"] <- JsonValue.Create(value ProfileName)
+
+        ensureFolder (Path.GetDirectoryName destination) |> ignore
+        File.WriteAllText(destination, project.ToJsonString(JsonSerializerOptions(WriteIndented = true)))
+        Write.line $"Wrote signed Parcel project to {destination}"
+        destination
+
+// --- parcel ----------------------------------------------------------------
+
+/// Runs Parcel with the signing credentials added and AVALONIA_TOOLS_LICENSE_KEY removed,
+/// both in the child process only.
+///
+/// That variable holds a stale online key. Parcel prefers it over the saved portal session
+/// and the portal then rejects it, so its presence turns a working setup into "This
+/// subscription doesn't provide online license keys". Scrubbing it here fixes the build
+/// without touching the machine's environment, which other tools also read.
+let parcel (args: string list) =
+    let configure (si: ProcessStartInfo) =
+        si.EnvironmentVariables.Remove "AVALONIA_TOOLS_LICENSE_KEY"
+        AzureSigning.addTo si
+
+    cmdInRedirectingWith RepoFolder "parcel" (String.Join(" ", args)) configure true
+
+// --- github ----------------------------------------------------------------
+
+let gh = cmd "gh"
+
+/// The installers, as opposed to Parcel's scratch files. Filtering by extension rather
+/// than taking everything under the drop folder keeps temp/ and any stray logs out of a
+/// published release.
+let releaseArtifacts () =
+    let installers = set [ ".exe"; ".dmg"; ".msix"; ".pkg"; ".zip"; ".deb"; ".rpm" ]
+
+    Directory.GetFiles(DropFolder, "*", SearchOption.AllDirectories)
+    |> Array.filter (fun f -> installers.Contains(Path.GetExtension(f).ToLowerInvariant()))
+    |> Array.sort
+
+// --- the build -------------------------------------------------------------
+
+let buildFido () =
+    let stopwatch = Stopwatch.StartNew()
+    let isRelease = hasArg "release"
+
+    // Read before anything is modified, so the failure handler below knows whether the
+    // props file it reverts was ours to begin with.
+    let propsExistedBefore = File.Exists PropsFile
+
+    let revertPropsFile () =
+        if propsExistedBefore then
+            git $"checkout -- \"{PropsFile}\""
+            Write.line "Reverted Directory.Build.props"
+        elif File.Exists PropsFile then
+            deleteFile PropsFile
+            Write.line "Removed the generated Directory.Build.props"
+
+    try
+        stage "Verify" (fun () ->
+            verify (fun () -> gitHasNoPendingChanges RepoFolder)
+                   "Cannot run the build: there are uncommitted changes."
+
+            verify (fun () -> gitBranchName RepoFolder = ReleaseBranch)
+                   $"The build expects to run on the {ReleaseBranch} branch, but is on {gitBranchName RepoFolder}."
+
+            ShineEnv.load ()
+            AzureSigning.ensureCredentialsArePresent ())
+
+        stage "Update" (fun () ->
+            workingDir RepoFolder
+
+            // --ff-only: an automated build must never invent a merge commit. If the
+            // branch has diverged this stops here rather than producing a release from a
+            // tree nobody has seen.
+            git "pull --ff-only"
+
+            verify (fun () -> gitIsUpToDateWithRemote RepoFolder ReleaseBranch)
+                   $"{ReleaseBranch} is still behind origin after pulling - resolve that before releasing.")
+
+        stage "Clean" (fun () ->
+            clean BuildDir
+            ensureFolder BuildDir |> ignore
+            ensureFolder DropFolder |> ignore)
+
+        // Test before Restore, and not the other way round. Fido.Tests has a ProjectReference
+        // straight to src/Fido.csproj, so building it restores that project too - without a
+        // runtime and without PublishAot, which overwrites src/obj/project.assets.json and
+        // throws away everything the Restore stage below puts there. Run these two the other
+        // way round and the publish fails with NETSDK1047, "assets file doesn't have a target
+        // for net10.0/win-x64".
+        stage "Test" (fun () ->
+            // Fido's suite is TUnit on Microsoft.Testing.Platform, and the .NET 10 SDK has
+            // dropped the VSTest path that `dotnet test` took - so the tests are an ordinary
+            // executable that is built and then run, exactly as the CI workflow does it. The
+            // process exit code is the result, and `dotnet` here fails the build on any
+            // non-zero one.
+            workingDir RepoFolder
+
+            dotnet [ "build"; doubleQuote TestProject; "--configuration Release"; "--nologo" ]
+
+            dotnet [
+                "run"
+                $"--project {doubleQuote TestProject}"
+                "--configuration Release"
+                "--no-build"
+            ])
+
+        stage "Restore" (fun () ->
+            // The runtime must match the publish stage below: with --no-restore there,
+            // win-x64 has to already be in the assets file from this restore.
+            //
+            // PublishAot must match too, and that is far less obvious. src/Fido.csproj turns
+            // it on only when $(_IsPublishing) is set - the guard that keeps the XAML previewer
+            // working on ordinary builds - and a plain restore does not set it, so
+            // Microsoft.DotNet.ILCompiler never reaches the assets file. Passing PublishAot on
+            // the command line makes it a global property, which the csproj condition cannot
+            // then undo.
+            //
+            // --no-restore on the publish is what makes this stage worth having: it turns a
+            // lost or wrong restore into a loud NETSDK1047 rather than a publish that quietly
+            // succeeds and ships a directory of managed assemblies instead of one native binary.
+            workingDir RepoFolder
+
+            dotnet [
+                "restore"; doubleQuote AppProject
+                $"--runtime {WindowsRuntime}"
+                "-p:Configuration=Release"
+                "-p:PublishAot=true"
+            ])
+
+        let version =
+            match versionOverride.Value with
+            | Some v -> v
+            | None -> readNextVersionFromFile VersionFile
+
+        stage "Version" (fun () ->
+            Write.line $"Building version {version}"
+
+            createDirectoryBuildPropsFile PropsFile {
+                Product     = "Fido"
+                Version     = version
+                Title       = "Fido"
+                Company     = "Sean Kearon"
+                Description = "Launch manager for your IDE: resolves a branch to its worktree and opens it."
+                Copyright   = $"Sean Kearon {DateTime.Now.Year}"
+            }
+
+            Write.line $"Wrote {PropsFile}")
+
+        stage "Publish Windows" (fun () ->
+            // Independently useful: this is the runnable NativeAOT exe, produced whether or
+            // not Parcel can be reached in the stage below.
+            workingDir RepoFolder
+
+            dotnet [
+                "publish"; doubleQuote AppProject
+                "--no-restore"
+                "--configuration Release"
+                $"--runtime {WindowsRuntime}"
+                "--self-contained true"
+                "--verbosity minimal"
+                $"--output {OutDir +/ WindowsRuntime |> doubleQuote}"
+            ]
+
+            // NativeAOT fails open, not closed: when the ILCompiler package is missing from
+            // the assets file the publish still reports success and writes a managed
+            // self-contained app. Check the output rather than trust the exit code.
+            let publishDir = OutDir +/ WindowsRuntime
+            let exe = publishDir +/ "Fido.exe"
+
+            if not (File.Exists exe) then
+                failwith
+                    $"Publish reported success but {exe} does not exist. Check that the Restore \
+                      stage ran with -p:PublishAot=true so Microsoft.DotNet.ILCompiler is in the \
+                      assets file."
+
+            let files = Directory.GetFiles(publishDir, "*", SearchOption.AllDirectories)
+
+            // Excluding pdbs: the NativeAOT symbol file is larger than everything that
+            // actually ships put together, so a raw total tells you nothing useful.
+            let shippingMb =
+                files
+                |> Array.filter (fun f -> Path.GetExtension f <> ".pdb")
+                |> Array.sumBy (fun f -> FileInfo(f).Length)
+                |> fun bytes -> bytes / 1024L / 1024L
+
+            Write.line $"Published {FileInfo(exe).Length / 1024L / 1024L} MB exe, {files.Length} file(s), {shippingMb} MB shipping"
+
+            // A native publish is a handful of files. Anything resembling the couple of
+            // hundred of a managed one means AOT did not really happen, however the exe
+            // check went.
+            if files.Length > 50 then
+                Write.line $"WARNING: {files.Length} files in a NativeAOT publish looks wrong - expected under a dozen.")
+
+        stage "Package" (fun () ->
+            if not (File.Exists ParcelProject) then
+                failwith
+                    $"No Parcel project at {ParcelProject}.\n\
+                      Create it with the Parcel MCP's create-project tool (it is MCP-only; the CLI \
+                      exposes only pack/step/install-tools), then re-run."
+
+            let runtimes = WindowsRuntime :: MacRuntimes
+            let signedProject = AzureSigning.writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.parcel")
+
+            // Parcel builds the app itself. That repeats the publish above for win-x64;
+            // once the .parcel publish settings are confirmed to match the csproj (AOT,
+            // trimming, self-contained), --no-build removes the duplication.
+            //
+            // The mac runtimes are cross-built from Windows, which ILC cannot do - the
+            // RuntimeIdentifier guard in src/Fido.csproj drops those two to a trimmed,
+            // self-contained publish so the .dmg is still produced. Run this on a Mac and
+            // they come out native.
+            parcel [
+                "pack"; doubleQuote signedProject
+                yield! runtimes |> List.map (fun r -> $"--runtimes {r}")
+                "--packages nsis"
+                "--packages dmg"
+                $"--output {doubleQuote DropFolder}"
+            ]
+
+            let produced = Directory.GetFiles(DropFolder, "*", SearchOption.AllDirectories)
+            Write.line $"Parcel produced {produced.Length} file(s) in {DropFolder}"
+            for file in produced do
+                Write.line $"  {Path.GetFileName file} ({FileInfo(file).Length / 1024L} KB)")
+
+        stage "Revert Generated Files" (fun () ->
+            workingDir RepoFolder
+            revertPropsFile ())
+
+        if isRelease then
+            let tag = $"v{version}"
+
+            stage "Tag Repo" (fun () ->
+                workingDir RepoFolder
+
+                // git here is the non-failing runner, so a rejected tag would otherwise pass
+                // silently and the release below would attach to whatever that tag already
+                // pointed at - a previous build's commit.
+                let existing = cmdInFolderReturningOutput RepoFolder "git" $"tag --list {tag}" |> trim
+
+                if existing <> "" then
+                    failwith $"Tag {tag} already exists. Bump ver.txt, or pass version:X.Y.Z for a different one."
+
+                Write.line $"Tagging {ReleaseBranch} with {tag}"
+                git $"tag {tag}"
+                git $"push origin {tag}")
+
+            stage "GitHub Release" (fun () ->
+                workingDir RepoFolder
+
+                let artifacts = releaseArtifacts ()
+
+                if artifacts.Length = 0 then
+                    failwith $"No installers under {DropFolder} - refusing to publish an empty release."
+
+                Write.line $"Attaching {artifacts.Length} artifact(s):"
+                for file in artifacts do
+                    Write.line $"  {Path.GetFileName file} ({FileInfo(file).Length / 1024L / 1024L} MB)"
+
+                // --generate-notes builds the changelog from the commits since the previous
+                // tag, which is exactly the range this release covers.
+                let title = doubleQuote $"Fido {version}"
+
+                gh [
+                    "release"; "create"; tag
+                    $"--title {title}"
+                    "--generate-notes"
+                    yield! artifacts |> Array.map doubleQuote
+                ]
+
+                Write.line $"Published release {tag}")
+
+            stage "Update Version File" (fun () ->
+                workingDir RepoFolder
+                Write.line $"Updating the version file to {version}"
+                writeFile VersionFile version
+                git $"commit -m \"Updated by the build. [skip ci]\" \"{VersionFile}\""
+                git $"push origin {ReleaseBranch}")
+        else
+            Write.line ""
+            Write.line "Local build: skipped tagging, the GitHub release and the version bump."
+            Write.line "Re-run with `release` to publish."
+
+        stopwatch.Stop()
+        Write.buildComplete stopwatch.Elapsed
+        0
+
+    with ex ->
+        Write.stageTitle "FAILED"
+
+        try
+            workingDir RepoFolder
+            revertPropsFile ()
+        with cleanupError ->
+            Write.line $"Could not revert Directory.Build.props: {cleanupError.Message}"
+
+        Write.line "########### FAILED ###########"
+        Write.line $"Error: {ex.Message}"
+        Write.line "########### END ###########"
+        1
+
+[<EntryPoint>]
+let main argv =
+    applicationArgs <- argv
+
+    // The release build is Windows-first: it publishes win-x64 natively and lets Parcel
+    // cross-build the mac heads. The MSVC check is only meaningful there, and on a machine
+    // with no ProgramFiles(x86) it would throw instead of explaining itself.
+    if OperatingSystem.IsWindows() then
+        ensureNativeLinkerIsReachable ()
+    else
+        Write.line "Not on Windows - skipping the MSVC native-linker check."
+
+    buildFido ()

@@ -1,0 +1,32 @@
+{
+    "GeneralSettings": {
+        "NetProjectPath": "Fido.csproj",
+        "PackageName": "Fido",
+        "AssemblyName": {
+            "$type": "msbuild",
+            "property": "AssemblyName"
+        },
+        "ApplicationName": "Fido",
+        "Version": {
+            "$type": "msbuild",
+            "property": "Version"
+        },
+        "Icon": "../assets/fido.ico",
+        "Company": "Sean Kearon"
+    },
+    "LinuxSettings": {
+        "CreateBinSymlink": "True"
+    },
+    "Win32Settings": {
+        "IncludeUninstaller": "True"
+    },
+    "MacOsSettings": {
+        "CreateBundle": true,
+        "BundleIdentifier": "com.seankearon.fido",
+        "SigningCredentialsType": "AdHoc"
+    },
+    "PublishSettings": {
+        "PublishSingleFile": "False",
+        "ExtraBuildProperties": {}
+    }
+}

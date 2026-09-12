@@ -11,3 +11,6 @@ riderModule.iml
 TestResults/
 
 .vs
+
+# Publish, packaging and release output from the Fido.Build project
+/_build/

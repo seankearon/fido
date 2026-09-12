@@ -23,6 +23,15 @@
              trim/AOT analyzers running on ordinary builds so AOT-safety is still enforced at compile time. -->
         <PublishAot Condition="'$(_IsPublishing)' == 'true'">true</PublishAot>
         <IsAotCompatible>true</IsAotCompatible>
+        <!-- ILC emits native code for the target and refuses to do it across operating systems:
+             publishing osx-* from Windows fails with "Cross-OS native compilation is not supported".
+             So for the mac runtimes AOT is on exactly when the build is happening on a Mac, and the
+             cross-built ones fall back to trimmed + self-contained — larger and JIT-started, but it
+             runs, which is more than can be said for a publish that cannot compile. This is what
+             lets the Package stage of Fido.Build produce a .dmg from a Windows machine. -->
+        <PublishAot Condition="'$(PublishAot)' == 'true' And ('$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64')">$([MSBuild]::IsOSPlatform(OSX))</PublishAot>
+        <PublishTrimmed Condition="'$(_IsPublishing)' == 'true' And '$(PublishAot)' != 'true' And '$(RuntimeIdentifier)' != ''">true</PublishTrimmed>
+        <SelfContained Condition="'$(_IsPublishing)' == 'true' And '$(PublishAot)' != 'true' And '$(RuntimeIdentifier)' != ''">true</SelfContained>
     </PropertyGroup>
 
     <ItemGroup>
