@@ -96,6 +96,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = _vm;
         _vm.LoadMru(_config.RecentBranches, _config.RecentSolutions);
+        _vm.ShowTargetInTitle = _config.ShowTargetInWindowTitle;
 
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
@@ -796,6 +797,7 @@ public partial class MainWindow : Window
         GearButton.Flyout?.Hide();
         await _dialogs.ShowSettingsAsync(_config, _configService);
         // Editors (and the default) may have changed; the CLI per-run override yields to explicit edits.
+        _vm.ShowTargetInTitle = _config.ShowTargetInWindowTitle;
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();

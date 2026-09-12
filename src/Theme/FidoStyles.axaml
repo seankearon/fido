@@ -543,6 +543,13 @@
         <Setter Property="Background" Value="{DynamicResource FidoGearHoverBg}" />
     </Style>
 
+    <!-- Settings-dialog tick box (window-title option) — body text in the app's mono face -->
+    <Style Selector="CheckBox.fido">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+    </Style>
+
     <!-- Remote-branch opt-in checkbox + PR link inside the delete confirm strip -->
     <Style Selector="CheckBox.remoteopt">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />

@@ -8,7 +8,7 @@
         MinWidth="560" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         Icon="/Assets/fido-icon-256.png"
-        Title="Fido"
+        Title="{Binding WindowTitle}"
         WindowDecorations="Full"
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">

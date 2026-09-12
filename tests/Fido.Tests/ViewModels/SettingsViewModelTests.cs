@@ -77,6 +77,24 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task ShowTargetInWindowTitle_round_trips_through_load_and_apply()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig());   // on by default
+
+        await Assert.That(vm.ShowTargetInWindowTitle).IsTrue();
+
+        vm.ShowTargetInWindowTitle = false;   // unticking the box
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.ShowTargetInWindowTitle).IsFalse();
+
+        vm.LoadFrom(cfg);                     // and a config with it off loads unticked
+        await Assert.That(vm.ShowTargetInWindowTitle).IsFalse();
+    }
+
+    [Test]
     public async Task IsAutoCloseEnabled_tracks_the_never_option()
     {
         var vm = new SettingsViewModel();

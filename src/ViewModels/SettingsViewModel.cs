@@ -14,6 +14,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _searchRootsText = "";
     private string _worktreeRoot = "";
     private AppTheme _selectedTheme = AppTheme.System;
+    private bool _showTargetInWindowTitle = true;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
     private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
@@ -95,6 +96,14 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (value) SelectedTheme = AppTheme.Dark; }
     }
 
+    /// <summary>Whether a resolved discovery renames the window to <c>&lt;repo&gt; · &lt;branch&gt;</c>;
+    /// unticked keeps the plain <c>Fido</c> title.</summary>
+    public bool ShowTargetInWindowTitle
+    {
+        get => _showTargetInWindowTitle;
+        set => SetField(ref _showTargetInWindowTitle, value);
+    }
+
     public CloseAfterOpen CloseAfterOpen
     {
         get => _closeAfterOpen;
@@ -160,6 +169,7 @@ public sealed class SettingsViewModel : ObservableObject
             Editors.Add(choice);
         }
         SelectedTheme = config.Theme;
+        ShowTargetInWindowTitle = config.ShowTargetInWindowTitle;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -178,6 +188,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.DefaultEditorIndex = defaultIndex;
         config.RiderPath = null;   // superseded by Editors; clear the migrated legacy value
         config.Theme = SelectedTheme;
+        config.ShowTargetInWindowTitle = ShowTargetInWindowTitle;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer
