@@ -64,18 +64,38 @@ dotnet publish -c Release -p:PublishAot=false
 
 ## Release — build, sign, package, publish
 
-The whole release is a program, not a script: **`build/Fido.Build.fsproj`**, an F# console
-app that runs a sequence of named stages, times each one and prints a summary. It is in
-the solution, so it compiles with everything else and breaks loudly rather than at 2 a.m.
+The release is driven by **[`release.ps1`](release.ps1)**, and the work itself is a
+program rather than a script: **`build/Fido.Build.fsproj`**, an F# console app that runs a
+sequence of named stages, times each one and prints a summary. It is in the solution, so
+it compiles with everything else and breaks loudly rather than at 2 a.m.
+
+```powershell
+.\release.ps1                       # release the next patch version, after confirming
+.\release.ps1 -DryRun               # installers only — nothing tagged, released or pushed
+.\release.ps1 -Version 1.0.0        # pin the version instead of using ver.txt
+.\release.ps1 -Version 1.0.0 -Force # …and skip the confirmation prompt
+```
+
+Run it on **Windows**: it publishes `win-x64` with Native AOT and lets Parcel cross-build
+the macOS heads from there.
+
+`release.ps1` is a front end. It checks the things that are cheap now and expensive later
+— the SDK, the Parcel CLI, that `gh` is installed *and authenticated*, and that all six
+signing keys are present — then prints what is about to happen and asks before doing it.
+The `gh` check earns its place: the build tags and pushes before it creates the release,
+so an unauthenticated `gh` would strand a pushed tag with no release against it. If a run
+does fail after tagging, the script prints the commands to clear the tag.
+
+Windows PowerShell 5.1 refuses unsigned scripts by default — use PowerShell 7 (`pwsh`), or
+run it as `powershell -ExecutionPolicy Bypass -File .\release.ps1`.
+
+The build project can also be run directly, which is what `release.ps1` does:
 
 ```sh
 dotnet run --project build                      # full local build — nothing leaves the machine
 dotnet run --project build -- version:1.0.0     # pin the version instead of using ver.txt
 dotnet run --project build -- release           # …and tag, publish to GitHub, bump ver.txt
 ```
-
-Run it on **Windows**: it publishes `win-x64` with Native AOT and lets Parcel cross-build
-the macOS heads from there.
 
 ### The stages
 
@@ -92,8 +112,8 @@ the macOS heads from there.
 | **Revert Generated Files** | Removes the generated `Directory.Build.props`, on success *and* on failure. |
 | **Tag Repo**, **GitHub Release**, **Update Version File** | `release` only — tag `vX.Y.Z`, `gh release create` with the installers attached and generated notes, then commit the new `ver.txt`. |
 
-Without the `release` argument nothing leaves the machine: no tag, no push, no version
-bump. You get the installers in `_build/drop` and nothing else.
+Without `release` (or with `release.ps1 -DryRun`) nothing leaves the machine: no tag, no
+push, no version bump. You get the installers in `_build/drop` and nothing else.
 
 Two ordering details are load-bearing and commented in the code. **Test runs before
 Restore**, because `Fido.Tests` references `src/Fido.csproj` and building it re-restores
