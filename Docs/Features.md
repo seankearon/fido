@@ -306,6 +306,24 @@ Two buttons on the **Flight log** rule take the narration with you:
 Both are disabled until there's something to hand over, and each confirms itself in the
 log (`📋 Copied 8 flight-log line(s) to the clipboard.`, `✓ Flight log saved to …`).
 
+### The window title
+
+Once discovery **resolves** the branch, the window title names the work rather than the
+app: the selected card's **repo** and the **branch**, with no `Fido` in front —
+
+```text
+platform · feature/new-ui
+```
+
+so a taskbar (or `Alt`+`Tab`) full of Fido windows tells you which is which at a glance.
+The title **follows the selection**: picking a different card in a multi-location result
+swaps the repo name with it. Anything less than a resolved branch — nothing typed yet, a
+scan in flight, a branch found nowhere, a cleared branch box — reads plain **`Fido`**
+again.
+
+Prefer the title to stay put? Untick **Window title · _Show the repo and branch once
+discovery resolves them_** in Settings and it reads `Fido` throughout.
+
 ### Keyboard & shortcuts
 
 - The **branch** field is focused on launch. Typing debounces into a scan; **Enter**
@@ -372,6 +390,9 @@ is intentionally narrow:
   **Ctrl+1 … Ctrl+9** or by their slug on the command line. **Add** appends a new row; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
 - **Theme** — **System**, **Light**, or **Dark**.
+- **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
+  resolved branch renames the window to `<repo> · <branch>` (see **The window title** above); untick it
+  and the title stays `Fido`.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
   the on-screen buttons), or **Never** (turns auto-close off).
@@ -388,6 +409,7 @@ is intentionally narrow:
 - **Default branch names:** `main`, `master` (never offered for deletion).
 - **Search depth:** 4.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
+- **Window title:** shows `<repo> · <branch>` once discovery resolves.
 
 ### Where settings live
 
@@ -412,4 +434,5 @@ the next save writes to the new location.
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
+| Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |

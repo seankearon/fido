@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The window title names the work once discovery resolves it.** With a branch resolved, the title bar —
+  and so the taskbar button and `Alt`+`Tab` — reads the selected card's repo and the branch on their own:
+  `platform · feature/new-ui`, with no `Fido` in front, so a screenful of Fido windows can finally be told
+  apart. The title **follows the selection**, swapping repo names as you pick between the cards of
+  a multi-location result, and falls back to plain `Fido` whenever nothing is resolved — before the first
+  scan, mid-scan, for a branch found nowhere, or when the branch box is cleared. New **Settings → Window
+  title** switch (**on** by default, and on for configs written before it existed) turns the renaming off
+  for anyone who wants the title to stay put.
+
 - **A worktree delete that goes part-way now says so honestly — and offers a Retry.** The three things a
   delete removes (the worktree, the local branch, the branch on `origin`) are attempted and reported
   **separately**: a step that fails no longer abandons the ones after it, and the flight log's closing line

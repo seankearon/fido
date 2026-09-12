@@ -88,6 +88,16 @@
 
         <StackPanel Spacing="9">
             <TextBlock Classes="label" TextWrapping="Wrap">
+                <Run Text="Window title " /><Run Text="· what the title bar and taskbar read" Foreground="{DynamicResource FidoTextDim}" />
+            </TextBlock>
+            <CheckBox x:Name="TitleShowsTargetCheck" Classes="fido"
+                      IsChecked="{Binding ShowTargetInWindowTitle, Mode=TwoWay}"
+                      Content="Show the repo and branch once discovery resolves them"
+                      ToolTip.Tip="On: the title becomes &quot;&lt;repo&gt; · &lt;branch&gt;&quot; — no &quot;Fido&quot; in front. Off: it stays &quot;Fido&quot;." />
+        </StackPanel>
+
+        <StackPanel Spacing="9">
+            <TextBlock Classes="label" TextWrapping="Wrap">
                 <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
             </TextBlock>
             <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"

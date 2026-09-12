@@ -163,4 +163,29 @@ public class ConfigServiceTests
 
         await Assert.That(loaded.DefaultEditorIndex).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task A_config_predating_the_window_title_setting_keeps_the_title_renaming_on()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        // A file written before the setting existed has no entry for it at all — the default must win,
+        // rather than a missing JSON property reading back as false.
+        File.WriteAllText(svc.ConfigFilePath, """{ "configVersion": 2, "searchRoots": [], "theme": "Dark" }""");
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.ShowTargetInWindowTitle).IsTrue();
+        await Assert.That(loaded.Theme).IsEqualTo(AppTheme.Dark);   // the rest of the file still read
+    }
+
+    [Test]
+    public async Task Turning_the_window_title_setting_off_survives_a_save_and_load_round_trip()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig { ShowTargetInWindowTitle = false });
+
+        await Assert.That(svc.Load().ShowTargetInWindowTitle).IsFalse();
+    }
 }

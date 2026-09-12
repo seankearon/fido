@@ -16,6 +16,10 @@ namespace Fido.ViewModels;
 /// </summary>
 public sealed class MainWindowViewModel : ObservableObject
 {
+    /// <summary>The plain window title: what the title bar reads before discovery resolves anything, and
+    /// all it ever reads when <see cref="ShowTargetInTitle"/> is off.</summary>
+    public const string AppTitle = "Fido";
+
     public MainWindowViewModel() =>
         // The log's copy/save actions are gated on there being something to hand over.
         Log.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasLog));
@@ -67,6 +71,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowDeleteRow));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDeleteDisabledNote));
+            OnPropertyChanged(nameof(WindowTitle));
         }
     }
 
@@ -120,6 +125,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(CanDelete));
             OnPropertyChanged(nameof(SelectedPath));
             OnPropertyChanged(nameof(SelectedKindLabel));
+            OnPropertyChanged(nameof(WindowTitle));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDeleteDisabledNote));
             OnPropertyChanged(nameof(DeleteDisabledNote));
@@ -137,6 +143,35 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string SelectedPath => _selectedTarget?.Path ?? "";
     public string SelectedKindLabel => _selectedTarget?.KindLabel ?? "";
+
+    // --- Window title -----------------------------------------------------------------
+
+    private bool _showTargetInTitle = true;
+
+    /// <summary>
+    /// Whether a resolved discovery takes over the window title (the
+    /// <see cref="AppConfig.ShowTargetInWindowTitle"/> setting). Off keeps <see cref="AppTitle"/> throughout.
+    /// </summary>
+    public bool ShowTargetInTitle
+    {
+        get => _showTargetInTitle;
+        set
+        {
+            if (SetField(ref _showTargetInTitle, value))
+                OnPropertyChanged(nameof(WindowTitle));
+        }
+    }
+
+    /// <summary>
+    /// The window title. Once discovery has resolved the branch and a target is selected it names that
+    /// work — <c>platform · feature/new-ui</c>, the selected card's repo and the scanned branch, with no
+    /// "Fido" in front, so a taskbar full of Fido windows is readable. Falls back to <see cref="AppTitle"/>
+    /// while nothing is resolved, and whenever <see cref="ShowTargetInTitle"/> is off.
+    /// </summary>
+    public string WindowTitle =>
+        _showTargetInTitle && IsFound && _selectedTarget is { } card
+            ? $"{card.Target.RepoName} · {ScannedBranch}"
+            : AppTitle;
 
     // --- Solution chips ---------------------------------------------------------------
 

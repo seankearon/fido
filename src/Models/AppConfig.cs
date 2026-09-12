@@ -70,6 +70,14 @@ public sealed class AppConfig
     /// <summary>Theme preference; <see cref="AppTheme.System"/> follows the OS.</summary>
     public AppTheme Theme { get; set; } = AppTheme.System;
 
+    /// <summary>
+    /// Whether a resolved discovery takes over the window title, showing <c>&lt;repo&gt; · &lt;branch&gt;</c>
+    /// on its own (no "Fido" in front) so the taskbar names the work rather than the app. Default on;
+    /// turn it off to keep the plain <c>Fido</c> title. A config written before this setting existed has
+    /// no entry for it and so keeps the default.
+    /// </summary>
+    public bool ShowTargetInWindowTitle { get; set; } = true;
+
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
 
