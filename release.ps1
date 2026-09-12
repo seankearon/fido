@@ -1,0 +1,251 @@
+<#
+.SYNOPSIS
+    Publishes a Fido release: builds the installers, tags the repo, and creates the
+    GitHub release with the binaries attached.
+
+.DESCRIPTION
+    A front end for the Fido.Build project in build/, which does the work in stages and
+    reports each one. This script adds the things worth having before an irreversible
+    action: a check that the tools it needs are present and able to publish, a summary of
+    what is about to happen, and a confirmation prompt.
+
+    The gh check matters more than it looks. The build tags and pushes before it creates
+    the release, so an unauthenticated gh would leave a tag pushed to origin with no
+    release against it - a half-published state that has to be unpicked by hand. Checking
+    first costs a second and avoids that entirely. The same reasoning covers Parcel and
+    the signing configuration: both are needed several minutes in, and both are cheap to
+    check now.
+
+    For ordinary development builds use dotnet build / dotnet publish - see build.md.
+    This script is only for releases.
+
+    What it does, in order: verifies the tree is clean and on the release branch, pulls,
+    runs the tests, restores and publishes the Windows app with NativeAOT, packs the
+    Windows installer and the macOS disk image with Parcel, tags the repo, creates the
+    GitHub release, and bumps ver.txt.
+
+    Run it on Windows: the Windows head is published with NativeAOT, which needs the MSVC
+    toolchain, and the macOS heads are cross-built from there.
+
+.PARAMETER Version
+    Pins the version instead of taking the next patch from ver.txt. Fido has never been
+    released, so the first release should pass -Version 1.0.0.
+
+.PARAMETER DryRun
+    Builds and packages, but does not tag, release or bump the version. Use this to check
+    the installers before committing to a release.
+
+.PARAMETER Force
+    Skips the confirmation prompt. Intended for unattended use.
+
+.EXAMPLE
+    .\release.ps1
+    Releases the next patch version after prompting for confirmation.
+
+.EXAMPLE
+    .\release.ps1 -DryRun
+    Produces the installers in _build\drop without publishing anything.
+
+.EXAMPLE
+    .\release.ps1 -Version 1.0.0 -Force
+    Releases 1.0.0 without prompting.
+#>
+[CmdletBinding()]
+param(
+    [ValidatePattern('^\d+\.\d+\.\d+$')]
+    [string] $Version,
+
+    # Build and package only: no tag, no GitHub release, no version bump.
+    [switch] $DryRun,
+
+    # Skip the confirmation prompt.
+    [switch] $Force
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+$root = $PSScriptRoot
+
+function Write-Step([string] $Message) { Write-Host "`n==> $Message" -ForegroundColor Cyan }
+function Write-Ok([string] $Message) { Write-Host "    $Message" -ForegroundColor Green }
+function Write-Warn([string] $Message) { Write-Host "    $Message" -ForegroundColor Yellow }
+
+# --- preflight -------------------------------------------------------------
+
+Write-Step 'Checking prerequisites'
+
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+    throw 'The .NET SDK is not on PATH. Install .NET 10 from https://dotnet.microsoft.com/download'
+}
+Write-Ok "dotnet SDK $(& dotnet --version)"
+
+# Parcel builds, signs and packages the installers. It is not reached until after the
+# tests and the Windows publish, so an absent CLI would waste several minutes before
+# saying so.
+if (-not (Get-Command parcel -ErrorAction SilentlyContinue)) {
+    throw 'The Avalonia Parcel CLI is not on PATH. See https://avaloniaui.net/parcel'
+}
+Write-Ok 'parcel CLI present'
+
+# Only needed for a real release; a dry run never talks to GitHub.
+if (-not $DryRun) {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        throw 'The GitHub CLI is not on PATH. Install it from https://cli.github.com, or use -DryRun.'
+    }
+
+    # gh auth status exits non-zero when logged out. Deliberately checked here rather
+    # than left to the build, which would already have pushed the tag by then.
+    & gh auth status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The GitHub CLI is not authenticated. Run: gh auth login'
+    }
+
+    $account = (& gh api user --jq .login 2>$null)
+    Write-Ok "gh authenticated$(if ($account) { " as $account" })"
+}
+
+# Parcel signs the Windows exe and installer with Azure Trusted Signing. Everything it
+# needs - tenant, app registration, endpoint, account, certificate profile - lives in the
+# machine's private shine.env, never in the repo. The build loads that file itself and
+# checks the same keys; checking here as well keeps the failure ahead of the
+# confirmation prompt rather than behind it.
+$userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+# Nested Join-Path rather than a two-segment literal: Windows PowerShell 5.1's Join-Path
+# takes only one child path, and a hard-coded separator would be wrong on one platform.
+$shineEnv = Join-Path (Join-Path $userHome '.config') 'shine.env'
+$signingKeys = @(
+    'CodeSigning__TenantId', 'CodeSigning__ClientId', 'CodeSigning__ClientSecret',
+    'CodeSigning__Endpoint', 'CodeSigning__AccountName', 'CodeSigning__CertificateProfileName'
+)
+
+# Only into this process, and only for keys the shell has not already set.
+if (Test-Path $shineEnv) {
+    foreach ($line in Get-Content $shineEnv) {
+        if ($line -match '^\s*([^#=\s][^=]*?)\s*=\s*(.*)$' -and -not (Test-Path "env:$($Matches[1])")) {
+            Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
+        }
+    }
+}
+
+# [Environment]::GetEnvironmentVariable rather than (Get-Item env:$_).Value: an unset
+# variable makes Get-Item return nothing, and reading .Value off that is a terminating
+# error under Set-StrictMode - so the check meant to name the missing keys would instead
+# die with "The property 'Value' cannot be found on this object."
+$missing = $signingKeys | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+if ($missing) {
+    throw "Code-signing configuration is missing: $($missing -join ', '). Add them to $shineEnv."
+}
+Write-Ok "code-signing configuration present ($shineEnv)"
+
+# --- what is about to happen -----------------------------------------------
+
+# Displayed so the prompt can name a version. Fido.Build computes this itself and is the
+# authority; this only mirrors its rule of bumping the patch component.
+$versionFile = Join-Path $root 'ver.txt'
+
+$plannedVersion =
+    if ($Version) {
+        $Version
+    }
+    elseif (Test-Path $versionFile) {
+        $parts = (Get-Content $versionFile -Raw).Trim().Split('.')
+        if ($parts.Count -ne 3) { throw "ver.txt should hold a three-part version, but contains '$((Get-Content $versionFile -Raw).Trim())'." }
+        '{0}.{1}.{2}' -f $parts[0], $parts[1], ([int]$parts[2] + 1)
+    }
+    else {
+        throw "Cannot find $versionFile, and no -Version was given."
+    }
+
+Write-Step 'Release plan'
+Write-Host "    version   : $plannedVersion"
+Write-Host "    repository: $(& git -C $root remote get-url origin 2>$null)"
+Write-Host "    branch    : $(& git -C $root branch --show-current 2>$null)"
+
+if ($DryRun) {
+    Write-Warn 'Dry run: installers only. Nothing will be tagged, released or pushed.'
+}
+else {
+    Write-Host "    tag       : v$plannedVersion  (pushed to origin)"
+    Write-Host "    release   : public GitHub release with the Windows installer and the macOS disk image"
+    Write-Host "    signing   : Windows exe and installer signed with Azure Trusted Signing"
+    Write-Host ''
+    Write-Warn 'The macOS disk image is ad-hoc signed: Gatekeeper will quarantine it, and'
+    Write-Warn 'users will need right-click > Open the first time.'
+
+    # Not $IsMacOS: that automatic variable does not exist in Windows PowerShell 5.1, where
+    # Set-StrictMode would then make reading it a terminating error.
+    $onMac = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [System.Runtime.InteropServices.OSPlatform]::OSX)
+
+    if (-not $onMac) {
+        Write-Warn 'The macOS build is cross-built, so it is trimmed and self-contained rather'
+        Write-Warn 'than native: larger, and slower to start. Release from a Mac for a native one.'
+    }
+}
+
+# --- confirm ---------------------------------------------------------------
+
+if (-not $DryRun -and -not $Force) {
+    Write-Host ''
+    # $() around the variable is required, not stylistic: '?' is a legal character in a
+    # PowerShell variable name, so "v$plannedVersion?" parses as the variable
+    # $plannedVersion? and fails under Set-StrictMode.
+    $answer = Read-Host "Publish release v$($plannedVersion)? [y/N]"
+
+    if ($answer -notmatch '^(y|yes)$') {
+        Write-Warn 'Cancelled. Nothing has been changed.'
+        exit 1
+    }
+}
+
+# --- run the build ---------------------------------------------------------
+
+$buildArgs = @('run', '--project', (Join-Path $root 'build'), '-c', 'Release', '--')
+
+if (-not $DryRun) { $buildArgs += 'release' }
+if ($Version) { $buildArgs += "version:$Version" }
+
+Write-Step "Running the build$(if ($DryRun) { ' (dry run)' })"
+Write-Host "    dotnet $($buildArgs -join ' ')" -ForegroundColor DarkGray
+
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+& dotnet @buildArgs
+$exitCode = $LASTEXITCODE
+$stopwatch.Stop()
+
+# --- report ----------------------------------------------------------------
+
+Write-Step 'Result'
+
+if ($exitCode -ne 0) {
+    Write-Host "    The build failed with exit code $exitCode." -ForegroundColor Red
+
+    # Worth saying explicitly: the build reverts its own generated files, but a failure
+    # after the tag stage leaves the tag behind, and that has to be cleared by hand.
+    if (-not $DryRun) {
+        Write-Warn "If it failed after tagging, remove the tag before retrying:"
+        Write-Warn "    git tag -d v$plannedVersion; git push origin :refs/tags/v$plannedVersion"
+    }
+
+    exit $exitCode
+}
+
+$drop = Join-Path (Join-Path $root '_build') 'drop'
+if (Test-Path $drop) {
+    $artifacts = Get-ChildItem $drop -Recurse -File -Include '*.exe', '*.dmg', '*.msix', '*.pkg', '*.zip'
+    foreach ($file in $artifacts) {
+        Write-Ok "$($file.Name) ($([math]::Round($file.Length / 1MB, 1)) MB)"
+    }
+}
+
+Write-Ok "duration : $([math]::Round($stopwatch.Elapsed.TotalSeconds, 1))s"
+
+if ($DryRun) {
+    Write-Host ''
+    Write-Warn "Dry run complete - nothing was published. Re-run without -DryRun to release."
+}
+else {
+    $url = (& gh release view "v$plannedVersion" --json url --jq .url 2>$null)
+    if ($url) { Write-Ok "release  : $url" }
+}

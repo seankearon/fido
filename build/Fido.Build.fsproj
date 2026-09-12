@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <AssemblyName>Fido.Build</AssemblyName>
+        <RootNamespace>Fido.Build</RootNamespace>
+        <!-- The build tool is a dev-machine console app: it is never published, packaged or
+             shipped, so keep it out of anything that treats the repo's projects as products. -->
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="BuildLib.fs" />
+        <Compile Include="Program.fs" />
+        <!-- The version the next build increments from; linked so it stays visible here. -->
+        <Content Include="..\ver.txt" Link="ver.txt" />
+    </ItemGroup>
+
+    <!-- No PackageReference of its own: the F# SDK supplies FSharp.Core implicitly, and naming
+         it here only duplicates that (NU1504). Everything else the build needs is in the BCL. -->
+
+</Project>

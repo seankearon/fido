@@ -29,6 +29,11 @@ jobs:
       - name: Build
         run: dotnet build -c Release tests/Fido.Tests/Fido.Tests.csproj
 
+      # The release build is a program (build/Fido.Build.fsproj), so compile it here too —
+      # it is only ever *run* on a release machine, and this is what stops it rotting.
+      - name: Build the release build project
+        run: dotnet build -c Release build/Fido.Build.fsproj
+
       # The suite drives the real Avalonia UI headlessly against real git repos (git is preinstalled
       # on GitHub runners). TUnit runs on Microsoft.Testing.Platform; the process exit code gates the job.
       - name: Run headless UI + integration tests
