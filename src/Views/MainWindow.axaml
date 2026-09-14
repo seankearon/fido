@@ -13,6 +13,16 @@
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">
 
+    <Window.Resources>
+        <!-- One row of the Console button's run menu: a run file the branch's .fido/cfg.yaml nominated,
+             or `aspire start`. Shared by the hero and the grid copies of that menu. -->
+        <DataTemplate x:Key="ConsoleRunTemplate" x:DataType="vm:ConsoleRunOption">
+            <Button Classes="runitem" Click="OnConsoleRunClick" Content="{Binding Label}"
+                    ToolTip.Tip="{Binding Command}" HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left" />
+        </DataTemplate>
+    </Window.Resources>
+
     <!-- One window, one screen: header → inputs → discovery → open actions → delete → flight log.
          The upper stack scrolls if the discovery list outgrows the window; the flight log sits near the
          bottom and takes whatever vertical slack the window has beyond the upper stack (see
@@ -331,26 +341,49 @@
                         </Border>
 
                         <!-- Hero open button (the default tool) — visible in every phase, enabled only
-                             when discovery has found the branch (the lock card above states why) -->
-                        <Border IsVisible="{Binding HasHero}" CornerRadius="10"
-                                BoxShadow="0 2 0 0 #D5870F, 0 8 16 -7 #99E08514">
-                            <Button Classes="hero" Click="OnHeroClick" IsEnabled="{Binding CanOpen}">
-                                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
-                                    <Path Data="M2,1 L11,6.5 L2,12 Z" Fill="{DynamicResource FidoHeroText}"
-                                          Width="12" Height="13" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Text="{Binding HeroLabel}" Margin="10,0,9,0"
-                                               VerticalAlignment="Center" />
-                                    <Border Grid.Column="2" Background="{DynamicResource FidoHeroPillBg}"
-                                            CornerRadius="999" Padding="8,1" VerticalAlignment="Center">
-                                        <TextBlock Text="default" FontSize="10.5" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource FidoHeroPillText}" />
-                                    </Border>
-                                    <TextBlock Grid.Column="3" Text="{Binding HeroTool.Gesture}"
-                                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                                               FontSize="11.5" Foreground="{DynamicResource FidoHeroPillText}" />
-                                </Grid>
+                             when discovery has found the branch (the lock card above states why). The
+                             caret beside it appears only when the hero IS the Console tool and the
+                             branch's .fido/cfg.yaml offered something to run. -->
+                        <Grid IsVisible="{Binding HasHero}" ColumnDefinitions="*,Auto">
+                            <Border CornerRadius="10"
+                                    BoxShadow="0 2 0 0 #D5870F, 0 8 16 -7 #99E08514">
+                                <Button Classes="hero" Click="OnHeroClick" IsEnabled="{Binding CanOpen}">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                                        <Path Data="M2,1 L11,6.5 L2,12 Z" Fill="{DynamicResource FidoHeroText}"
+                                              Width="12" Height="13" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding HeroLabel}" Margin="10,0,9,0"
+                                                   VerticalAlignment="Center" />
+                                        <Border Grid.Column="2" Background="{DynamicResource FidoHeroPillBg}"
+                                                CornerRadius="999" Padding="8,1" VerticalAlignment="Center">
+                                            <TextBlock Text="default" FontSize="10.5" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource FidoHeroPillText}" />
+                                        </Border>
+                                        <TextBlock Grid.Column="3" Text="{Binding HeroTool.Gesture}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   FontSize="11.5" Foreground="{DynamicResource FidoHeroPillText}" />
+                                    </Grid>
+                                </Button>
+                            </Border>
+
+                            <Button Grid.Column="1" x:Name="HeroRunsButton" Classes="runcaret" Margin="10,0,0,0"
+                                    IsVisible="{Binding HasHeroRuns}" IsEnabled="{Binding CanOpen}"
+                                    ToolTip.Tip="Run a script from this branch's .fido config">
+                                <Path Data="M0,0 L9,0 L4.5,5.5 Z" Width="9" Height="6"
+                                      Fill="{DynamicResource FidoTextBody}" VerticalAlignment="Center" />
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight" ShowMode="Transient">
+                                        <StackPanel Width="250" Spacing="8" Margin="4">
+                                            <TextBlock Classes="label" Text="Run in console" />
+                                            <ItemsControl ItemsSource="{Binding HeroTool.Runs}"
+                                                          ItemTemplate="{StaticResource ConsoleRunTemplate}" />
+                                            <TextBlock FontSize="11.5" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource FidoTextMuted}"
+                                                       Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
                             </Button>
-                        </Border>
+                        </Grid>
 
                         <TextBlock IsVisible="{Binding ShowNoDefaultNote}" FontSize="12"
                                    Foreground="{DynamicResource FidoTextMuted}" TextWrapping="Wrap"
@@ -366,17 +399,38 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:EditorLaunchOption">
-                                    <Button Classes="tool" Margin="0,0,10,10" Click="OnToolClick"
-                                            ToolTip.Tip="{Binding Name}">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource FidoTextBody}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Gesture}" FontSize="11.5"
-                                                       Foreground="{DynamicResource FidoTextDim}"
-                                                       Margin="8,0,0,0" VerticalAlignment="Center" />
-                                        </Grid>
-                                    </Button>
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,10,10">
+                                        <Button Classes="tool" Click="OnToolClick" ToolTip.Tip="{Binding Name}">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource FidoTextBody}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Gesture}" FontSize="11.5"
+                                                           Foreground="{DynamicResource FidoTextDim}"
+                                                           Margin="8,0,0,0" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
+
+                                        <!-- Only the Console tool is ever given runs, so only it grows a caret -->
+                                        <Button Grid.Column="1" Classes="runcaret" Margin="6,0,0,0"
+                                                IsVisible="{Binding HasRuns}"
+                                                ToolTip.Tip="Run a script from this branch's .fido config">
+                                            <Path Data="M0,0 L9,0 L4.5,5.5 Z" Width="9" Height="6"
+                                                  Fill="{DynamicResource FidoTextBody}" VerticalAlignment="Center" />
+                                            <Button.Flyout>
+                                                <Flyout Placement="BottomEdgeAlignedLeft" ShowMode="Transient">
+                                                    <StackPanel Width="250" Spacing="8" Margin="4">
+                                                        <TextBlock Classes="label" Text="Run in console" />
+                                                        <ItemsControl ItemsSource="{Binding Runs}"
+                                                                      ItemTemplate="{StaticResource ConsoleRunTemplate}" />
+                                                        <TextBlock FontSize="11.5" TextWrapping="Wrap"
+                                                                   Foreground="{DynamicResource FidoTextMuted}"
+                                                                   Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

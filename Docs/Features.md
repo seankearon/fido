@@ -106,7 +106,8 @@ the keyboard accelerators, and the delete row. Selecting a different card:
 - cancels any pending delete confirmation.
 
 Exactly one card is always selected; the first (a worktree, when there is one) is
-selected automatically when a scan lands.
+selected automatically when a scan lands — unless the branch's own
+[`.fido/cfg.yaml`](#in-repo-config--fidocfgyaml) asks for the **main clone**.
 
 ### What gets opened: solution or folder
 
@@ -264,6 +265,53 @@ Both behave like any other tool — a grid button, a **Ctrl+N** shortcut, and a 
 `fido feature/new-ui term` opens a terminal on that branch and `fido feature/new-ui files` opens its folder.
 They always hand over the **folder**, ignoring the solution chips.
 
+### In-repo config — `.fido/cfg.yaml`
+
+A repository can carry its own Fido settings, committed to the branch in a **`.fido`** folder at the
+root. When a scan lands, Fido reads **`.fido/cfg.yaml`** *from the branch it just found* — **before** the
+checkout options are offered — so a solution can say how it prefers to be opened and which of its scripts
+are worth a button:
+
+```yaml
+# .fido/cfg.yaml
+prefer main clone: true       # start on the clone's own working tree, not a worktree
+run files:                    # scripts the Console button offers to run
+  - build.ps1
+  - '*'                       # …plus every script in the repo root
+aspire start: true            # …and `aspire start`, for an Aspire app host
+```
+
+- **`prefer main clone`** *(true/false)* — a landed scan normally selects the first result, and worktrees
+  lead; with this set it selects the **main clone** instead (or, when the branch is checked out nowhere,
+  the **switch the main tree** placement offer). It only moves the **initial selection** — every other
+  card is still one click away. If the scan found no main tree at all, the flight log says so and the
+  first card keeps the selection.
+- **`run files`** *(list of script names)* — each name becomes an entry in the **Console button's
+  drop-down**, in the order given. A **`*`** entry stands for *every script in the tree root* —
+  `.ps1`, `.cmd`, `.bat`, `.sh` — expanded in place and sorted by name; a name listed explicitly keeps
+  its position and is never offered twice. A named script is offered whether or not it's in the tree
+  today (it may be generated), so a typo shows up as a shell error rather than a missing button.
+- **`aspire start`** *(true/false)* — adds **`aspire start`** to the same drop-down, at the end.
+
+**Keys are matched loosely** — case, spaces, dashes and underscores are all ignored, so
+`preferMainClone`, `prefer-main-clone` and `Prefer main clone` are the same key. Comments, quotes and
+inline lists (`run files: [build.ps1, test.ps1]`) are understood; a setting Fido doesn't recognise is
+skipped rather than rejected, and a missing or unreadable file simply means "no in-repo config" — a scan
+never fails because of one.
+
+**Where it's read from.** For a location that's **already on the branch** the file is read from that
+working tree, so an edit you haven't committed yet counts. For a **placement offer** — the branch isn't
+checked out anywhere — it's read straight out of the branch with `git show`, including from
+`origin/<branch>` when only the remote has it. Nothing has to be checked out for the config to apply.
+
+**The Console drop-down.** The run files and `aspire start` appear under a small **caret beside the
+Console button** (or beside the hero button, when Console *is* your default tool). Picking one opens the
+console at the **selected** location and runs the command there — a `.ps1` through PowerShell, a root
+`.sh` as `./name`, anything else through the platform's shell — leaving the window open afterwards so you
+can read the output. On Windows a Windows Terminal console hosts the shell in a tab; elsewhere the shell
+runs on its own. **Nothing runs on its own:** Fido only ever *offers* these commands, and a placement
+offer still creates the worktree (or switches the tree) first, exactly as opening it would.
+
 ### Mission-control console
 
 The in-app **flight log** narrates each scan and launch like a flight-control "go around
@@ -411,6 +459,12 @@ is intentionally narrow:
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 - **Window title:** shows `<repo> · <branch>` once discovery resolves.
 
+### In-repo config (committed to the branch)
+
+A repo can also configure Fido for itself, in **`.fido/cfg.yaml`** on the branch — *prefer main clone*,
+*run files* and *aspire start*. It's read from the branch every time a scan lands and needs no user
+setting to enable; see **[In-repo config](#in-repo-config--fidocfgyaml)** above for the file's shape.
+
 ### Where settings live
 
 JSON at **`%APPDATA%\Fido\config.json`**. If that doesn't exist, Fido reads a legacy
@@ -432,7 +486,8 @@ the next save writes to the new location.
 | Delete reporting | Each target reported separately — **already gone counts as done**, not as failure; anything genuinely left behind gets an inline **Retry** strip that re-runs just that step |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
+| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a drop-down under the **Console** button |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |
-| Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder) |
+| Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder), plus the repo's own `.fido/cfg.yaml` on the branch |

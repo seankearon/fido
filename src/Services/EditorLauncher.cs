@@ -40,18 +40,24 @@ public sealed class EditorLauncher : IEditorLauncher
     }
 
     /// <summary>Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.</summary>
-    public void Launch(Editor editor, string executable, string targetPath)
-        => Run(BuildLaunchSpec(editor, executable, targetPath));
+    public void Launch(Editor editor, string executable, string targetPath, string? consoleCommand = null)
+        => Run(BuildLaunchSpec(editor, executable, targetPath, consoleCommand));
 
     /// <summary>
     /// Resolves how to invoke <paramref name="executable"/> for <paramref name="targetPath"/>: editors take the
     /// target as an argument, while <see cref="EditorKind.Console"/> / <see cref="EditorKind.FileExplorer"/>
-    /// open the folder via the platform's terminal / file-manager conventions. Pure (no process is started)
-    /// so the per-platform command construction can be unit-tested.
+    /// open the folder via the platform's terminal / file-manager conventions. A
+    /// <paramref name="consoleCommand"/> (a run file or <c>aspire start</c> from the branch's
+    /// <c>.fido/cfg.yaml</c>) makes the terminal <em>run</em> that command at the folder instead of just
+    /// opening there; it means nothing to the other kinds and is ignored by them. Pure (no process is
+    /// started) so the per-platform command construction can be unit-tested.
     /// </summary>
-    internal static LaunchSpec BuildLaunchSpec(Editor editor, string executable, string targetPath) =>
+    internal static LaunchSpec BuildLaunchSpec(Editor editor, string executable, string targetPath,
+        string? consoleCommand = null) =>
         editor.Kind switch
         {
+            EditorKind.Console when !string.IsNullOrWhiteSpace(consoleCommand) =>
+                BuildConsoleRunSpec(editor, executable, targetPath, consoleCommand.Trim()),
             EditorKind.Console => BuildConsoleSpec(editor, executable, targetPath),
             EditorKind.FileExplorer => BuildFileExplorerSpec(executable, targetPath),
             _ => BuildEditorSpec(editor, executable, targetPath),
@@ -99,6 +105,166 @@ public sealed class EditorLauncher : IEditorLauncher
         // Linux: virtually every terminal emulator opens in the inherited working directory.
         return new LaunchSpec(executable, [.. extra], WorkingDirectory: folder);
     }
+
+    /// <summary>
+    /// A terminal at <paramref name="folder"/> that <em>runs</em> <paramref name="command"/> and stays open
+    /// afterwards, so its output can be read. Each platform has exactly one dependable way to hand a command
+    /// to a terminal: Windows starts the shell itself (hosted in a Windows Terminal tab when that's the
+    /// configured console), macOS asks the terminal app through AppleScript's <c>do script</c>, and Linux uses
+    /// the emulators' <c>-e</c> convention.
+    /// </summary>
+    private static LaunchSpec BuildConsoleRunSpec(Editor editor, string executable, string folder, string command)
+    {
+        if (OperatingSystem.IsWindows()) return BuildWindowsRunSpec(editor, executable, folder, command);
+        if (OperatingSystem.IsMacOS()) return BuildMacRunSpec(executable, folder, command);
+        return BuildLinuxRunSpec(editor, executable, folder, command);
+    }
+
+    /// <summary>
+    /// Windows: the command runs in a shell window whose working directory is the folder. Windows Terminal
+    /// can host that shell, so a <c>wt</c> console keeps its tab; any other console is bypassed in favour of
+    /// the shell itself, since an arbitrary terminal has no portable way to be handed a command. The console
+    /// row's own arguments therefore only ride along when the configured console <em>is</em> the shell used.
+    /// </summary>
+    private static LaunchSpec BuildWindowsRunSpec(Editor editor, string executable, string folder, string command)
+    {
+        var extra = SplitArguments(editor.Arguments);
+        var shell = WindowsShellFor(executable, command);
+
+        if (IsProgram(executable, "wt"))
+            return new LaunchSpec(executable, [.. extra, "-d", folder, .. shell], folder, UseShellExecute: true);
+
+        string[] leading = string.Equals(shell[0], executable, StringComparison.OrdinalIgnoreCase) ? extra : [];
+        return new LaunchSpec(shell[0], [.. leading, .. shell[1..]], folder, UseShellExecute: true);
+    }
+
+    /// <summary>
+    /// How to run <paramref name="command"/> in a Windows shell, keeping the window open when it finishes: a
+    /// <c>.ps1</c> goes to PowerShell as <c>-NoExit -File</c> (PowerShell won't run a bare script name from the
+    /// current directory, and <c>cmd</c> would hand a <c>.ps1</c> to whatever it's associated with), the
+    /// configured PowerShell takes anything else as <c>-NoExit -Command</c>, and everything else goes through
+    /// <c>cmd /k</c>. The returned array is the program followed by its arguments.
+    /// </summary>
+    private static string[] WindowsShellFor(string executable, string command)
+    {
+        var tokens = SplitCommand(command);
+        var isPowerShell = IsProgram(executable, "pwsh") || IsProgram(executable, "powershell");
+
+        if (tokens.Length > 0 && tokens[0].EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+            return [isPowerShell ? executable : "powershell.exe", "-NoExit", "-File", .. tokens];
+
+        return isPowerShell
+            ? [executable, "-NoExit", "-Command", command]
+            : [IsProgram(executable, "cmd") ? executable : "cmd.exe", "/k", .. tokens];
+    }
+
+    /// <summary>
+    /// macOS: <c>osascript</c>'s <c>do script</c> is the only reliable way to run a command <em>in</em> a mac
+    /// terminal window, and both Terminal and iTerm answer it. The app name comes from the configured console
+    /// (its <c>.app</c> bundle, or the bare name auto-detection returns); the window then keeps the shell that
+    /// ran the command, so the output stays on screen.
+    /// </summary>
+    private static LaunchSpec BuildMacRunSpec(string executable, string folder, string command)
+    {
+        var app = MacTerminalApp(executable);
+        var shellCommand = $"cd {ShellQuote(folder)} && {UnixCommand(command)}";
+        return new LaunchSpec("osascript",
+        [
+            "-e", $"tell application \"{app}\" to do script \"{AppleScriptEscape(shellCommand)}\"",
+            "-e", $"tell application \"{app}\" to activate",
+        ]);
+    }
+
+    /// <summary>The AppleScript-addressable terminal app: a configured <c>.app</c> bundle's name (iTerm,
+    /// Terminal…), or Terminal for anything that isn't one — a bare unix shell can't host a window.</summary>
+    private static string MacTerminalApp(string executable)
+    {
+        if (executable.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            return Path.GetFileNameWithoutExtension(executable);
+        return executable.Contains('/') ? "Terminal" : executable;
+    }
+
+    /// <summary>
+    /// Linux: the command is run by <c>bash -c</c> with a trailing <c>exec bash</c>, which leaves the window on
+    /// an interactive shell once it finishes (the equivalent of <c>/k</c> / <c>-NoExit</c>). The emulator is
+    /// handed that program its own way — <c>gnome-terminal</c> after <c>--</c>, <c>kitty</c> directly, and the
+    /// rest via the conventional <c>-e</c>.
+    /// </summary>
+    private static LaunchSpec BuildLinuxRunSpec(Editor editor, string executable, string folder, string command)
+    {
+        var extra = SplitArguments(editor.Arguments);
+        string[] shell = ["bash", "-c", $"{UnixCommand(command)}; exec bash"];
+
+        string[] args = Path.GetFileNameWithoutExtension(executable) switch
+        {
+            "gnome-terminal" => [.. extra, $"--working-directory={folder}", "--", .. shell],
+            "kitty" => [.. extra, .. shell],
+            _ => [.. extra, "-e", .. shell],
+        };
+        return new LaunchSpec(executable, args, folder);
+    }
+
+    /// <summary>
+    /// The shell command a unix terminal is handed: a <c>.sh</c> in the tree root is invoked as <c>./name</c>
+    /// (the working directory isn't on <c>PATH</c>), a <c>.ps1</c> is handed to <c>pwsh</c>, and anything else
+    /// — <c>aspire start</c>, an npm script — is passed through untouched.
+    /// </summary>
+    private static string UnixCommand(string command)
+    {
+        var tokens = SplitCommand(command);
+        if (tokens.Length == 0) return command;
+
+        var arguments = string.Join(' ', tokens[1..].Select(ShellQuote));
+        var tail = arguments.Length > 0 ? " " + arguments : "";
+        var first = tokens[0];
+
+        if (first.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+            return $"pwsh {ShellQuote(first)}{tail}";
+        if (first.EndsWith(".sh", StringComparison.OrdinalIgnoreCase) && !first.Contains('/'))
+            return $"./{ShellQuote(first)}{tail}";
+        return command;
+    }
+
+    /// <summary>True when <paramref name="executable"/> is the program called <paramref name="name"/>,
+    /// whatever directory it came from and whatever extension it carries.</summary>
+    private static bool IsProgram(string executable, string name) =>
+        string.Equals(Path.GetFileNameWithoutExtension(executable), name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Splits a command line into its tokens, honouring double quotes so a script name containing spaces
+    /// survives as one argument. Deliberately simpler than a shell — no escapes, no globbing — because the
+    /// commands here come from a repo's <c>.fido/cfg.yaml</c>, not from a prompt.
+    /// </summary>
+    internal static string[] SplitCommand(string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command)) return [];
+
+        var tokens = new List<string>();
+        var token = new System.Text.StringBuilder();
+        var quoted = false;
+        foreach (var c in command)
+        {
+            if (c == '"') { quoted = !quoted; continue; }
+            if (!quoted && char.IsWhiteSpace(c))
+            {
+                if (token.Length > 0) { tokens.Add(token.ToString()); token.Clear(); }
+                continue;
+            }
+            token.Append(c);
+        }
+        if (token.Length > 0) tokens.Add(token.ToString());
+        return [.. tokens];
+    }
+
+    /// <summary>Single-quotes a token for a unix shell, leaving plain ones (the usual case) alone.</summary>
+    private static string ShellQuote(string token) =>
+        token.Length > 0 && token.All(c => char.IsLetterOrDigit(c) || c is '.' or '_' or '-' or '/' or '+' or '=' or ':')
+            ? token
+            : "'" + token.Replace("'", "'\\''") + "'";
+
+    /// <summary>Escapes a string for an AppleScript literal (backslashes and double quotes).</summary>
+    private static string AppleScriptEscape(string value) =>
+        value.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     /// <summary>
     /// The OS file manager revealing <paramref name="folder"/>: <c>explorer.exe &lt;folder&gt;</c> on Windows,

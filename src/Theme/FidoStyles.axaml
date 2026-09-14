@@ -480,6 +480,46 @@
         <Setter Property="Opacity" Value="0.55" />
     </Style>
 
+    <!-- The caret that sits beside the Console button, opening its run menu (the run files and
+         `aspire start` the scanned branch's .fido/cfg.yaml offered). Same skin as a tool button, cut
+         down to the width of the chevron. -->
+    <Style Selector="Button.runcaret">
+        <Setter Property="Background" Value="{DynamicResource FidoChipBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoCardBorder}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="11,10" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.runcaret /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoChipBg}" />
+    </Style>
+    <Style Selector="Button.runcaret:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoSelectedBorder}" />
+    </Style>
+    <Style Selector="Button.runcaret:disabled">
+        <Setter Property="Opacity" Value="0.55" />
+    </Style>
+
+    <!-- One row of that run menu -->
+    <Style Selector="Button.runitem">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+    <Style Selector="Button.runitem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.runitem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+    </Style>
+
     <!-- Delete row: red-outline button, and its solid confirm counterpart -->
     <Style Selector="Button.dangerline">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />

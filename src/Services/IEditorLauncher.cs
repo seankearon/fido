@@ -12,6 +12,11 @@ public interface IEditorLauncher
     /// <summary>Returns the editor's executable/app-bundle path, or null if none is found.</summary>
     string? Locate(Editor editor);
 
-    /// <summary>Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.</summary>
-    void Launch(Editor editor, string executable, string targetPath);
+    /// <summary>
+    /// Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.
+    /// <paramref name="consoleCommand"/> — a run file or <c>aspire start</c> offered by the branch's
+    /// <c>.fido/cfg.yaml</c> — makes a Console target run that command at the folder rather than just
+    /// opening there; every other kind of target ignores it.
+    /// </summary>
+    void Launch(Editor editor, string executable, string targetPath, string? consoleCommand = null);
 }

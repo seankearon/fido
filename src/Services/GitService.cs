@@ -115,6 +115,40 @@ public sealed class GitService
         return url.Length > 0 ? url : null;
     }
 
+    /// <summary>
+    /// Contents of <paramref name="path"/> (repo-relative, forward slashes) as committed on
+    /// <paramref name="reference"/>, or null when the ref or the file doesn't exist. A missing file is the
+    /// ordinary case for the callers here — reading a branch's own config without checking it out — so it
+    /// comes back as null rather than as a failure.
+    /// </summary>
+    public async Task<string?> ShowFileAsync(string dir, string reference, string path, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "show", $"{reference}:{path}");
+        return r.Success ? r.StdOut : null;
+    }
+
+    /// <summary>
+    /// File names at the root of <paramref name="reference"/>'s tree — blobs only, no recursion — so a
+    /// branch's root scripts can be listed without checking it out. Empty when the ref can't be read.
+    /// </summary>
+    public async Task<List<string>> ListRootFilesAsync(string dir, string reference, CancellationToken ct = default)
+    {
+        var files = new List<string>();
+        var r = await Git(dir, ct, "ls-tree", reference);
+        if (!r.Success) return files;
+
+        // Each line is "<mode> <type> <sha>\t<name>"; trees are directories, blobs are the files.
+        foreach (var raw in r.StdOut.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            var tab = line.IndexOf('\t');
+            if (tab < 0) continue;
+            var meta = line[..tab].Split(' ');
+            if (meta.Length >= 2 && meta[1] == "blob") files.Add(line[(tab + 1)..]);
+        }
+        return files;
+    }
+
     /// <summary>Full SHA of HEAD, or null on failure.</summary>
     public async Task<string?> GetHeadShaAsync(string dir, CancellationToken ct = default)
     {

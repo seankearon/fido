@@ -21,6 +21,24 @@ same screen, with an inline confirm.
 
 ---
 
+## In-repo config
+
+A repo can configure Fido for itself. Commit a **`.fido/cfg.yaml`** and Fido reads it off the branch a
+scan just found, before the checkout options go up:
+
+```yaml
+prefer main clone: true   # start on the clone's own tree, not a worktree
+run files: ['*']          # every script in the root, offered under the Console button
+aspire start: true        # …plus `aspire start`
+```
+
+`prefer main clone` moves only the initial selection — every card stays one click away — and the run
+files and `aspire start` become a drop-down beside the **Console** button, run in a console at the
+selected location. Fido only ever *offers* them; nothing runs on its own. Full reference in
+**[Features](Docs/Features.md#in-repo-config--fidocfgyaml)**.
+
+---
+
 ## Command-line launch
 
 Fido pre-fills its form from the command line, and **giving it a branch starts discovery
