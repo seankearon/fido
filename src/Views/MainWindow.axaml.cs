@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private readonly IEditorLauncher _launcher;
     private readonly IDialogService _dialogs;
     private readonly OpenerService _opener;
+    private readonly RepoConfigService _repoConfigs;
     private readonly AppConfig _config;
 
     private readonly DispatcherTimer _scanDebounce;
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
 
         _dialogs = services.Dialogs ?? new AvaloniaDialogService(this);
         _opener = new OpenerService(_git, services.Finder, services.WorkingTreeFinder, _vm.AppendLog, _vm.AppendLiveLog, gitHub: services.GitHub);
+        _repoConfigs = new RepoConfigService(_git);
         _vm.Log.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(ScrollLogToEnd, DispatcherPriority.Background);
 
         // The flight log absorbs whatever vertical room the rest of the screen doesn't need, so a taller
@@ -216,7 +218,13 @@ public partial class MainWindow : Window
 
             if (cts.IsCancellationRequested) return;
 
-            _vm.CompleteScan(targets, IsProtectedBranch(branch));
+            // The branch's own Fido config, read before the checkout options are offered: it can pre-select
+            // the main clone and stock the Console button's run menu.
+            var repoConfig = await ReadRepoConfigAsync(targets, branch, cts.Token);
+            if (cts.IsCancellationRequested) return;
+
+            _vm.CompleteScan(targets, IsProtectedBranch(branch),
+                preferMainClone: repoConfig?.Config.PreferMainClone == true);
             var placementRepos = targets.Count > 0 && targets.All(IsPlacementKind)
                 ? targets.Select(t => t.MainPath).Distinct(StringComparer.OrdinalIgnoreCase).Count()
                 : 0;
@@ -225,6 +233,10 @@ public partial class MainWindow : Window
                 : placementRepos > 0
                     ? $"✓ '{branch}' isn't checked out anywhere — {placementRepos} repo(s) can place it (new worktree, or switch the main tree)."
                     : $"✓ Found {targets.Count} location(s) for '{branch}'.");
+
+            // What the branch's own .fido/cfg.yaml asked for: narrated, and stocked into the Console menu.
+            if (repoConfig is { } repo)
+                await ApplyRepoConfigAsync(repo.Config, repo.Target, branch, cts.Token);
 
             // Starting a scan wipes the log, so a bad CLI tool id is reported here — after the first
             // completed scan — where it stays visible.
@@ -275,6 +287,143 @@ public partial class MainWindow : Window
     private static bool IsPlacementKind(DiscoveredTarget t) =>
         t.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone;
 
+    // --- In-repo config (.fido/cfg.yaml) ------------------------------------------------
+
+    /// <summary>
+    /// The Fido config the scanned branch carries, and the target it was read from. The results are all
+    /// the same branch, so the file is the <em>branch's</em> rather than any one card's: the targets are
+    /// consulted in order (worktrees first) and the first that carries a config wins — which also means
+    /// a clone that has the branch but no <c>.fido</c> folder doesn't mask one that has. Null when no
+    /// result carries a config, or when it asks for nothing Fido acts on.
+    /// </summary>
+    private async Task<(RepoConfig Config, DiscoveredTarget Target)?> ReadRepoConfigAsync(
+        IReadOnlyList<DiscoveredTarget> targets, string branch, CancellationToken ct)
+    {
+        // A clone's two placement cards read the same file out of the same ref, so ask git once.
+        var clonesRead = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var target in targets)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (IsPlacementKind(target) && !clonesRead.Add(target.MainPath)) continue;
+            // Reading a repo's own file must never sink a scan: report and carry on without it.
+            try
+            {
+                if (await _repoConfigs.ReadAsync(target, branch, ct) is { IsEmpty: false } config)
+                    return (config, target);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _vm.AppendLog($"[!] Couldn't read {RepoConfigService.RepoRelativePath} in {target.RepoName}: {ex.Message}");
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Acts on the branch's config once the cards are up: narrates what it asked for, and fills the
+    /// Console button's run menu with its run files (a <c>*</c> expanded against the branch) plus
+    /// <c>aspire start</c> when it asked for one. Nothing here runs a command — the menu only offers them.
+    /// </summary>
+    private async Task ApplyRepoConfigAsync(RepoConfig config, DiscoveredTarget target, string branch,
+        CancellationToken ct)
+    {
+        var runs = new List<ConsoleRunOption>();
+        try
+        {
+            foreach (var file in await _repoConfigs.ResolveRunFilesAsync(config, target, branch, ct))
+                runs.Add(ConsoleRunOption.ForRunFile(file));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"[!] Couldn't list the run files on '{branch}': {ex.Message}");
+        }
+        if (config.AspireStart) runs.Add(ConsoleRunOption.AspireStart);
+
+        if (ct.IsCancellationRequested) return;
+        _vm.SetConsoleRuns(runs);
+
+        var asked = new List<string>();
+        if (config.PreferMainClone) asked.Add("main clone preferred");
+        if (runs.Count > 0) asked.Add($"{runs.Count} console run option(s)");
+        _vm.AppendLog(asked.Count > 0
+            ? $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — {string.Join(", ", asked)}."
+            : $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — nothing in it applies here.");
+
+        // A preference for the main clone that this scan can't honour is worth saying out loud, rather
+        // than leaving the user wondering why a worktree is selected.
+        if (config.PreferMainClone && _vm.SelectedTarget is { IsMainClone: false, IsSwitchClone: false })
+            _vm.AppendLog("[!] No main clone among the results — staying on the first location.");
+    }
+
+    private async void OnRepoConfigClick(object? sender, RoutedEventArgs e) => await EditRepoConfigAsync();
+
+    /// <summary>
+    /// The context strip's create/edit action (and the run menu's footer row): makes sure the selected
+    /// location has a <c>.fido/cfg.yaml</c> and opens it for editing. A new file is seeded from the
+    /// template — every setting at its default, so creating it changes nothing until it's edited — and an
+    /// existing one is never touched, only opened. Fido doesn't stage or commit it: what goes into the
+    /// repo's history stays the user's call, as with every other git action here. Internal for tests.
+    /// </summary>
+    internal async Task EditRepoConfigAsync()
+    {
+        if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
+        if (card.IsPlacement)
+        {
+            // The strip's button is hidden for these, but the run menu's footer row can still be reached.
+            _vm.AppendLog($"[!] '{_vm.ScannedBranch}' isn't on disk here yet — open it first, then its {RepoConfigService.RepoRelativePath}.");
+            return;
+        }
+
+        RepoConfigFile file;
+        try
+        {
+            file = await _repoConfigs.CreateAsync(card.Target.Path);
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't write {RepoConfigService.RepoRelativePath}: {ex.Message}");
+            return;
+        }
+
+        _vm.AppendLog(file.Created
+            ? $"✓ Created {file.Path} — every setting at its default, so nothing changes until you edit it."
+            : $"▸ {file.Path} already exists — opening it as it is.");
+        _vm.AppendLog("Edit it, commit it, then press Enter to rescan and pick the changes up.");
+        OpenFileInDefaultTool(file.Path);
+    }
+
+    /// <summary>
+    /// Opens <paramref name="path"/> in the run's default tool, so the create/edit action lands the user in
+    /// their editor. A terminal or file manager would open the wrong thing and no default means there's
+    /// nothing to choose, so those simply don't open it — the log has already named the file either way.
+    /// </summary>
+    private void OpenFileInDefaultTool(string path)
+    {
+        if (_runDefaultToolIndex < 0 || _runDefaultToolIndex >= _config.Editors.Count) return;
+        var editor = _config.Editors[_runDefaultToolIndex];
+        if (editor.Kind is EditorKind.Console or EditorKind.FileExplorer) return;
+
+        var editorPath = _launcher.Locate(editor);
+        if (editorPath is null)
+        {
+            _vm.AppendLog($"[!] {editor.Name} not located — open the file yourself.");
+            return;
+        }
+
+        try
+        {
+            _vm.AppendLog($"▸ Opening it in {editor.Name}");
+            _launcher.Launch(editor, editorPath, path);
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ {ex.Message}");
+        }
+    }
+
     // --- Opening ------------------------------------------------------------------------
 
     private async void OnHeroClick(object? sender, RoutedEventArgs e)
@@ -290,14 +439,33 @@ public partial class MainWindow : Window
         await OpenWithAsync(_config.Editors[option.Index]);
     }
 
+    private async void OnConsoleRunClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { DataContext: ConsoleRunOption run }) return;
+        await RunConsoleOptionAsync(run);
+    }
+
+    /// <summary>
+    /// A pick from the Console button's run menu: open the console on the selected target and run the
+    /// chosen command (a run file, or <c>aspire start</c>) there. The option names its own tool, so this
+    /// serves the menu whether Console is the hero button or one of the grid buttons. Internal for tests,
+    /// which pick from the menu through here rather than through a flyout that only exists once it's open.
+    /// </summary>
+    internal async Task RunConsoleOptionAsync(ConsoleRunOption run)
+    {
+        if (run.ToolIndex < 0 || run.ToolIndex >= _config.Editors.Count) return;
+        await OpenWithAsync(_config.Editors[run.ToolIndex], consoleCommand: run.Command);
+    }
+
     /// <summary>
     /// Opens the selected target with <paramref name="editor"/>. Gated on the phase machine: does
     /// nothing unless discovery has found the branch. A <see cref="TargetKind.NewWorktree"/> target is
     /// created first — fetch/track and worktree add via the opener — then opened like any other.
     /// Solution-capable tools (Rider / Visual Studio) honour the chosen solution chip; every other
-    /// tool opens the folder. Internal for tests.
+    /// tool opens the folder. <paramref name="consoleCommand"/> — a pick from the Console button's run
+    /// menu — is run in the terminal at that folder instead of just opening one there. Internal for tests.
     /// </summary>
-    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false)
+    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null)
     {
         if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
 
@@ -362,9 +530,11 @@ public partial class MainWindow : Window
             }
 
             _vm.AppendLog($"✓ {editor.Name} located: {editorPath}");
-            _vm.AppendLog($"▸ Opening {(solution is null ? folder : Path.GetFileName(solution))} in {editor.Name}");
+            _vm.AppendLog(consoleCommand is null
+                ? $"▸ Opening {(solution is null ? folder : Path.GetFileName(solution))} in {editor.Name}"
+                : $"▸ Running '{consoleCommand}' in {folder} ({editor.Name})");
             _vm.AppendLog("Fido? GO!");
-            _launcher.Launch(editor, editorPath, targetPath);
+            _launcher.Launch(editor, editorPath, targetPath, consoleCommand);
             _vm.AppendLog("The Eagle has landed...");
             MaybeCloseAfterLaunch(fromCommandLine);
         }

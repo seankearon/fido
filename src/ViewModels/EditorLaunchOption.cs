@@ -12,4 +12,14 @@ public sealed record EditorLaunchOption(int Index, string Name, string Gesture, 
 {
     /// <summary>Button caption for a secondary editor, e.g. <c>VS Code · Ctrl+2</c> (drops the gesture when none).</summary>
     public string ButtonLabel => string.IsNullOrEmpty(Gesture) ? Name : $"{Name}  ·  {Gesture}";
+
+    /// <summary>
+    /// Commands offered in a drop-down beside this tool's button — the run files and <c>aspire start</c>
+    /// the scanned branch's <c>.fido/cfg.yaml</c> asked for. Only ever populated for the Console tool
+    /// (see <see cref="MainWindowViewModel.SetConsoleRuns"/>); empty everywhere else, which hides the caret.
+    /// </summary>
+    public IReadOnlyList<ConsoleRunOption> Runs { get; init; } = [];
+
+    /// <summary>True when this tool has a run menu to offer — the caret button's visibility.</summary>
+    public bool HasRuns => Runs.Count > 0;
 }

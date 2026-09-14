@@ -148,6 +148,27 @@ public sealed class TestRepoWorld : IDisposable
         return path;
     }
 
+    /// <summary>
+    /// Writes a repo's own Fido settings (<c>.fido/cfg.yaml</c>) into a working tree, uncommitted —
+    /// which is what Fido reads for a tree that's already on the branch. Returns the file's path.
+    /// </summary>
+    public static string WriteFidoConfig(string dir, string yaml)
+    {
+        var path = Path.Combine(dir, RepoConfigService.FolderName, RepoConfigService.FileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, yaml);
+        return path;
+    }
+
+    /// <summary>Writes <c>.fido/cfg.yaml</c> and commits it on the tree's current branch — the committed
+    /// file Fido reads straight off a branch that isn't checked out anywhere.</summary>
+    public static void CommitFidoConfig(string dir, string yaml)
+    {
+        WriteFidoConfig(dir, yaml);
+        Git(dir, "add", "-A");
+        Git(dir, "commit", "-m", "add .fido/cfg.yaml");
+    }
+
     /// <summary>Leaves an uncommitted file so <c>git status</c> reports the tree dirty.</summary>
     public void MakeDirty(string repoPath) =>
         File.WriteAllText(Path.Combine(repoPath, "uncommitted.txt"), "work in progress");

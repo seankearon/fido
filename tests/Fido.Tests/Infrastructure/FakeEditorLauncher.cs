@@ -13,10 +13,11 @@ public sealed class FakeEditorLauncher : IEditorLauncher
     /// <summary>What <see cref="Locate"/> returns; null models a machine with no such editor.</summary>
     public string? LocateResult { get; set; } = "/fake/editor/bin/editor";
 
-    /// <summary>Records each launch as (executable, target), plus the editor it was asked to use.</summary>
-    public List<(string Executable, string Target, Editor Editor)> Launches { get; } = new();
+    /// <summary>Records each launch as (executable, target), plus the editor it was asked to use and the
+    /// console command it was asked to run (null for a plain open).</summary>
+    public List<(string Executable, string Target, Editor Editor, string? ConsoleCommand)> Launches { get; } = new();
 
-    public (string Executable, string Target, Editor Editor)? LastLaunch =>
+    public (string Executable, string Target, Editor Editor, string? ConsoleCommand)? LastLaunch =>
         Launches.Count > 0 ? Launches[^1] : null;
 
     private readonly TaskCompletionSource _firstLaunch = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -26,9 +27,9 @@ public sealed class FakeEditorLauncher : IEditorLauncher
 
     public string? Locate(Editor editor) => LocateResult;
 
-    public void Launch(Editor editor, string executable, string targetPath)
+    public void Launch(Editor editor, string executable, string targetPath, string? consoleCommand = null)
     {
-        Launches.Add((executable, targetPath, editor));
+        Launches.Add((executable, targetPath, editor, consoleCommand));
         _firstLaunch.TrySetResult();
     }
 }

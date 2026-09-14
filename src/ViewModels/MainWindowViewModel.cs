@@ -68,6 +68,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(LockReason));
             OnPropertyChanged(nameof(CanOpen));
             OnPropertyChanged(nameof(CanDelete));
+            OnPropertyChanged(nameof(CanEditRepoConfig));
             OnPropertyChanged(nameof(ShowDeleteRow));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDeleteDisabledNote));
@@ -123,6 +124,7 @@ public sealed class MainWindowViewModel : ObservableObject
             RebuildSolutionChips();
             OnPropertyChanged(nameof(CanOpen));
             OnPropertyChanged(nameof(CanDelete));
+            OnPropertyChanged(nameof(CanEditRepoConfig));
             OnPropertyChanged(nameof(SelectedPath));
             OnPropertyChanged(nameof(SelectedKindLabel));
             OnPropertyChanged(nameof(WindowTitle));
@@ -230,6 +232,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(HasHero));
             OnPropertyChanged(nameof(ShowNoDefaultNote));
             OnPropertyChanged(nameof(HeroLabel));
+            OnPropertyChanged(nameof(HasHeroRuns));
         }
     }
 
@@ -237,24 +240,61 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool ShowNoDefaultNote => _heroTool is null;
     public string HeroLabel => _heroTool is null ? "" : $"Open in {_heroTool.Name}";
 
+    /// <summary>True when the hero <em>is</em> the Console tool and the branch offered run commands —
+    /// the caret beside the hero button.</summary>
+    public bool HasHeroRuns => _heroTool?.HasRuns == true;
+
     /// <summary>The non-default tools, laid out as the 3-column grid (all tools when no default).</summary>
     public ObservableCollection<EditorLaunchOption> GridTools { get; } = new();
 
+    private IReadOnlyList<Editor> _editors = [];
+    private int _defaultToolIndex = AppConfig.NoDefaultEditor;
+    private IReadOnlyList<ConsoleRunOption> _consoleRuns = [];
+
     /// <summary>
-    /// Rebuilds the hero/grid from config. <paramref name="defaultIndex"/> is a position into
+    /// Sets the tools the screen offers. <paramref name="defaultIndex"/> is a position into
     /// <paramref name="editors"/>; <see cref="AppConfig.NoDefaultEditor"/> (or out of range) means no
     /// hero — every tool renders at equal weight. Accelerators stay tied to config order (Ctrl+1…9)
     /// regardless of which tool is the hero.
     /// </summary>
     public void SetEditors(IReadOnlyList<Editor> editors, int defaultIndex)
     {
+        _editors = editors;
+        _defaultToolIndex = defaultIndex;
+        RebuildTools();
+    }
+
+    /// <summary>
+    /// Replaces the run commands offered under the Console tool — the run files and <c>aspire start</c>
+    /// the scanned branch's <c>.fido/cfg.yaml</c> asked for. They belong to the scan, so a new one
+    /// clears them; a later <see cref="SetEditors"/> (a settings change mid-scan) keeps them.
+    /// </summary>
+    public void SetConsoleRuns(IReadOnlyList<ConsoleRunOption> runs)
+    {
+        // Every scan clears the menu on the way in; when there was nothing there, skip the rebuild
+        // rather than churning the tool buttons on each keystroke-debounced scan.
+        if (_consoleRuns.Count == 0 && runs.Count == 0) return;
+        _consoleRuns = runs;
+        RebuildTools();
+    }
+
+    /// <summary>Rebuilds the hero/grid from the stored tool list, default position and console runs.</summary>
+    private void RebuildTools()
+    {
         GridTools.Clear();
         EditorLaunchOption? hero = null;
-        for (var i = 0; i < editors.Count; i++)
+        for (var i = 0; i < _editors.Count; i++)
         {
             var gesture = i < 9 ? $"Ctrl+{i + 1}" : "";
-            var option = new EditorLaunchOption(i, editors[i].Name, gesture, IsDefault: i == defaultIndex);
-            if (i == defaultIndex)
+            // Only the Console tool carries a run menu — it's the one that can host a command.
+            var runs = _editors[i].Kind == EditorKind.Console
+                ? _consoleRuns.Select(run => run with { ToolIndex = i }).ToArray()
+                : [];
+            var option = new EditorLaunchOption(i, _editors[i].Name, gesture, IsDefault: i == _defaultToolIndex)
+            {
+                Runs = runs,
+            };
+            if (i == _defaultToolIndex)
                 hero = option;
             else
                 GridTools.Add(option);
@@ -295,6 +335,13 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool CanOpen => IsFound && _selectedTarget is not null;
 
     public bool CanDelete => CanOpen && _selectedTarget!.IsWorktree && !_isBranchProtected;
+
+    /// <summary>
+    /// Whether the selected location can carry a <c>.fido/cfg.yaml</c> — true for a real checkout, false
+    /// for a placement offer, which has no tree on disk to write one into yet. Drives the context strip's
+    /// create/edit action, which is simply absent rather than dimmed when there's nowhere to write.
+    /// </summary>
+    public bool CanEditRepoConfig => CanOpen && _selectedTarget is { IsPlacement: false };
 
     /// <summary>The delete row only exists once discovery has found the branch.</summary>
     public bool ShowDeleteRow => IsFound;
@@ -486,6 +533,7 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(NotFoundBody));
         ScanningBody = $"Scanning working trees for '{branch}'…";
         ClearDeleteRetry();   // a leftover from the last branch's delete has nothing to say about this scan
+        SetConsoleRuns([]);   // the console's run menu came from the last branch's .fido config
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));
@@ -497,26 +545,48 @@ public sealed class MainWindowViewModel : ObservableObject
     public void SetScanTreeCount(int count) =>
         ScanningBody = $"Scanning {count} working tree(s) for '{ScannedBranch}'…";
 
-    /// <summary>Lands the scan: fills the target cards (worktrees first), selects the first, and
-    /// resolves the phase to Found or NotFound.</summary>
-    public void CompleteScan(IReadOnlyList<DiscoveredTarget> targets, bool branchProtected)
+    /// <summary>
+    /// Lands the scan: fills the target cards (worktrees first), selects one, and resolves the phase to
+    /// Found or NotFound. <paramref name="preferMainClone"/> comes from the branch's own
+    /// <c>.fido/cfg.yaml</c> and moves the initial selection to the clone's working tree.
+    /// </summary>
+    public void CompleteScan(IReadOnlyList<DiscoveredTarget> targets, bool branchProtected,
+        bool preferMainClone = false)
     {
         Targets.Clear();
         foreach (var target in targets)
             Targets.Add(new TargetCard(target));
 
         IsBranchProtected = branchProtected;
-        SelectedTarget = Targets.Count > 0 ? Targets[0] : null;
+        SelectedTarget = PickInitialTarget(preferMainClone);
         OnPropertyChanged(nameof(FoundChipText));
         OnPropertyChanged(nameof(HasMultipleTargets));
         OnPropertyChanged(nameof(MultiTargetHelperText));
         Phase = targets.Count > 0 ? DiscoveryPhase.Found : DiscoveryPhase.NotFound;
     }
 
+    /// <summary>
+    /// The card a landed scan starts on: the first result — worktrees lead, so that's a worktree when
+    /// there is one — unless the branch's <c>.fido/cfg.yaml</c> asked for the main clone, in which case
+    /// the clone's own working tree wins, whether it's already on the branch
+    /// (<see cref="TargetKind.MainClone"/>) or offered to switch onto it
+    /// (<see cref="TargetKind.SwitchMainClone"/>). Falls back to the first card when this scan found no
+    /// main tree at all — a preference can't conjure a target that isn't there.
+    /// </summary>
+    private TargetCard? PickInitialTarget(bool preferMainClone)
+    {
+        if (Targets.Count == 0) return null;
+        if (!preferMainClone) return Targets[0];
+        return Targets.FirstOrDefault(t => t.IsMainClone)
+               ?? Targets.FirstOrDefault(t => t.IsSwitchClone)
+               ?? Targets[0];
+    }
+
     /// <summary>Empty branch box: back to the dashed placeholder, nothing scanned.</summary>
     public void ResetToIdle()
     {
         ScannedBranch = "";
+        SetConsoleRuns([]);   // no branch, so no in-repo config and no run menu
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));
