@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Fido.Models;
+using Fido.Services;
 using Fido.Tests.Infrastructure;
 using Fido.ViewModels;
 using Fido.Views;
@@ -252,6 +253,88 @@ public class RepoConfigTests
             UiTestExtensions.Pump();
             await Assert.That(window.Vm().IsIdle).IsTrue();
             await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
+        });
+    }
+
+    [Test]
+    public async Task The_context_strip_creates_the_config_file_and_opens_it()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/init");
+        File.WriteAllText(Path.Combine(worktree, "build.ps1"), "");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/init");
+
+            // Nothing to run yet: the branch carries no config, so the Console button has no caret.
+            await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
+            await Assert.That(window.FindControl<Button>("RepoConfigButton")!.IsVisible).IsTrue();
+
+            window.ClickButton("RepoConfigButton");
+            var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
+            Screenshots.Save(window, "repo-config-created");
+
+            // The file is seeded in the selected location and handed to the default tool to edit.
+            var path = RepoConfigService.PathIn(worktree);
+            await Assert.That(File.Exists(path)).IsTrue();
+            await Assert.That(window.LogText()).Contains("✓ Created");
+            await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Rider);
+            await Assert.That(launcher.LastLaunch!.Value.Target).IsEqualTo(path);
+
+            // Seeded from what the scan already knows, and inert until edited: a rescan still finds
+            // nothing to apply, so no run menu appears behind the user's back.
+            await Assert.That(await File.ReadAllTextAsync(path)).Contains("build.ps1");
+            await window.Discover("feature/init");
+            await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
+
+            // Clicking again opens the file as it is — a second click must never re-seed it.
+            await File.WriteAllTextAsync(path, "aspire start: true\n");
+            window.ClickButton("RepoConfigButton");
+            UiTestExtensions.Pump();
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("aspire start: true\n");
+            await Assert.That(window.LogText()).Contains("already exists");
+        });
+    }
+
+    [Test]
+    public async Task A_placement_offer_has_nowhere_to_write_the_config_yet()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.CreateBranch(clone, "feature/unplaced");
+        TestRepoWorld.Git(clone, "switch", "main");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/unplaced");
+            await Assert.That(window.Vm().SelectedTarget!.IsPlacement).IsTrue();
+
+            // No tree on disk to write into, so the action isn't offered at all…
+            await Assert.That(window.Vm().CanEditRepoConfig).IsFalse();
+            await Assert.That(window.FindControl<Button>("RepoConfigButton")!.IsVisible).IsFalse();
+
+            // …and the run menu's footer row, which can still be reached, says why rather than failing.
+            await window.EditRepoConfigAsync();
+            await Assert.That(window.LogText()).Contains("isn't on disk here yet");
+            await Assert.That(launcher.Launches.Count).IsEqualTo(0);
+
+            // Selecting the worktree the placement would create is what unlocks it.
+            window.Vm().SelectedTarget = window.Vm().Targets.First(t => t.IsSwitchClone);
+            UiTestExtensions.Pump();
+            await Assert.That(window.Vm().CanEditRepoConfig).IsFalse();
         });
     }
 

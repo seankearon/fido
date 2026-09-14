@@ -358,6 +358,72 @@ public partial class MainWindow : Window
             _vm.AppendLog("[!] No main clone among the results — staying on the first location.");
     }
 
+    private async void OnRepoConfigClick(object? sender, RoutedEventArgs e) => await EditRepoConfigAsync();
+
+    /// <summary>
+    /// The context strip's create/edit action (and the run menu's footer row): makes sure the selected
+    /// location has a <c>.fido/cfg.yaml</c> and opens it for editing. A new file is seeded from the
+    /// template — every setting at its default, so creating it changes nothing until it's edited — and an
+    /// existing one is never touched, only opened. Fido doesn't stage or commit it: what goes into the
+    /// repo's history stays the user's call, as with every other git action here. Internal for tests.
+    /// </summary>
+    internal async Task EditRepoConfigAsync()
+    {
+        if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
+        if (card.IsPlacement)
+        {
+            // The strip's button is hidden for these, but the run menu's footer row can still be reached.
+            _vm.AppendLog($"[!] '{_vm.ScannedBranch}' isn't on disk here yet — open it first, then its {RepoConfigService.RepoRelativePath}.");
+            return;
+        }
+
+        RepoConfigFile file;
+        try
+        {
+            file = await _repoConfigs.CreateAsync(card.Target.Path);
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't write {RepoConfigService.RepoRelativePath}: {ex.Message}");
+            return;
+        }
+
+        _vm.AppendLog(file.Created
+            ? $"✓ Created {file.Path} — every setting at its default, so nothing changes until you edit it."
+            : $"▸ {file.Path} already exists — opening it as it is.");
+        _vm.AppendLog("Edit it, commit it, then press Enter to rescan and pick the changes up.");
+        OpenFileInDefaultTool(file.Path);
+    }
+
+    /// <summary>
+    /// Opens <paramref name="path"/> in the run's default tool, so the create/edit action lands the user in
+    /// their editor. A terminal or file manager would open the wrong thing and no default means there's
+    /// nothing to choose, so those simply don't open it — the log has already named the file either way.
+    /// </summary>
+    private void OpenFileInDefaultTool(string path)
+    {
+        if (_runDefaultToolIndex < 0 || _runDefaultToolIndex >= _config.Editors.Count) return;
+        var editor = _config.Editors[_runDefaultToolIndex];
+        if (editor.Kind is EditorKind.Console or EditorKind.FileExplorer) return;
+
+        var editorPath = _launcher.Locate(editor);
+        if (editorPath is null)
+        {
+            _vm.AppendLog($"[!] {editor.Name} not located — open the file yourself.");
+            return;
+        }
+
+        try
+        {
+            _vm.AppendLog($"▸ Opening it in {editor.Name}");
+            _launcher.Launch(editor, editorPath, path);
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ {ex.Message}");
+        }
+    }
+
     // --- Opening ------------------------------------------------------------------------
 
     private async void OnHeroClick(object? sender, RoutedEventArgs e)

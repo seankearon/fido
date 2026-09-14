@@ -12,6 +12,9 @@ namespace Fido.Services;
 /// (so an edit in flight counts), and straight from the branch via <c>git show</c> for a placement
 /// offer, where nothing is on disk yet. A missing, unreadable or unparseable file is not an error: it
 /// yields no configuration and the scan carries on exactly as it always has.
+/// Also writes the starter file (<see cref="CreateAsync"/>) behind the UI's create/edit action, so a
+/// repo can be set up without hand-writing YAML — seeded at its defaults, and never overwriting one
+/// the repo already has.
 /// </summary>
 public sealed class RepoConfigService
 {
@@ -44,10 +47,7 @@ public sealed class RepoConfigService
     public async Task<RepoConfig?> ReadAsync(DiscoveredTarget target, string branch, CancellationToken ct = default)
     {
         if (target.Kind is TargetKind.Worktree or TargetKind.MainClone)
-        {
-            var path = Path.Combine(target.Path, FolderName, FileName);
-            return await Task.Run(() => ReadFile(path), ct);
-        }
+            return await Task.Run(() => ReadFile(PathIn(target.Path)), ct);
 
         var yaml = await _git.ShowFileAsync(target.MainPath, BranchRef(target, branch), RepoRelativePath, ct);
         return yaml is null ? null : Parse(yaml);
@@ -91,14 +91,17 @@ public sealed class RepoConfigService
         DiscoveredTarget target, string branch, CancellationToken ct)
     {
         if (target.Kind is TargetKind.Worktree or TargetKind.MainClone)
-            return await Task.Run(() => Sorted(EnumerateRootFiles(target.Path)), ct);
+            return await Task.Run(() => RootScripts(target.Path), ct);
 
         var names = await _git.ListRootFilesAsync(target.MainPath, BranchRef(target, branch), ct);
         return Sorted(names);
-
-        static IReadOnlyList<string> Sorted(IEnumerable<string> names) =>
-            [.. names.Where(IsScript).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
     }
+
+    /// <summary>The scripts sitting in <paramref name="folder"/> itself, sorted by name.</summary>
+    private static IReadOnlyList<string> RootScripts(string folder) => Sorted(EnumerateRootFiles(folder));
+
+    private static IReadOnlyList<string> Sorted(IEnumerable<string> names) =>
+        [.. names.Where(IsScript).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>The ref carrying the branch for a placement offer: the local branch, or <c>origin</c>'s
     /// when this clone only knows the branch from the remote.</summary>
@@ -113,6 +116,61 @@ public sealed class RepoConfigService
     {
         try { return [.. Directory.EnumerateFiles(folder).Select(f => Path.GetFileName(f))]; }
         catch { return []; }
+    }
+
+    // --- Creating the file ----------------------------------------------------------------
+
+    /// <summary>Where the config file sits inside a working tree.</summary>
+    public static string PathIn(string folder) => Path.Combine(folder, FolderName, FileName);
+
+    /// <summary>
+    /// Makes sure <paramref name="folder"/> has a <c>.fido/cfg.yaml</c> to edit, seeding a new one from
+    /// <see cref="Template"/> with the tree's own root scripts named in a comment. An existing file is
+    /// left exactly as it is — this is how the UI's "create or edit" action reaches both cases, and it
+    /// must never be able to overwrite a repo's real settings. The returned
+    /// <see cref="RepoConfigFile.Created"/> says which of the two happened.
+    /// </summary>
+    public Task<RepoConfigFile> CreateAsync(string folder, CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            var path = PathIn(folder);
+            if (File.Exists(path)) return new RepoConfigFile(path, Created: false);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, Template(RootScripts(folder)));
+            return new RepoConfigFile(path, Created: true);
+        }, ct);
+
+    /// <summary>
+    /// The starter file. Every setting is present at its default, so creating it changes nothing about
+    /// the scan that's on screen — it's a form to fill in, not a switch being thrown — and
+    /// <paramref name="detectedScripts"/> (the tree's root scripts, if any) are named in a comment so
+    /// the run-file list can be filled in without going looking.
+    /// </summary>
+    public static string Template(IReadOnlyList<string> detectedScripts)
+    {
+        var found = detectedScripts.Count > 0
+            ? $"# Scripts in this tree right now: {string.Join(", ", detectedScripts)}\n"
+            : "";
+
+        return $"""
+                # Fido settings for this repository — https://github.com/seankearon/fido
+                #
+                # Fido reads this file off the branch when a scan lands, before it offers the checkout
+                # options. Commit it to share it with the team. Every setting below is at its default,
+                # so the file changes nothing until you edit it.
+
+                # Start a landed scan on this clone's own working tree, not on the first worktree.
+                prefer main clone: false
+
+                # Scripts offered under the Console button, in the order given; '*' stands for every
+                # script in the repository root.  e.g.  run files: [build.ps1, '*']
+                {found}run files: []
+
+                # Offer `aspire start` under the Console button too.
+                aspire start: false
+
+                """.ReplaceLineEndings();
     }
 
     /// <summary>Parses the file at <paramref name="path"/>; null when it isn't there or can't be read.</summary>
@@ -218,3 +276,12 @@ public sealed class RepoConfigService
             : value;
     }
 }
+
+/// <summary>
+/// The repo config file the "create or edit" action landed on: where it is, and whether this call is what
+/// wrote it (<c>false</c> when the repo already had one, which is never overwritten).
+/// </summary>
+/// <param name="Path">Full path of the <c>.fido/cfg.yaml</c>.</param>
+/// <param name="Created">True when the file was just seeded from the template.</param>
+public sealed record RepoConfigFile(string Path, bool Created);
+

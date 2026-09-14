@@ -68,6 +68,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(LockReason));
             OnPropertyChanged(nameof(CanOpen));
             OnPropertyChanged(nameof(CanDelete));
+            OnPropertyChanged(nameof(CanEditRepoConfig));
             OnPropertyChanged(nameof(ShowDeleteRow));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDeleteDisabledNote));
@@ -123,6 +124,7 @@ public sealed class MainWindowViewModel : ObservableObject
             RebuildSolutionChips();
             OnPropertyChanged(nameof(CanOpen));
             OnPropertyChanged(nameof(CanDelete));
+            OnPropertyChanged(nameof(CanEditRepoConfig));
             OnPropertyChanged(nameof(SelectedPath));
             OnPropertyChanged(nameof(SelectedKindLabel));
             OnPropertyChanged(nameof(WindowTitle));
@@ -333,6 +335,13 @@ public sealed class MainWindowViewModel : ObservableObject
     public bool CanOpen => IsFound && _selectedTarget is not null;
 
     public bool CanDelete => CanOpen && _selectedTarget!.IsWorktree && !_isBranchProtected;
+
+    /// <summary>
+    /// Whether the selected location can carry a <c>.fido/cfg.yaml</c> — true for a real checkout, false
+    /// for a placement offer, which has no tree on disk to write one into yet. Drives the context strip's
+    /// create/edit action, which is simply absent rather than dimmed when there's nowhere to write.
+    /// </summary>
+    public bool CanEditRepoConfig => CanOpen && _selectedTarget is { IsPlacement: false };
 
     /// <summary>The delete row only exists once discovery has found the branch.</summary>
     public bool ShowDeleteRow => IsFound;

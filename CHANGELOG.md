@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comments, quotes and inline lists are understood; and a missing, unreadable or unfamiliar file costs
   only itself — never the scan.
 
+  **Setting a repo up doesn't mean hand-writing YAML:** the **OPEN** strip has a new **document button**
+  beside the copy-path icon (and the run menu a matching **Edit `.fido/cfg.yaml`…** row) that creates the
+  file in the selected location and opens it in your default tool. What it writes is a **form, not a
+  switch**: every setting present at its default, with the tree's own root scripts named in a comment so
+  the run-file list can be filled in without going looking — so until you edit it, the next scan still
+  reads *no in-repo config*. An existing file is only ever **opened, never overwritten**, and Fido does
+  **not** stage or commit it: what lands in the repo's history stays your call, as with every other git
+  action here. The button is absent for a placement offer — there's no working tree on disk to write
+  into until you open it.
+
 - **The window title names the work once discovery resolves it.** With a branch resolved, the title bar —
   and so the taskbar button and `Alt`+`Tab` — reads the selected card's repo and the branch on their own:
   `platform · feature/new-ui`, with no `Fido` in front, so a screenful of Fido windows can finally be told

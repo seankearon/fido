@@ -34,8 +34,12 @@ aspire start: true        # …plus `aspire start`
 
 `prefer main clone` moves only the initial selection — every card stays one click away — and the run
 files and `aspire start` become a drop-down beside the **Console** button, run in a console at the
-selected location. Fido only ever *offers* them; nothing runs on its own. Full reference in
-**[Features](Docs/Features.md#in-repo-config--fidocfgyaml)**.
+selected location. Fido only ever *offers* them; nothing runs on its own.
+
+Don't hand-write it: the **OPEN** strip has a button that creates the file in the selected location and
+opens it in your editor, seeded with the scripts Fido just found and every setting at its default — so
+it changes nothing until you edit it, and an existing file is only ever opened, never overwritten. Full
+reference in **[Features](Docs/Features.md#in-repo-config--fidocfgyaml)**.
 
 ---
 

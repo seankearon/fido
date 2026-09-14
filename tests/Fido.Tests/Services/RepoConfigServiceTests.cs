@@ -163,6 +163,56 @@ public class RepoConfigServiceTests
     }
 
     [Test]
+    public async Task A_created_file_asks_for_nothing_until_it_is_edited()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/init");
+        File.WriteAllText(Path.Combine(worktree, "build.ps1"), "");
+        File.WriteAllText(Path.Combine(worktree, "notes.md"), "");
+
+        var file = await Reader().CreateAsync(worktree);
+
+        await Assert.That(file.Created).IsTrue();
+        await Assert.That(file.Path).IsEqualTo(RepoConfigService.PathIn(worktree));
+        await Assert.That(File.Exists(file.Path)).IsTrue();
+
+        // Every setting is present at its default, so the file on its own changes nothing — the scan that
+        // follows reads it as "no in-repo config" until someone edits it.
+        var text = await File.ReadAllTextAsync(file.Path);
+        await Assert.That(RepoConfigService.Parse(text).IsEmpty).IsTrue();
+
+        // The tree's own scripts are named, so the run-file list can be filled in without going looking.
+        await Assert.That(text).Contains("build.ps1");
+        await Assert.That(text).DoesNotContain("notes.md");
+
+        // And it reads back through the ordinary path, from the working tree it was written into —
+        // asking for nothing, which is what the scan treats as "no in-repo config".
+        var read = await Reader().ReadAsync(Checkout(worktree, clone), "feature/init");
+        await Assert.That(read).IsNotNull();
+        await Assert.That(read!.IsEmpty).IsTrue();
+    }
+
+    [Test]
+    public async Task An_existing_file_is_opened_never_overwritten()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/keep");
+        var existing = TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+
+        var file = await Reader().CreateAsync(worktree);
+
+        await Assert.That(file.Created).IsFalse();
+        await Assert.That(file.Path).IsEqualTo(existing);
+        await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("aspire start: true\n");
+    }
+
+    [Test]
     public async Task Named_run_files_keep_their_order_and_are_not_offered_twice()
     {
         using var world = new TestRepoWorld();

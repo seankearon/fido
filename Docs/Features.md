@@ -304,6 +304,23 @@ working tree, so an edit you haven't committed yet counts. For a **placement off
 checked out anywhere — it's read straight out of the branch with `git show`, including from
 `origin/<branch>` when only the remote has it. Nothing has to be checked out for the config to apply.
 
+**Creating it.** The **OPEN** strip carries a small **document button** beside the copy-path icon:
+it creates `.fido/cfg.yaml` in the selected location and opens it in your default tool, so a repo can
+be set up without leaving Fido. (The same action sits at the foot of the Console run menu, as
+**Edit `.fido/cfg.yaml`…**, for when you're already in there wanting another entry.) Three things it
+deliberately does *not* do:
+
+- **It never overwrites.** A repo that already has the file gets it **opened**, untouched — create and
+  edit are the same button.
+- **It changes nothing by itself.** The file it writes has every setting present at its **default**,
+  with the tree's own root scripts named in a comment so the run-file list can be filled in without
+  going looking. Until you edit it, the next scan reads it as *no in-repo config*.
+- **It doesn't stage or commit.** What lands in the repo's history stays your call, as with every other
+  git action in Fido. Edit it, commit it, then press **Enter** to rescan and pick the settings up.
+
+The button is **absent for a placement offer** — there's no working tree on disk to write into until you
+open it.
+
 **The Console drop-down.** The run files and `aspire start` appear under a small **caret beside the
 Console button** (or beside the hero button, when Console *is* your default tool). Picking one opens the
 console at the **selected** location and runs the command there — a `.ps1` through PowerShell, a root
@@ -486,7 +503,7 @@ the next save writes to the new location.
 | Delete reporting | Each target reported separately — **already gone counts as done**, not as failure; anything genuinely left behind gets an inline **Retry** strip that re-runs just that step |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
-| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a drop-down under the **Console** button |
+| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a drop-down under the **Console** button. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |

@@ -303,6 +303,15 @@
                                     </Border>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
                                                 VerticalAlignment="Center">
+                                        <!-- Create (or open) this location's own .fido/cfg.yaml. Absent for a
+                                             placement offer: there's no tree on disk to write one into yet. -->
+                                        <Button x:Name="RepoConfigButton" Classes="iconaction" Click="OnRepoConfigClick"
+                                                IsTabStop="False" IsVisible="{Binding CanEditRepoConfig}"
+                                                ToolTip.Tip="Create or edit this location's .fido/cfg.yaml">
+                                            <Path Width="14" Height="14" Stretch="Uniform"
+                                                  Data="M7,3 L14,3 L19,8 L19,21 L7,21 Z M14,3 L14,8 L19,8 M10,12.5 L16,12.5 M10,16.5 L16,16.5" />
+                                        </Button>
+
                                         <!-- Copy the selected working-tree path to the clipboard -->
                                         <Button x:Name="CopyPathButton" Classes="iconaction" Click="OnCopyPathClick"
                                                 IsTabStop="False" ToolTip.Tip="Copy path to clipboard">
@@ -379,6 +388,9 @@
                                             <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource FidoTextMuted}"
                                                        Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                            <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                    Click="OnRepoConfigClick" />
                                         </StackPanel>
                                     </Flyout>
                                 </Button.Flyout>
@@ -426,6 +438,9 @@
                                                         <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                                    Foreground="{DynamicResource FidoTextMuted}"
                                                                    Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                        <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
+                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                                Click="OnRepoConfigClick" />
                                                     </StackPanel>
                                                 </Flyout>
                                             </Button.Flyout>
