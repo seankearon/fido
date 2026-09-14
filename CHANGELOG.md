@@ -12,12 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A repo can now configure Fido for itself, in `.fido/cfg.yaml` on the branch.** Commit a **`.fido`**
   folder at the root of your repo and Fido reads its **`cfg.yaml`** from whichever branch a scan just
   found — **before** the checkout options go up — so a solution can say how it prefers to be opened:
-  **`prefer main clone`** starts the landed scan on the clone's own working tree rather than on a
-  worktree (or, for a branch checked out nowhere, on the *switch the main tree* offer) — it moves the
-  **initial selection** only, every other card stays one click away; **`run files`** lists script names
-  that become entries in a new **drop-down beside the Console button**, with **`*`** standing for *every
-  script in the repo root* (`.ps1`, `.cmd`, `.bat`, `.sh`); and **`aspire start`** adds that command to
-  the same menu for an Aspire app host. Picking an entry opens the console at the **selected** location
+  **`prefer main clone`** decides **which checkout Fido offers by default** once it has scanned — the
+  clone's own working tree rather than a worktree (or, for a branch checked out nowhere, the *switch the
+  main tree* offer); it directs the choice, never the scan, so every location on the branch is still
+  found and listed, each one click away. **`run files`** lists script names that become entries in a new
+  **drop-down beside the Console button**, with **`*`** standing for *every script in the repo root*
+  (`.ps1`, `.cmd`, `.bat`, `.sh`); and **`aspire start`** adds that command to the same menu for an
+  Aspire app host. Picking an entry opens the console at the **selected** location
   and runs the command there — a `.ps1` via PowerShell, a root `.sh` as `./name`, anything else via the
   platform's shell — leaving the window open so you can read the output. **Nothing ever runs by itself:**
   the menu only offers. The file is read from the working tree when the branch is checked out (so an

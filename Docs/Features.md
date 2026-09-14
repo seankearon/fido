@@ -274,18 +274,20 @@ are worth a button:
 
 ```yaml
 # .fido/cfg.yaml
-prefer main clone: true       # start on the clone's own working tree, not a worktree
+prefer main clone: true       # default to opening the clone's own tree, not a worktree
 run files:                    # scripts the Console button offers to run
   - build.ps1
   - '*'                       # …plus every script in the repo root
 aspire start: true            # …and `aspire start`, for an Aspire app host
 ```
 
-- **`prefer main clone`** *(true/false)* — a landed scan normally selects the first result, and worktrees
-  lead; with this set it selects the **main clone** instead (or, when the branch is checked out nowhere,
-  the **switch the main tree** placement offer). It only moves the **initial selection** — every other
-  card is still one click away. If the scan found no main tree at all, the flight log says so and the
-  first card keeps the selection.
+- **`prefer main clone`** *(true/false)* — **which checkout Fido offers by default** once the scan has
+  landed. Normally that's the first result, and worktrees lead; with this set it's the **main clone**
+  instead (or, when the branch is checked out nowhere, the **switch the main tree** placement offer).
+  It directs the **default choice, not the scan**: every location on the branch is still found and
+  listed exactly as before, and each is one click away — this only decides which one the open actions
+  start on. If the results hold no main tree at all, the flight log says so and the first card keeps
+  the default.
 - **`run files`** *(list of script names)* — each name becomes an entry in the **Console button's
   drop-down**, in the order given. A **`*`** entry stands for *every script in the tree root* —
   `.ps1`, `.cmd`, `.bat`, `.sh` — expanded in place and sorted by name; a name listed explicitly keeps
