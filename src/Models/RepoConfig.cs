@@ -10,9 +10,10 @@ namespace Fido.Models;
 public sealed class RepoConfig
 {
     /// <summary>
-    /// <c>Prefer main clone</c>: start a landed scan on the clone's own working tree rather than on the
-    /// first worktree — for a solution that only builds in its main checkout (local tooling, IIS
-    /// bindings, a fixed path). Selection is only <em>pre-set</em>; every other card stays one click away.
+    /// <c>Prefer main clone</c>: which checkout Fido offers by default once a scan has landed — the
+    /// clone's own working tree rather than a worktree — for a solution that only builds in its main
+    /// checkout (local tooling, IIS bindings, a fixed path). It directs the default <em>choice</em>,
+    /// never the scan: every location on the branch is still found and listed, one click away.
     /// </summary>
     public bool PreferMainClone { get; set; }
 

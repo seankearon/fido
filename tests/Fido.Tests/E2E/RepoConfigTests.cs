@@ -23,7 +23,7 @@ public class RepoConfigTests
         window.Vm().GridTools.First(t => t.Name == "Console");
 
     [Test]
-    public async Task Prefer_main_clone_moves_the_initial_selection_off_the_worktree()
+    public async Task Prefer_main_clone_changes_the_default_choice_not_the_scan()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -40,13 +40,13 @@ public class RepoConfigTests
 
         await Harness.WithWindow(services, async window =>
         {
-            // Worktrees lead the results, so without a config the worktree is what gets selected.
+            // Worktrees lead the results, so without a config the worktree is the default choice.
             await window.Discover("feature/cfg");
             var vm = window.Vm();
             await Assert.That(vm.Targets.Count).IsEqualTo(2);
             await Assert.That(vm.SelectedTarget!.IsWorktree).IsTrue();
 
-            // The branch asks for the main clone; the very next scan honours it.
+            // The branch asks for the main clone; the next scan offers that one by default instead.
             TestRepoWorld.WriteFidoConfig(worktree, "prefer main clone: true\n");
             await window.Discover("feature/cfg");
             Screenshots.Save(window, "repo-config-prefer-main-clone");
@@ -55,9 +55,12 @@ public class RepoConfigTests
             await Assert.That(Paths.StartsWith(vm.SelectedPath, cloneA)).IsTrue();
             await Assert.That(window.LogText()).Contains(".fido/cfg.yaml on 'feature/cfg' — main clone preferred");
 
-            // A preference, not a restriction: the worktree card is still there to pick.
+            // The setting directs the choice, not the scan: the same two locations are found, in the
+            // same order (worktrees first), and the worktree is still right there to pick.
             await Assert.That(vm.Targets.Count).IsEqualTo(2);
             await Assert.That(vm.Targets[0].IsWorktree).IsTrue();
+            await Assert.That(vm.Targets[1].IsMainClone).IsTrue();
+            await Assert.That(window.LogText()).Contains("✓ Found 2 location(s) for 'feature/cfg'.");
         });
     }
 

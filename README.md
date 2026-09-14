@@ -27,13 +27,14 @@ A repo can configure Fido for itself. Commit a **`.fido/cfg.yaml`** and Fido rea
 scan just found, before the checkout options go up:
 
 ```yaml
-prefer main clone: true   # start on the clone's own tree, not a worktree
+prefer main clone: true   # default to opening the clone's own tree, not a worktree
 run files: ['*']          # every script in the root, offered under the Console button
 aspire start: true        # …plus `aspire start`
 ```
 
-`prefer main clone` moves only the initial selection — every card stays one click away — and the run
-files and `aspire start` become a drop-down beside the **Console** button, run in a console at the
+`prefer main clone` picks **which checkout Fido offers by default** after scanning — it directs the
+choice, never the scan, so every location is still found and listed and each stays one click away. The
+run files and `aspire start` become a drop-down beside the **Console** button, run in a console at the
 selected location. Fido only ever *offers* them; nothing runs on its own.
 
 Don't hand-write it: the **OPEN** strip has a button that creates the file in the selected location and

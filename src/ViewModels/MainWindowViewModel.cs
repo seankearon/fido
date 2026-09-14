@@ -548,7 +548,8 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Lands the scan: fills the target cards (worktrees first), selects one, and resolves the phase to
     /// Found or NotFound. <paramref name="preferMainClone"/> comes from the branch's own
-    /// <c>.fido/cfg.yaml</c> and moves the initial selection to the clone's working tree.
+    /// <c>.fido/cfg.yaml</c> and decides which of the cards is offered by default (see
+    /// <see cref="PickInitialTarget"/>) — the scan itself found them all regardless.
     /// </summary>
     public void CompleteScan(IReadOnlyList<DiscoveredTarget> targets, bool branchProtected,
         bool preferMainClone = false)
@@ -566,12 +567,13 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The card a landed scan starts on: the first result — worktrees lead, so that's a worktree when
-    /// there is one — unless the branch's <c>.fido/cfg.yaml</c> asked for the main clone, in which case
-    /// the clone's own working tree wins, whether it's already on the branch
+    /// The checkout offered by default once the scan has landed — what the open actions act on until
+    /// another card is picked. Normally the first result, and worktrees lead, so that's a worktree when
+    /// there is one; when the branch's <c>.fido/cfg.yaml</c> asks for the main clone it's the clone's
+    /// own working tree instead, whether that's already on the branch
     /// (<see cref="TargetKind.MainClone"/>) or offered to switch onto it
-    /// (<see cref="TargetKind.SwitchMainClone"/>). Falls back to the first card when this scan found no
-    /// main tree at all — a preference can't conjure a target that isn't there.
+    /// (<see cref="TargetKind.SwitchMainClone"/>). The preference chooses among what the scan found and
+    /// nothing more: with no main tree in the results the first card keeps the default.
     /// </summary>
     private TargetCard? PickInitialTarget(bool preferMainClone)
     {

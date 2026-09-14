@@ -160,7 +160,8 @@ public sealed class RepoConfigService
                 # options. Commit it to share it with the team. Every setting below is at its default,
                 # so the file changes nothing until you edit it.
 
-                # Start a landed scan on this clone's own working tree, not on the first worktree.
+                # Which checkout Fido offers by default once it has scanned: this clone's own working
+                # tree rather than a worktree. Every location it finds is still listed, one click away.
                 prefer main clone: false
 
                 # Scripts offered under the Console button, in the order given; '*' stands for every
