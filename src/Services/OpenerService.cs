@@ -43,6 +43,11 @@ public sealed class OpenerService
     /// <c>.lock</c> races, network blips), narrating each retry into the flight log. See <see cref="GitRetry"/>.</summary>
     private readonly ResiliencePipeline<ProcessResult> _deletionRetry;
 
+    /// <summary>Retries a transiently-failing pre-run pull. Kept to a single quick retry rather than the
+    /// deletion profile's three: the user is waiting on a console, and a pull that still won't go through
+    /// costs them nothing but a stale tree. See <see cref="UpdateBeforeRunAsync"/>.</summary>
+    private readonly ResiliencePipeline<ProcessResult> _pullRetry;
+
     public OpenerService(GitService git, SolutionFinder finder, WorkingTreeFinder workingTreeFinder,
         Action<string>? log = null, Action<string>? liveLog = null, GitRetryOptions? deletionRetry = null,
         GitHubCli? gitHub = null)
@@ -58,6 +63,11 @@ public sealed class OpenerService
         _deletionRetry = GitRetry.BuildPipeline(retryOptions, attempt =>
             _log($"[!] {attempt.Operation} failed (transient) — retrying "
                 + $"{attempt.AttemptNumber + 1}/{retryOptions.MaxRetryAttempts} in "
+                + $"{attempt.RetryDelay.TotalSeconds:0.#}s: {attempt.Failure?.Message}"));
+
+        var pullOptions = retryOptions with { MaxRetryAttempts = 1 };
+        _pullRetry = GitRetry.BuildPipeline(pullOptions, attempt =>
+            _log($"[!] {attempt.Operation} failed (transient) — retrying in "
                 + $"{attempt.RetryDelay.TotalSeconds:0.#}s: {attempt.Failure?.Message}"));
     }
 
@@ -511,6 +521,56 @@ public sealed class OpenerService
 
         _log($"Worktree ready at {path}.");
         return path;
+    }
+
+    // --- Updating before a run ------------------------------------------------------------
+
+    /// <summary>
+    /// Brings <paramref name="folder"/> level with its upstream before a command is run in it, so a script or
+    /// <c>aspire start</c> runs against what <c>origin</c> has rather than whatever was last checked out here.
+    /// <para>
+    /// Deliberately indifferent to how the folder came to be. A worktree Fido created moments ago is no more
+    /// trustworthy than one that has sat on disk for weeks: <see cref="CreateWorktreeAsync"/> and
+    /// <see cref="CheckoutInMainAsync"/> both check out the <em>local</em> branch when there is one, which may
+    /// be well behind the remote — only the fetch-and-track path is current by construction. Since the target's
+    /// kind can't tell you whether it needs updating, this runs on all of them; a genuinely current tree
+    /// answers "already up to date" for the cost of one round trip.
+    /// </para>
+    /// <para>
+    /// Advisory by design: it never throws and its result never withholds a launch. A branch that tracks
+    /// nothing is skipped (there is nothing to pull), and a pull git refuses — a diverged branch, local changes
+    /// in the way, an unreachable origin — is narrated and left alone, because a stale tree the user can still
+    /// work in beats a console that didn't open.
+    /// </para>
+    /// </summary>
+    public async Task<WorktreeUpdate> UpdateBeforeRunAsync(string folder, CancellationToken ct = default)
+    {
+        var branch = await _git.GetCurrentBranchAsync(folder, ct);
+        if (string.Equals(branch, "HEAD", StringComparison.Ordinal))
+        {
+            _log("▸ Detached HEAD here — nothing to pull.");
+            return new WorktreeUpdate(WorktreeUpdateStatus.Skipped);
+        }
+
+        if (await _git.GetUpstreamAsync(folder, ct) is not { } upstream)
+        {
+            _log($"▸ '{branch}' tracks nothing — nothing to pull.");
+            return new WorktreeUpdate(WorktreeUpdateStatus.Skipped);
+        }
+
+        _liveLog($"Pulling {upstream}…");
+        var pull = await GitRetry.ExecuteAsync(_pullRetry, "pull",
+            token => _git.PullFastForwardAsync(folder, token), ct);
+
+        if (pull.Success)
+        {
+            _log($"✓ '{branch}' is up to date with {upstream}.");
+            return new WorktreeUpdate(WorktreeUpdateStatus.UpToDate, upstream);
+        }
+
+        _log($"[!] Couldn't fast-forward '{branch}' onto {upstream}: {pull.Message}");
+        _log("▸ Running against the tree as it stands.");
+        return new WorktreeUpdate(WorktreeUpdateStatus.Failed, upstream, pull.Message);
     }
 
     // --- Worktree deletion --------------------------------------------------------------

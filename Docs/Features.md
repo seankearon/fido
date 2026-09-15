@@ -331,6 +331,35 @@ can read the output. On Windows a Windows Terminal console hosts the shell in a 
 runs on its own. **Nothing runs on its own:** Fido only ever *offers* these commands, and a placement
 offer still creates the worktree (or switches the tree) first, exactly as opening it would.
 
+### Up to date before it runs
+
+Picking a command from the Console run menu **fast-forwards the target first**, so a script or
+`aspire start` runs against what `origin` has rather than whatever was last checked out. The flight log
+narrates it (`Pulling origin/feature/x…`, then `✓ 'feature/x' is up to date with origin/feature/x`) and
+the console opens straight after.
+
+This runs at the one point where **every** kind of card has become a folder on disk, so a worktree Fido
+created a second ago goes through exactly the same step as one that has sat there for weeks — and it has
+to, because a new worktree is **not** automatically current: when the branch already exists locally,
+`git worktree add` checks out that local ref, stale and all. Only a branch fetched fresh from `origin` is
+current by construction, and the card can't tell you which you have.
+
+**It only ever fast-forwards, and it never blocks the launch.** Four things it deliberately won't do:
+
+- **Merge or rebase a diverged branch.** `--ff-only` refuses, the refusal is logged, and the console opens
+  on the tree exactly as it stands. Reconciling a divergence is your call.
+- **Touch a branch that tracks nothing.** A local-only branch that was never pushed — and a detached HEAD —
+  is skipped with a line saying so, not reported as a failure.
+- **Second-guess git about a dirty tree.** Fido doesn't pre-check for local changes: git fast-forwards
+  happily when your edits aren't in the way, and refuses with a better message than Fido could write when
+  they are.
+- **Strand you when `origin` is unreachable.** Offline, or behind an expired credential, the pull fails
+  fast (git is run with its prompts disabled, so it can never sit waiting for input you can't see), the log
+  says so, and the console still opens.
+
+Only a **run command** triggers it: opening a folder to look at it doesn't move the tree under you or cost
+you a round trip. Turn it off entirely with **Settings → Before running**.
+
 ### Mission-control console
 
 The in-app **flight log** narrates each scan and launch like a flight-control "go around
@@ -460,6 +489,9 @@ is intentionally narrow:
 - **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
   resolved branch renames the window to `<repo> · <branch>` (see **The window title** above); untick it
   and the title stays `Fido`.
+- **Before running** — **Fast-forward the target onto `origin` first** *(default on)*. On, picking a
+  command from the Console run menu updates the target before the console opens (see **Up to date before
+  it runs** above); untick it to run against the tree exactly as it stands.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
   the on-screen buttons), or **Never** (turns auto-close off).
@@ -477,6 +509,7 @@ is intentionally narrow:
 - **Search depth:** 4.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 - **Window title:** shows `<repo> · <branch>` once discovery resolves.
+- **Before running:** fast-forwards the target onto `origin` when you pick a run command.
 
 ### In-repo config (committed to the branch)
 

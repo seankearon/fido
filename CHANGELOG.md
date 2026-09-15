@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A run command now starts from an up-to-date tree.** Picking a script or `aspire start` from the
+  **Console run menu** fast-forwards the target onto `origin` before the console opens, so what runs is
+  what the branch actually has. The flight log narrates it (`Pulling origin/feature/x…`) and the console
+  follows straight after. It happens at the one point where **every** kind of card has become a folder on
+  disk, so a worktree Fido created a second ago takes exactly the same path as one that's been there for
+  weeks — which matters, because a new worktree *isn't* automatically current: when the branch already
+  exists locally, `git worktree add` checks out that local ref, however far behind it is.
+
+  **It only ever fast-forwards, and it never withholds the console.** A **diverged** branch is refused and
+  reported — reconciling one is your call, not Fido's — and the console opens on the tree as it stands. A
+  branch that **tracks nothing** (local-only, never pushed) and a **detached HEAD** are skipped with a line
+  saying so, not flagged as failures. A **dirty tree** isn't pre-checked: git fast-forwards fine when your
+  edits aren't in the way, and refuses with a better message than Fido could write when they are. And an
+  **unreachable `origin`** costs you nothing but a log line. Only a *run command* triggers it — opening a
+  folder to look at it doesn't move the tree under you — and the new **Settings → Before running** switch
+  (**on** by default, and on for configs written before it existed) turns it off.
+
 - **A repo can now configure Fido for itself, in `.fido/cfg.yaml` on the branch.** Commit a **`.fido`**
   folder at the root of your repo and Fido reads its **`cfg.yaml`** from whichever branch a scan just
   found — **before** the checkout options go up — so a solution can say how it prefers to be opened:
@@ -86,6 +103,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch as before; the flight log notes the origin branch when it was deleted.
 
 ### Changed
+
+- **No git command Fido runs can hang the app any more.** Every one is now started with git's own
+  prompting disabled (`GIT_TERMINAL_PROMPT=0`, no askpass helper, and `ssh -o BatchMode=yes` unless you've
+  set `GIT_SSH_COMMAND` yourself), so a repo git can't authenticate to fails in milliseconds with a message
+  in the flight log instead of sitting forever on a prompt that — with the console window hidden and the
+  pipes redirected — had nowhere to appear. (A credential helper that shows its **own** window is left
+  alone: you can see and answer that one, and disabling helpers would break every private-repo fetch.)
+  A **five-minute backstop** catches anything that wedges anyway — set well clear of what a big first fetch
+  can legitimately take, since killing a real transfer part-way is worse than waiting for it — and a
+  cancelled command is now **killed along with everything it spawned** rather than abandoned: discovery
+  re-runs on every keystroke, so a stranded `git` per keystroke was a real prospect.
+  This applies to the whole of Fido's git usage, not just the new pre-run fast-forward. Nothing it accepts
+  changes — `BatchMode` makes ssh *refuse* where it used to ask, never trust something it wouldn't have.
 
 - **The main screen was redesigned around inline discovery** (per the Claude Design handoff in
   `design/design_handoff_fido_redesign`) — one window, one screen, no auto-popping dialogs:

@@ -99,6 +99,29 @@ public sealed class GitService
     public Task<ProcessResult> FetchBranchAsync(string dir, string branch, CancellationToken ct = default)
         => Git(dir, ct, "fetch", "origin", $"{RefsHeads}{branch}:refs/remotes/origin/{branch}");
 
+    /// <summary>
+    /// The branch's upstream as <c>&lt;remote&gt;/&lt;branch&gt;</c> (e.g. <c>origin/feature/x</c>), or null when
+    /// there isn't one — a local-only branch that was never pushed, or a detached HEAD. Both are ordinary
+    /// states rather than failures, so a branch that tracks nothing simply comes back null.
+    /// </summary>
+    public async Task<string?> GetUpstreamAsync(string dir, CancellationToken ct = default)
+    {
+        var r = await Git(dir, ct, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}");
+        if (!r.Success) return null;
+        var name = r.StdOut.Trim();
+        return name.Length > 0 ? name : null;
+    }
+
+    /// <summary>
+    /// Fast-forwards the working tree at <paramref name="dir"/> onto its upstream. <c>--ff-only</c> is the
+    /// point: a diverged branch is refused rather than merged or rebased, because reconciling one is the
+    /// user's call and never something Fido should do behind a console launch. git is left to judge whether
+    /// a dirty tree is in the way — it fast-forwards fine when the local edits don't collide, and its own
+    /// refusal reads better than anything we could pre-empt it with.
+    /// </summary>
+    public Task<ProcessResult> PullFastForwardAsync(string dir, CancellationToken ct = default)
+        => Git(dir, ct, "pull", "--ff-only");
+
     /// <summary>Current branch of the working tree, or <c>"HEAD"</c> when detached.</summary>
     public async Task<string> GetCurrentBranchAsync(string dir, CancellationToken ct = default)
     {

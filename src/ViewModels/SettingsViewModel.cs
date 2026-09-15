@@ -15,6 +15,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _worktreeRoot = "";
     private AppTheme _selectedTheme = AppTheme.System;
     private bool _showTargetInWindowTitle = true;
+    private bool _pullBeforeRun = true;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
     private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
@@ -104,6 +105,14 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _showTargetInWindowTitle, value);
     }
 
+    /// <summary>Whether a pick from the Console run menu fast-forwards the target first;
+    /// unticked runs against the tree exactly as it stands.</summary>
+    public bool PullBeforeRun
+    {
+        get => _pullBeforeRun;
+        set => SetField(ref _pullBeforeRun, value);
+    }
+
     public CloseAfterOpen CloseAfterOpen
     {
         get => _closeAfterOpen;
@@ -170,6 +179,7 @@ public sealed class SettingsViewModel : ObservableObject
         }
         SelectedTheme = config.Theme;
         ShowTargetInWindowTitle = config.ShowTargetInWindowTitle;
+        PullBeforeRun = config.PullBeforeRun;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -189,6 +199,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.RiderPath = null;   // superseded by Editors; clear the migrated legacy value
         config.Theme = SelectedTheme;
         config.ShowTargetInWindowTitle = ShowTargetInWindowTitle;
+        config.PullBeforeRun = PullBeforeRun;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer

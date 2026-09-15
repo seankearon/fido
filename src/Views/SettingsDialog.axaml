@@ -98,6 +98,16 @@
 
         <StackPanel Spacing="9">
             <TextBlock Classes="label" TextWrapping="Wrap">
+                <Run Text="Before running " /><Run Text="· what the Console run menu does first" Foreground="{DynamicResource FidoTextDim}" />
+            </TextBlock>
+            <CheckBox x:Name="PullBeforeRunCheck" Classes="fido"
+                      IsChecked="{Binding PullBeforeRun, Mode=TwoWay}"
+                      Content="Fast-forward the target onto origin first"
+                      ToolTip.Tip="On: a script or `aspire start` runs against what origin has. Only ever fast-forwards — a diverged branch or an unreachable origin is reported and the console still opens." />
+        </StackPanel>
+
+        <StackPanel Spacing="9">
+            <TextBlock Classes="label" TextWrapping="Wrap">
                 <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
             </TextBlock>
             <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
