@@ -37,7 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`.ps1`, `.cmd`, `.bat`, `.sh`); and **`aspire start`** adds that command to the same menu for an
   Aspire app host. Picking an entry opens the console at the **selected** location
   and runs the command there — a `.ps1` via PowerShell, a root `.sh` as `./name`, anything else via the
-  platform's shell — leaving the window open so you can read the output. **Nothing ever runs by itself:**
+  platform's shell — leaving the window open so you can read the output. On Windows, a console that *is* a
+  shell is used exactly as configured, while one that merely **hosts** a shell (Windows Terminal, or a
+  third-party emulator) gets the best on the machine: **`pwsh` first**, then Windows PowerShell. A host
+  console says nothing about which shell it wants, and the difference is not cosmetic — a tool your
+  PowerShell profile puts on `PATH` is "not recognized" under `cmd`, and Windows PowerShell's default
+  execution policy refuses `.ps1` files outright. `cmd` is never chosen for you, only honoured when you
+  configured it, and a `.ps1` overrides even that. **Nothing ever runs by itself:**
   the menu only offers. The file is read from the working tree when the branch is checked out (so an
   uncommitted edit counts) and straight off the branch — `origin/<branch>` included — when it isn't, so
   it applies to a placement offer too. Keys are forgiving about case, spaces, dashes and underscores;

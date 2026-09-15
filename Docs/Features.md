@@ -331,6 +331,15 @@ can read the output. On Windows a Windows Terminal console hosts the shell in a 
 runs on its own. **Nothing runs on its own:** Fido only ever *offers* these commands, and a placement
 offer still creates the worktree (or switches the tree) first, exactly as opening it would.
 
+**Which shell runs it (Windows).** A console that *is* a shell — `cmd`, `powershell`, `pwsh` — is used
+exactly as you configured it; you picked it on purpose. Windows Terminal and third-party emulators are
+different: they only **host** a shell and say nothing about which, so Fido picks the best on the machine —
+**`pwsh` first**, then Windows PowerShell. That matters more than it sounds: PATH entries and aliases your
+PowerShell profile sets up are the difference between `aspire start` running and coming back *'aspire' is
+not recognized*, and Windows PowerShell ships with an execution policy that refuses to run `.ps1` files at
+all. `cmd` is never chosen for you — only honoured when it's what you configured — and even then a `.ps1`
+goes to a PowerShell, since `cmd` can't run one.
+
 ### Up to date before it runs
 
 Picking a command from the Console run menu **fast-forwards the target first**, so a script or
