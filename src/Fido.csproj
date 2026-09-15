@@ -34,6 +34,15 @@
         <SelfContained Condition="'$(_IsPublishing)' == 'true' And '$(PublishAot)' != 'true' And '$(RuntimeIdentifier)' != ''">true</SelfContained>
     </PropertyGroup>
 
+    <!-- The header shows the running build's version, so an ordinary build needs one. Only the
+         release build supplies it (Fido.Build generates a root Directory.Build.props from ver.txt,
+         which is imported before this file and so wins the condition below); everything else - the
+         IDE, CI, `dotnet run` - would otherwise be stamped with the SDK's 1.0.0 default and claim a
+         version Fido has never released. ver.txt is the same single source of truth either way. -->
+    <PropertyGroup Condition="'$(Version)' == '' And Exists('$(MSBuildThisFileDirectory)..\ver.txt')">
+        <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\ver.txt').Trim())</Version>
+    </PropertyGroup>
+
     <ItemGroup>
         <!-- Brand assets live at the repo root; link them into the Fido namespace as avares resources. -->
         <AvaloniaResource Include="..\assets\png\fido-icon-256.png" Link="Assets\fido-icon-256.png" />

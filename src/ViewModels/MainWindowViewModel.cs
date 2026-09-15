@@ -4,6 +4,7 @@ using System.IO;
 using Avalonia.Threading;
 using Fido.Models;
 using Fido.Mvvm;
+using Fido.Services;
 
 namespace Fido.ViewModels;
 
@@ -19,6 +20,14 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>The plain window title: what the title bar reads before discovery resolves anything, and
     /// all it ever reads when <see cref="ShowTargetInTitle"/> is off.</summary>
     public const string AppTitle = "Fido";
+
+    /// <summary>The running build's version, for the badge beside the header wordmark: <c>v0.9.3</c>.
+    /// Read from the assembly, so it names what is actually running rather than what a file on disk says.</summary>
+    public string VersionLabel => AppVersion.Label;
+
+    /// <summary>Whether there is a version to show at all — false only for a build that carries none,
+    /// which keeps the badge (and its gap after the wordmark) out of the header entirely.</summary>
+    public bool HasVersionLabel => VersionLabel.Length > 0;
 
     public MainWindowViewModel() =>
         // The log's copy/save actions are gated on there being something to hand over.
