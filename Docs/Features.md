@@ -391,6 +391,19 @@ again.
 Prefer the title to stay put? Untick **Window title · _Show the repo and branch once
 discovery resolves them_** in Settings and it reads `Fido` throughout.
 
+### The version badge
+
+The running build's version sits beside the **fido** wordmark in the header, in small muted
+type on the wordmark's own baseline —
+
+```text
+fido  v0.9.3
+```
+
+— so "which Fido is this?" is answered on screen rather than from the installed-programs
+list or the exe's properties. It is read from the **running assembly**, so it names what is
+actually running.
+
 ### Keyboard & shortcuts
 
 - The **branch** field is focused on launch. Typing debounces into a scan; **Enter**

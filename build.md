@@ -129,6 +129,12 @@ place of one native binary.
 file. Fido has never been released, so **the first release should pin `version:1.0.0`** —
 after that the file carries it.
 
+`ver.txt` is also what an **ordinary** build stamps: `src/Fido.csproj` reads it whenever
+nothing else set `Version`, so a build from the IDE, from CI or from `dotnet run` carries
+a real number — and shows it in the app's header — rather than the SDK's `1.0.0` default.
+The generated `Directory.Build.props` is imported before the project body, so the release
+build's own version still wins.
+
 ### Code signing
 
 Parcel signs the app exe, the NSIS uninstaller and the installer with **Azure Trusted

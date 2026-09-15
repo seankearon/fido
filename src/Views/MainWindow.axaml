@@ -51,8 +51,15 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="fido" FontSize="26" FontWeight="ExtraBold" LetterSpacing="-0.5"
-                                   Foreground="{DynamicResource FidoTextPrimary}" />
+                        <!-- Wordmark, with the running build's version as a small badge on its baseline -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="fido" FontSize="26" FontWeight="ExtraBold" LetterSpacing="-0.5"
+                                       Foreground="{DynamicResource FidoTextPrimary}" />
+                            <TextBlock x:Name="VersionBadge" Text="{Binding VersionLabel}"
+                                       IsVisible="{Binding HasVersionLabel}"
+                                       FontSize="11.5" Foreground="{DynamicResource FidoTextMuted}"
+                                       VerticalAlignment="Bottom" Margin="0,0,0,4" />
+                        </StackPanel>
                         <TextBlock Text="Flight Dynamics Officer — guiding Rider to a safe landing"
                                    FontSize="12.5" Foreground="{DynamicResource FidoTagline}" TextWrapping="Wrap" />
                     </StackPanel>

@@ -85,6 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   simply offered without a PR note. The confirmed delete still removes the worktree and the **local**
   branch as before; the flight log notes the origin branch when it was deleted.
 
+- **The header now says which Fido you are running.** The version sits beside the **fido** wordmark in
+  small, muted type — `v0.9.3`, on the wordmark's own baseline — so answering *"which build is this?"*
+  no longer means going to the installed-programs list or the exe's properties. The number is read from
+  the **running assembly** rather than from a file next to it, so it names what is actually running, and
+  a source-linked build's `+<commit>` suffix is dropped to keep the badge to a version. An ordinary
+  build (the IDE, CI, `dotnet run`) now takes that version from **`ver.txt`** — the same single source a
+  release stamps from — instead of carrying the SDK's `1.0.0` placeholder into the header.
+
 ### Changed
 
 - **The main screen was redesigned around inline discovery** (per the Claude Design handoff in
