@@ -34,7 +34,7 @@ let WindowsRuntime = "win-x64"
 
 /// Both mac architectures: Parcel merges them into one universal bundle with lipo, so a
 /// single .dmg runs natively on Apple Silicon and Intel alike.
-let MacRuntimes = [ "osx-arm64"; "osx-x64" ]
+let MacRuntimes = [ "osx-arm64" ]
 
 // --- arguments -------------------------------------------------------------
 
