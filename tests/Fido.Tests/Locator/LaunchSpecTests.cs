@@ -74,6 +74,72 @@ public class LaunchSpecTests
         }
     }
 
+    /// <summary>A machine with PowerShell 7 installed.</summary>
+    private const string Pwsh = @"C:\Program Files\PowerShell\7\pwsh.exe";
+    private static string? WithPwsh(string name) => name switch
+    {
+        "pwsh" => Pwsh,
+        "powershell" => @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        _ => null,
+    };
+
+    /// <summary>A machine with only Windows PowerShell.</summary>
+    private static string? NoPwsh(string name) =>
+        name == "powershell" ? @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" : null;
+
+    /// <summary>A machine where neither resolves — the last-resort literal has to carry it.</summary>
+    private static string? NoShells(string name) => null;
+
+    /// <summary>
+    /// Which shell a Windows console command lands in. Asserted directly rather than through
+    /// <see cref="EditorLauncher.BuildLaunchSpec"/> so it runs on every CI leg, not just the Windows one —
+    /// this is the decision that governs whether a repo's command can resolve at all, and getting it wrong
+    /// is invisible until a user's `aspire start` comes back "not recognized".
+    /// </summary>
+    [Test]
+    public async Task A_console_that_only_hosts_a_shell_gets_the_best_one_on_the_machine()
+    {
+        const string Wt = @"C:\…\WindowsApps\wt.exe";
+
+        // Windows Terminal is a host, not a shell — it says nothing about which shell to use, so the
+        // choice is ours and PowerShell 7 wins: it's where the user's PATH, profile and execution
+        // policy live. cmd would find neither a dotnet tool on a profile-set PATH nor a function.
+        await Assert.That(string.Join(' ', EditorLauncher.WindowsShellFor(Wt, "aspire start", WithPwsh)))
+            .IsEqualTo($"{Pwsh} -NoExit -Command aspire start");
+
+        // Same for a script: pwsh, not the Windows PowerShell whose execution policy is Restricted
+        // out of the box.
+        await Assert.That(string.Join(' ', EditorLauncher.WindowsShellFor(Wt, "run-pirform.ps1", WithPwsh)))
+            .IsEqualTo($"{Pwsh} -NoExit -File run-pirform.ps1");
+
+        // Without PowerShell 7, Windows PowerShell carries it — never cmd, which resolves the least.
+        await Assert.That(EditorLauncher.WindowsShellFor(Wt, "aspire start", NoPwsh)[0])
+            .EndsWith("powershell.exe");
+        await Assert.That(EditorLauncher.WindowsShellFor(Wt, "aspire start", NoShells)[0])
+            .IsEqualTo("powershell.exe");   // the last-resort literal; present on every Windows machine
+    }
+
+    [Test]
+    public async Task A_console_that_is_itself_a_shell_is_used_exactly_as_configured()
+    {
+        // Bare program names, because this test runs on every CI leg: a configured console is matched by
+        // program name, and `Path.GetFileNameWithoutExtension` only splits on `\` when it's running on
+        // Windows — so a Windows-style path here would silently match nothing on the Linux leg. Production
+        // passes a full path from `Locate`, where that split works.
+        const string Cmd = "cmd.exe";
+        const string WinPs = "powershell.exe";
+
+        // Configuring a shell is a deliberate choice, so it's honoured — pwsh is never substituted in,
+        // even when it's sitting right there on the machine.
+        await Assert.That(string.Join(' ', EditorLauncher.WindowsShellFor(Cmd, "aspire start", WithPwsh)))
+            .IsEqualTo($"{Cmd} /k aspire start");
+        await Assert.That(string.Join(' ', EditorLauncher.WindowsShellFor(WinPs, "aspire start", WithPwsh)))
+            .IsEqualTo($"{WinPs} -NoExit -Command aspire start");
+
+        // The one override: cmd can't run a .ps1 at all, so a script still goes to a PowerShell.
+        await Assert.That(EditorLauncher.WindowsShellFor(Cmd, "build.ps1", WithPwsh)[0]).IsEqualTo(Pwsh);
+    }
+
     [Test]
     public async Task A_console_run_command_is_hosted_by_the_platforms_shell()
     {
@@ -81,24 +147,25 @@ public class LaunchSpecTests
 
         if (OperatingSystem.IsWindows())
         {
-            // A plain command goes through `cmd /k`, which keeps the window open to read the output.
-            var aspire = EditorLauncher.BuildLaunchSpec(editor, @"C:\Windows\System32\cmd.exe", Folder, "aspire start");
+            // An explicitly-configured cmd is honoured: it's what the user picked.
+            var aspire = EditorLauncher.BuildLaunchSpec(editor, @"C:\Windows\System32\cmd.exe", Folder, "aspire start", NoPwsh);
             await Assert.That(Path.GetFileName(aspire.FileName)).IsEqualTo("cmd.exe");
             await Assert.That(string.Join(' ', aspire.Arguments)).IsEqualTo("/k aspire start");
             await Assert.That(aspire.WorkingDirectory).IsEqualTo(Folder);
             await Assert.That(aspire.UseShellExecute).IsTrue();
 
             // A .ps1 needs PowerShell's -File: cmd would hand it to its file association instead.
-            var script = EditorLauncher.BuildLaunchSpec(editor, @"C:\Windows\System32\cmd.exe", Folder, "build.ps1");
+            var script = EditorLauncher.BuildLaunchSpec(editor, @"C:\Windows\System32\cmd.exe", Folder, "build.ps1", NoPwsh);
             await Assert.That(Path.GetFileName(script.FileName)).IsEqualTo("powershell.exe");
             await Assert.That(string.Join(' ', script.Arguments)).IsEqualTo("-NoExit -File build.ps1");
 
-            // Windows Terminal hosts the shell instead of being bypassed, so the run lands in a wt tab.
-            var wt = EditorLauncher.BuildLaunchSpec(editor, @"C:\…\WindowsApps\wt.exe", Folder, "aspire start");
-            await Assert.That(string.Join(' ', wt.Arguments)).IsEqualTo($"-d {Folder} cmd.exe /k aspire start");
+            // Windows Terminal hosts the shell instead of being bypassed, so the run lands in a wt tab —
+            // and the shell it hosts is PowerShell 7 when the machine has it.
+            var wt = EditorLauncher.BuildLaunchSpec(editor, @"C:\…\WindowsApps\wt.exe", Folder, "aspire start", WithPwsh);
+            await Assert.That(string.Join(' ', wt.Arguments)).IsEqualTo($"-d {Folder} {Pwsh} -NoExit -Command aspire start");
 
             // The configured PowerShell is the host for anything else it's given.
-            var pwsh = EditorLauncher.BuildLaunchSpec(editor, @"C:\Program Files\PowerShell\7\pwsh.exe", Folder, "aspire start");
+            var pwsh = EditorLauncher.BuildLaunchSpec(editor, @"C:\Program Files\PowerShell\7\pwsh.exe", Folder, "aspire start", NoPwsh);
             await Assert.That(Path.GetFileName(pwsh.FileName)).IsEqualTo("pwsh.exe");
             await Assert.That(string.Join(' ', pwsh.Arguments)).IsEqualTo("-NoExit -Command aspire start");
         }

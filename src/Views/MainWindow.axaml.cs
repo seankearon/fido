@@ -506,6 +506,14 @@ public partial class MainWindow : Window
                 folder = card.Target.Path;
             }
 
+            // Every card kind converges here on a folder that exists, which is the one place a pre-run
+            // update belongs: a freshly-created worktree is no more current than one that's been on disk
+            // for weeks (both check out the local branch when there is one), so the target's kind can't
+            // decide this and doesn't try to. Advisory — a pull that won't go through still opens the
+            // console. Only for a run command: opening a folder to look at it doesn't warrant the wait.
+            if (consoleCommand is not null && _config.PullBeforeRun)
+                await _opener.UpdateBeforeRunAsync(folder);
+
             // A placement card's chips previewed the clone's files before the branch was placed;
             // re-resolve the chosen solution against what's actually in the tree now.
             if (solution is not null && card.Target.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone)

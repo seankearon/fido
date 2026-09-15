@@ -78,6 +78,16 @@ public sealed class AppConfig
     /// </summary>
     public bool ShowTargetInWindowTitle { get; set; } = true;
 
+    /// <summary>
+    /// Whether picking a command from the Console button's run menu first fast-forwards the target onto its
+    /// upstream, so a script or <c>aspire start</c> runs against what <c>origin</c> has. Default on: you're
+    /// about to run the thing, so it should be current. It only ever fast-forwards — a diverged branch, local
+    /// changes in the way, or an unreachable origin is reported in the flight log and the console still opens.
+    /// Turn it off for a repo where the round trip isn't worth the wait. A config written before this setting
+    /// existed has no entry for it and so keeps the default.
+    /// </summary>
+    public bool PullBeforeRun { get; set; } = true;
+
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
 

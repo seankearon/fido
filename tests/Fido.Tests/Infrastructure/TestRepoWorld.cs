@@ -91,6 +91,26 @@ public sealed class TestRepoWorld : IDisposable
         ForceDelete(pub);   // discard the publisher so it's never scanned as a working tree
     }
 
+    /// <summary>
+    /// Adds a commit to <paramref name="branch"/> on <paramref name="origin"/> from a throwaway clone (then
+    /// discards it), mirroring a teammate pushing while your checkout sat there — so a clone or worktree made
+    /// earlier is now genuinely <em>behind</em> its upstream and has something to fast-forward onto. Returns
+    /// the name of the file the commit added, so a test can assert it arrived.
+    /// </summary>
+    public string CommitToOrigin(string origin, string branch, string? fileName = null)
+    {
+        var name = fileName ?? $"from-origin-{Guid.NewGuid():N}.txt";
+        var pub = Path.Combine(Root, "publishers", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.GetDirectoryName(pub)!);
+        Git(Root, "clone", "--branch", branch, origin, pub);
+        File.WriteAllText(Path.Combine(pub, name), name);
+        Git(pub, "add", "-A");
+        Git(pub, "commit", "-m", $"advance {branch}");
+        Git(pub, "push", "origin", branch);
+        ForceDelete(pub);   // discard the publisher so it's never scanned as a working tree
+        return name;
+    }
+
     /// <summary>Adds a linked worktree on a new branch; returns the worktree path.</summary>
     public string AddWorktree(string clonePath, string branch)
     {
@@ -192,6 +212,7 @@ public sealed class TestRepoWorld : IDisposable
         string? worktreeRoot = null,
         CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
         int closeAfterOpenDelaySeconds = 0,
+        bool pullBeforeRun = true,
         GitService? git = null,
         GitHubCli? gitHub = null)
     {
@@ -203,6 +224,7 @@ public sealed class TestRepoWorld : IDisposable
             WorktreeRoot = worktreeRoot,
             CloseAfterOpen = closeAfterOpen,
             CloseAfterOpenDelaySeconds = closeAfterOpenDelaySeconds,
+            PullBeforeRun = pullBeforeRun,
         };
 
         var configDir = Path.Combine(Root, "config", Guid.NewGuid().ToString("N"));

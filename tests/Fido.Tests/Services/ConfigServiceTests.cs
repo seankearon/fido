@@ -176,6 +176,7 @@ public class ConfigServiceTests
         var loaded = svc.Load();
 
         await Assert.That(loaded.ShowTargetInWindowTitle).IsTrue();
+        await Assert.That(loaded.PullBeforeRun).IsTrue();
         await Assert.That(loaded.Theme).IsEqualTo(AppTheme.Dark);   // the rest of the file still read
     }
 
@@ -187,5 +188,15 @@ public class ConfigServiceTests
         svc.Save(new AppConfig { ShowTargetInWindowTitle = false });
 
         await Assert.That(svc.Load().ShowTargetInWindowTitle).IsFalse();
+    }
+
+    [Test]
+    public async Task Turning_the_pre_run_pull_off_survives_a_save_and_load_round_trip()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig { PullBeforeRun = false });
+
+        await Assert.That(svc.Load().PullBeforeRun).IsFalse();
     }
 }

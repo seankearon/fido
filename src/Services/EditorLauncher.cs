@@ -53,11 +53,11 @@ public sealed class EditorLauncher : IEditorLauncher
     /// started) so the per-platform command construction can be unit-tested.
     /// </summary>
     internal static LaunchSpec BuildLaunchSpec(Editor editor, string executable, string targetPath,
-        string? consoleCommand = null) =>
+        string? consoleCommand = null, Func<string, string?>? onPath = null) =>
         editor.Kind switch
         {
             EditorKind.Console when !string.IsNullOrWhiteSpace(consoleCommand) =>
-                BuildConsoleRunSpec(editor, executable, targetPath, consoleCommand.Trim()),
+                BuildConsoleRunSpec(editor, executable, targetPath, consoleCommand.Trim(), onPath ?? ResolveCommandName),
             EditorKind.Console => BuildConsoleSpec(editor, executable, targetPath),
             EditorKind.FileExplorer => BuildFileExplorerSpec(executable, targetPath),
             _ => BuildEditorSpec(editor, executable, targetPath),
@@ -113,9 +113,10 @@ public sealed class EditorLauncher : IEditorLauncher
     /// configured console), macOS asks the terminal app through AppleScript's <c>do script</c>, and Linux uses
     /// the emulators' <c>-e</c> convention.
     /// </summary>
-    private static LaunchSpec BuildConsoleRunSpec(Editor editor, string executable, string folder, string command)
+    private static LaunchSpec BuildConsoleRunSpec(Editor editor, string executable, string folder, string command,
+        Func<string, string?> onPath)
     {
-        if (OperatingSystem.IsWindows()) return BuildWindowsRunSpec(editor, executable, folder, command);
+        if (OperatingSystem.IsWindows()) return BuildWindowsRunSpec(editor, executable, folder, command, onPath);
         if (OperatingSystem.IsMacOS()) return BuildMacRunSpec(executable, folder, command);
         return BuildLinuxRunSpec(editor, executable, folder, command);
     }
@@ -126,10 +127,11 @@ public sealed class EditorLauncher : IEditorLauncher
     /// the shell itself, since an arbitrary terminal has no portable way to be handed a command. The console
     /// row's own arguments therefore only ride along when the configured console <em>is</em> the shell used.
     /// </summary>
-    private static LaunchSpec BuildWindowsRunSpec(Editor editor, string executable, string folder, string command)
+    private static LaunchSpec BuildWindowsRunSpec(Editor editor, string executable, string folder, string command,
+        Func<string, string?> onPath)
     {
         var extra = SplitArguments(editor.Arguments);
-        var shell = WindowsShellFor(executable, command);
+        var shell = WindowsShellFor(executable, command, onPath);
 
         if (IsProgram(executable, "wt"))
             return new LaunchSpec(executable, [.. extra, "-d", folder, .. shell], folder, UseShellExecute: true);
@@ -139,23 +141,50 @@ public sealed class EditorLauncher : IEditorLauncher
     }
 
     /// <summary>
-    /// How to run <paramref name="command"/> in a Windows shell, keeping the window open when it finishes: a
-    /// <c>.ps1</c> goes to PowerShell as <c>-NoExit -File</c> (PowerShell won't run a bare script name from the
-    /// current directory, and <c>cmd</c> would hand a <c>.ps1</c> to whatever it's associated with), the
-    /// configured PowerShell takes anything else as <c>-NoExit -Command</c>, and everything else goes through
-    /// <c>cmd /k</c>. The returned array is the program followed by its arguments.
+    /// How to run <paramref name="command"/> in a Windows shell, keeping the window open when it finishes,
+    /// as the program followed by its arguments. A <c>.ps1</c> goes to PowerShell as <c>-NoExit -File</c>
+    /// (PowerShell won't run a bare script name from the current directory, and <c>cmd</c> would hand a
+    /// <c>.ps1</c> to whatever the extension is associated with); a PowerShell takes anything else as
+    /// <c>-NoExit -Command</c>, and <c>cmd</c> as <c>/k</c>. Which shell that is, is
+    /// <see cref="WindowsShell"/>'s decision. Internal so the choice can be tested directly on any OS —
+    /// it's the part that decides whether a repo's command can resolve at all.
     /// </summary>
-    private static string[] WindowsShellFor(string executable, string command)
+    internal static string[] WindowsShellFor(string executable, string command, Func<string, string?> onPath)
     {
         var tokens = SplitCommand(command);
-        var isPowerShell = IsProgram(executable, "pwsh") || IsProgram(executable, "powershell");
+        var needsPowerShell = tokens.Length > 0 && tokens[0].EndsWith(".ps1", StringComparison.OrdinalIgnoreCase);
+        var shell = WindowsShell(executable, needsPowerShell, onPath);
 
-        if (tokens.Length > 0 && tokens[0].EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
-            return [isPowerShell ? executable : "powershell.exe", "-NoExit", "-File", .. tokens];
+        if (needsPowerShell) return [shell, "-NoExit", "-File", .. tokens];
 
-        return isPowerShell
-            ? [executable, "-NoExit", "-Command", command]
-            : [IsProgram(executable, "cmd") ? executable : "cmd.exe", "/k", .. tokens];
+        return IsProgram(shell, "cmd")
+            ? [shell, "/k", .. tokens]
+            : [shell, "-NoExit", "-Command", command];
+    }
+
+    /// <summary>
+    /// Which Windows shell actually runs a console command.
+    /// <para>
+    /// A console that <em>is</em> a shell — <c>cmd</c>, <c>powershell</c>, <c>pwsh</c> — was chosen
+    /// deliberately, so it's used as configured. Windows Terminal and third-party emulators are different:
+    /// they only <em>host</em> a shell and say nothing about which one, so the best on the machine is picked
+    /// rather than the oldest. <c>pwsh</c> leads, because a machine with PowerShell 7 installed is one whose
+    /// <c>PATH</c>, profile and execution policy are set up there — and <c>-Command</c> loads that profile
+    /// before running, so a tool the profile puts on <c>PATH</c> resolves. Windows PowerShell is the
+    /// fallback, being present on every Windows machine.
+    /// </para>
+    /// <para>
+    /// <c>cmd</c> is never chosen for a host console, only honoured when it's what the user configured: it
+    /// resolves the least of the three, finding neither what a PowerShell profile adds to <c>PATH</c> nor a
+    /// function or alias — which is how <c>aspire start</c> ends up as "not recognized" in a terminal where
+    /// it plainly works. A <c>.ps1</c> overrides even an explicit <c>cmd</c>, which can't run one at all.
+    /// </para>
+    /// </summary>
+    private static string WindowsShell(string executable, bool needsPowerShell, Func<string, string?> onPath)
+    {
+        if (IsProgram(executable, "pwsh") || IsProgram(executable, "powershell")) return executable;
+        if (IsProgram(executable, "cmd") && !needsPowerShell) return executable;
+        return onPath("pwsh") ?? onPath("powershell") ?? "powershell.exe";
     }
 
     /// <summary>
