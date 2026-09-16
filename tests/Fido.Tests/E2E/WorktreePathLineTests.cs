@@ -264,4 +264,62 @@ public class WorktreePathLineTests
             await Assert.That(window.LogText()).Contains(Path.Combine(root, "platform.worktrees", "qwe"));
         });
     }
+
+    [Test]
+    public async Task A_search_root_that_is_itself_a_clone_still_offers_its_sibling_worktree_folder()
+    {
+        // The reported layout: the search roots name the clones themselves (D:\main\fido,
+        // D:\main\klippy) rather than a folder containing them, and each clone's worktrees live in a
+        // SIBLING container (D:\main\fido.worktrees) that no search root covers.
+        using var world = new TestRepoWorld();
+        var main = world.SearchRoot("main");
+        var fidoOrigin = world.CreateOrigin("fido", "Fido");
+        var klippyOrigin = world.CreateOrigin("klippy", "Klippy");
+        var fido = world.Clone(fidoOrigin, main, "fido");
+        var klippy = world.Clone(klippyOrigin, main, "klippy");
+        // A worktree on some other branch, which is what puts fido.worktrees on disk.
+        world.AddWorktree(fido, "claude-something");
+
+        var services = world.BuildServices([fido, klippy], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("xyz");
+
+            var vm = window.Vm();
+            await Assert.That(vm.Phase).IsEqualTo(DiscoveryPhase.NotFound);   // no repo has 'xyz'
+
+            // …and yet both clones say where 'xyz' would go, fido first: it is the one that already
+            // has a worktree container beside it.
+            await Assert.That(vm.WorktreePaths.Count).IsEqualTo(2);
+            await Assert.That(vm.WorktreePaths[0].RepoName).IsEqualTo("fido");
+            await Assert.That(vm.WorktreePaths[0].Path)
+                .IsEqualTo(Path.Combine(main, "fido.worktrees", "xyz"));
+            await Assert.That(vm.WorktreePaths[1].RepoName).IsEqualTo("klippy");
+            await Assert.That(vm.WorktreePaths[1].Path)
+                .IsEqualTo(Path.Combine(main, "klippy.worktrees", "xyz"));
+            Screenshots.Save(window, "worktree-path-line-clone-roots");
+        });
+    }
+
+    [Test]
+    public async Task A_search_root_that_isnt_on_this_machine_doesnt_stop_the_others_answering()
+    {
+        // The reported config also listed a root that holds no clone at all; it must cost nothing.
+        using var world = new TestRepoWorld();
+        var main = world.SearchRoot("main");
+        var fido = world.Clone(world.CreateOrigin("fido", "Fido"), main, "fido");
+        var missing = Path.Combine(world.Root, "no-such-root");
+
+        var services = world.BuildServices([missing, fido], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("xyz");
+
+            var vm = window.Vm();
+            await Assert.That(vm.WorktreePaths.Count).IsEqualTo(1);
+            await Assert.That(vm.WorktreePaths[0].Path).IsEqualTo(Path.Combine(main, "fido.worktrees", "xyz"));
+        });
+    }
 }

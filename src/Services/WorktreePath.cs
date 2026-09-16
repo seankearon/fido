@@ -20,10 +20,22 @@ public static class WorktreePath
     {
         var folder = FolderName(branch);
 
-        if (!string.IsNullOrWhiteSpace(config.WorktreeRoot))
-            return Path.Combine(config.WorktreeRoot, folder);
+        return Normalize(string.IsNullOrWhiteSpace(config.WorktreeRoot)
+            ? Path.Combine(ContainerOf(mainWorktreePath), folder)
+            : Path.Combine(config.WorktreeRoot, folder));
+    }
 
-        return Path.Combine(ContainerOf(mainWorktreePath), folder);
+    /// <summary>
+    /// The path written the way this platform writes them. git reports POSIX-style paths even on Windows
+    /// — <c>git rev-parse --git-common-dir</c> answers <c>D:/main/fido/.git</c> — so a folder derived
+    /// from one would otherwise read, and paste, as <c>D:/main\fido.worktrees\xyz</c>. Only a rooted path
+    /// is resolved: a worktree root still carrying an unexpanded <c>%USERPROFILE%</c> is left exactly as
+    /// the user wrote it rather than being resolved against the current directory.
+    /// </summary>
+    private static string Normalize(string path)
+    {
+        try { return Path.IsPathRooted(path) ? Path.GetFullPath(path) : path; }
+        catch { return path; }   // a malformed path is still better shown than thrown over
     }
 
     /// <summary>
@@ -40,7 +52,7 @@ public static class WorktreePath
         if (string.IsNullOrWhiteSpace(branch)) return [];
 
         if (!string.IsNullOrWhiteSpace(config.WorktreeRoot))
-            return [new WorktreeCandidate(Path.Combine(config.WorktreeRoot, FolderName(branch)), "")];
+            return [new WorktreeCandidate(InRepo("", branch, config), "")];
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new List<WorktreeCandidate>();

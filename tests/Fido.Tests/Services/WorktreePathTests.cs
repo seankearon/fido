@@ -56,6 +56,21 @@ public class WorktreePathTests
         await Assert.That(path).IsEqualTo(P("src", "platform.worktrees", "release"));
     }
 
+    [Test]
+    public async Task A_clone_path_in_gits_own_posix_style_comes_back_in_this_platforms_separators()
+    {
+        // git answers `rev-parse --git-common-dir` with forward slashes even on Windows, so the clone
+        // path arrives as D:/main/fido. What we show and copy must not come back as the half-and-half
+        // D:/main\fido.worktrees\xyz.
+        var clone = P("main", "fido").Replace(Path.DirectorySeparatorChar, '/');
+
+        var path = WorktreePath.InRepo(clone, "xyz", new AppConfig());
+
+        await Assert.That(path).IsEqualTo(P("main", "fido.worktrees", "xyz"));
+        if (Path.DirectorySeparatorChar != '/')
+            await Assert.That(path).DoesNotContain("/");
+    }
+
     // --- What the line under the branch box offers -------------------------------------
 
     [Test]
