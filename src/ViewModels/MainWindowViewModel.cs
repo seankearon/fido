@@ -41,7 +41,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public string BranchName
     {
         get => _branchName;
-        set => SetField(ref _branchName, value);
+        set
+        {
+            if (SetField(ref _branchName, value))
+                RebuildWorktreePaths();
+        }
     }
 
     /// <summary>Filters which detected solutions appear as chips (blank = show every one).</summary>
@@ -53,6 +57,60 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetField(ref _solutionFilter, value))
                 RebuildSolutionChips();
         }
+    }
+
+    // --- Worktree path ----------------------------------------------------------------
+
+    private AppConfig _config = new();
+    private IReadOnlyList<string> _clones = [];
+
+    /// <summary>
+    /// Hands the view model the config the worktree-path line is worked out from. Called by the window
+    /// on startup and again after Settings, so editing the worktree root re-answers the line under the
+    /// branch box straight away — the same instance both times, hence the unconditional rebuild.
+    /// </summary>
+    public void SetConfig(AppConfig config)
+    {
+        _config = config;
+        RebuildWorktreePaths();
+    }
+
+    /// <summary>
+    /// Hands over the clones the last scan reached. They're what makes the sibling convention
+    /// answerable — a branch name alone doesn't name a repo — and they don't depend on the branch, so
+    /// they're kept and every later branch is answered without scanning again.
+    /// </summary>
+    public void SetClones(IReadOnlyList<string> clones)
+    {
+        _clones = clones;
+        RebuildWorktreePaths();
+    }
+
+    /// <summary>
+    /// The worktree folders this branch already has on disk — one row each, with the repo that owns it
+    /// (unnamed when a configured worktree root settles the path for every repo at once). Empty, and so
+    /// hidden, when the branch has no folder anywhere: the line reports what is there, never what could be.
+    /// </summary>
+    public ObservableCollection<WorktreeCandidate> WorktreePaths { get; } = new();
+
+    /// <summary>True when there is at least one folder to show — drives the line's visibility.</summary>
+    public bool HasWorktreePaths => WorktreePaths.Count > 0;
+
+    /// <summary>What this OS calls its file manager, so the open button's tooltip says Finder on a Mac.</summary>
+    public static string FileManagerName =>
+        OperatingSystem.IsMacOS() ? "Finder"
+        : OperatingSystem.IsWindows() ? "File Explorer"
+        : "your file manager";
+
+    /// <summary>The open button's tooltip, named for this OS's file manager.</summary>
+    public string OpenWorktreePathTip => $"Open in {FileManagerName}";
+
+    private void RebuildWorktreePaths()
+    {
+        WorktreePaths.Clear();
+        foreach (var candidate in WorktreePath.Candidates(_branchName, _clones, _config))
+            WorktreePaths.Add(candidate);
+        OnPropertyChanged(nameof(HasWorktreePaths));
     }
 
     // --- Phase machine ----------------------------------------------------------------

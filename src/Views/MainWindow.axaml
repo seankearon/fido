@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Fido.ViewModels"
+        xmlns:models="using:Fido.Models"
         xmlns:sys="using:System"
         x:Class="Fido.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -115,6 +116,69 @@
                                 </DataTemplate>
                             </AutoCompleteBox.ItemTemplate>
                         </AutoCompleteBox>
+
+                        <!-- The worktree folders this branch already has on disk, one row each. The
+                             path is worked out the way a worktree would be created — under a configured
+                             worktree root, else beside each clone the last scan reached — and only the
+                             folders that exist are listed, so the line reports what is there rather than
+                             what could be, and says nothing at all when there is nothing to say. -->
+                        <ItemsControl x:Name="WorktreePathRows" ItemsSource="{Binding WorktreePaths}"
+                                      IsVisible="{Binding HasWorktreePaths}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:WorktreeCandidate">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,2">
+                                        <!-- The chip lives in the star column so a long path ellipsises to
+                                             the room actually there rather than running under the buttons.
+                                             Its own inner Grid (not a horizontal StackPanel, which measures
+                                             with infinite width) gives the text a width to trim against. -->
+                                        <Border Background="{DynamicResource FidoChipBg}"
+                                                BorderBrush="{DynamicResource FidoChipBorder}" BorderThickness="1"
+                                                CornerRadius="7" Padding="9,3" VerticalAlignment="Center"
+                                                HorizontalAlignment="Left"
+                                                ToolTip.Tip="{Binding Tip}">
+                                            <Grid ColumnDefinitions="Auto,Auto,*">
+                                                <Path Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center"
+                                                      Margin="0,0,7,0"
+                                                      Stroke="{DynamicResource FidoTextMuted}" StrokeThickness="1.8"
+                                                      StrokeLineCap="Round" StrokeJoin="Round"
+                                                      Data="M3,6 a1,1 0 0 1 1,-1 H9 L11,7.5 H20 a1,1 0 0 1 1,1 V18 a1,1 0 0 1 -1,1 H4 a1,1 0 0 1 -1,-1 Z" />
+                                                <!-- Which clone's convention decided this path; absent when
+                                                     a worktree root settled it for every repo at once. -->
+                                                <TextBlock Grid.Column="1" Text="{Binding RepoName}" FontSize="12"
+                                                           IsVisible="{Binding HasRepoName}" Margin="0,0,9,0"
+                                                           Foreground="{DynamicResource FidoTextMuted}"
+                                                           VerticalAlignment="Center" />
+                                                <!-- Trimmed from the *left*: the tail of a worktree path (the
+                                                     branch's own folder) is the part worth reading. -->
+                                                <TextBlock Grid.Column="2" Text="{Binding Path}" FontSize="12"
+                                                           Foreground="{DynamicResource FidoTextSecondary}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="LeadingCharacterEllipsis" />
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2"
+                                                    Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <!-- Copy the whole path, which the chip itself may have ellipsised -->
+                                            <Button Classes="iconaction" Click="OnCopyWorktreePathClick"
+                                                    IsTabStop="False" ToolTip.Tip="Copy worktree path to clipboard">
+                                                <Path Width="13" Height="13" Stretch="Uniform"
+                                                      Data="M11,9 L20,9 A2,2 0 0 1 22,11 L22,20 A2,2 0 0 1 20,22 L11,22 A2,2 0 0 1 9,20 L9,11 A2,2 0 0 1 11,9 Z M5,15 L4,15 A2,2 0 0 1 2,13 L2,4 A2,2 0 0 1 4,2 L13,2 A2,2 0 0 1 15,4 L15,5" />
+                                            </Button>
+
+                                            <!-- Open it in the OS file manager; a folder that isn't there yet
+                                                 opens its nearest existing parent (the flight log says which). -->
+                                            <Button Classes="iconaction" Click="OnOpenWorktreePathClick"
+                                                    IsTabStop="False"
+                                                    ToolTip.Tip="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenWorktreePathTip}">
+                                                <Path Width="13" Height="13" Stretch="Uniform"
+                                                      Data="M14,3 H21 V10 M21,3 L12.5,11.5 M19,14 V19 a1,1 0 0 1 -1,1 H5 a1,1 0 0 1 -1,-1 V6 a1,1 0 0 1 1,-1 H10" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">

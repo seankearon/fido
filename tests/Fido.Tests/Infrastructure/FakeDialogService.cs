@@ -30,6 +30,13 @@ public sealed class FakeDialogService : IDialogService
 
     public int SettingsShownCount { get; private set; }
 
+    /// <summary>
+    /// Stands in for the user's edits in the settings dialog: invoked with the live <see cref="AppConfig"/>
+    /// the real dialog would have bound to, so a test can change a setting and assert the main screen
+    /// picks it up. Defaults to changing nothing (the user pressed Cancel).
+    /// </summary>
+    public Action<AppConfig> OnShowSettings { get; set; } = _ => { };
+
     public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
     {
         ForceDeleteConfirmations.Add(request);
@@ -39,6 +46,7 @@ public sealed class FakeDialogService : IDialogService
     public Task ShowSettingsAsync(AppConfig config, ConfigService configService)
     {
         SettingsShownCount++;
+        OnShowSettings(config);
         return Task.CompletedTask;
     }
 

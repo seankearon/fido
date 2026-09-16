@@ -116,10 +116,14 @@ public sealed class OpenerService
     /// opening will create. The blocking directory scans run on the thread pool: this is called from a
     /// keystroke-debounced loop, so it must never stall the UI thread the way the older dialog-driven
     /// flow could afford to. <paramref name="onTreeCount"/> reports how many working trees are being
-    /// checked as soon as the enumeration finishes, so the UI can narrate "Scanning N working tree(s)…".
+    /// checked as soon as the enumeration finishes, so the UI can narrate "Scanning N working tree(s)…",
+    /// and <paramref name="onClones"/> hands over the clones the scan reached the moment they're all
+    /// known — branch-independent, so the caller can keep them and answer "where would this branch's
+    /// worktree go" for every later branch without scanning again.
     /// </summary>
     public async Task<IReadOnlyList<DiscoveredTarget>> DiscoverTargetsAsync(
-        AppConfig config, string branch, Action<int>? onTreeCount = null, CancellationToken ct = default)
+        AppConfig config, string branch, Action<int>? onTreeCount = null,
+        Action<IReadOnlyList<string>>? onClones = null, CancellationToken ct = default)
     {
         var trees = await Task.Run(() => _workingTreeFinder.Find(config.SearchRoots, config.SearchDepth), ct);
         onTreeCount?.Invoke(trees.Count);
@@ -156,6 +160,10 @@ public sealed class OpenerService
                 targets.Add(new DiscoveredTarget(full, kind, RepoNameOf(mainPath), mainPath, solutions, updated));
             }
         }
+
+        // Every clone is known now, whatever the branch turns out to be checked out in — hand them over
+        // before the (potentially network-bound) placement pass so the UI needn't wait on it.
+        onClones?.Invoke([.. clones]);
 
         if (targets.Count == 0)
             targets.AddRange(await FindPlacementCandidatesAsync(clones, branch, config, ct));
@@ -856,27 +864,8 @@ public sealed class OpenerService
 
     // --- Path helpers -------------------------------------------------------------------
 
-    private static string BuildWorktreePath(RepositoryInfo repo, string branch, AppConfig config)
-    {
-        var sanitized = SanitizeBranch(branch);
-
-        if (!string.IsNullOrWhiteSpace(config.WorktreeRoot))
-            return Path.Combine(config.WorktreeRoot, sanitized);
-
-        var repoDir = repo.MainWorktreePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var parent = Path.GetDirectoryName(repoDir) ?? repoDir;
-        var repoName = Path.GetFileName(repoDir);
-        return Path.Combine(parent, $"{repoName}.worktrees", sanitized);
-    }
-
-    private static string SanitizeBranch(string branch)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = branch
-            .Select(c => c is '/' or '\\' || Array.IndexOf(invalid, c) >= 0 ? '-' : c)
-            .ToArray();
-        return new string(chars);
-    }
+    private static string BuildWorktreePath(RepositoryInfo repo, string branch, AppConfig config) =>
+        WorktreePath.InRepo(repo.MainWorktreePath, branch, config);
 
     private static string EnsureUniquePath(string path)
     {

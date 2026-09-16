@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The branch box now lists the worktree folders that branch already has on disk.** Type a branch and
+  the folders holding a worktree for it appear underneath — one row each, with a button to **copy** the
+  path and a button to **open it in File Explorer / Finder**. Where to look is the *same rule Fido
+  creates worktrees by*, not a second answer to the same question: both go through one `WorktreePath`
+  helper, so what is shown and what would be created can't drift apart.
+
+  **A folder counts even when no repo has the branch** — that is the point. A folder sitting at
+  `<repo>.worktrees/<branch>` while discovery reports "no working tree or clone has it" is a leftover, or
+  a tree since switched to another branch, and it is exactly what you want pointed out when you type the
+  name again. There is no git in this check, just a folder. Equally, when the branch has no folder
+  anywhere the line **says nothing at all**: it reports what is there, never what could be.
+
+  **How many rows depends on where your worktrees live.** With a **worktree root** configured every
+  branch lands under that one root whatever repo it belongs to, so there's at most one row, no repo
+  named, answered **as you type** with no scan at all. Without one, a worktree is a sibling of its clone,
+  so each clone that has a folder for the branch gets its own row, labelled with the repo. Those clones
+  come from the discovery scan and are **branch-independent**, so they're kept after the scan that found
+  them and every later branch answers instantly.
+
+  Opening a row whose folder has been deleted since it was drawn falls back to the nearest folder above
+  it, with the flight log naming which, rather than failing at a path still on screen. The line only ever
+  *reports*: putting a branch on disk is still the **new worktree** card's job.
+
 - **A run command now starts from an up-to-date tree.** Picking a script or `aspire start` from the
   **Console run menu** fast-forwards the target onto `origin` before the console opens, so what runs is
   what the branch actually has. The flight log narrates it (`Pulling origin/feature/x…`) and the console
