@@ -56,26 +56,75 @@ public class WorktreePathTests
         await Assert.That(path).IsEqualTo(P("src", "platform.worktrees", "release"));
     }
 
-    // --- What a branch name alone settles ---------------------------------------------
+    // --- What the line under the branch box offers -------------------------------------
 
     [Test]
-    public async Task A_configured_root_makes_the_branch_name_enough()
+    public async Task A_configured_root_answers_in_one_row_whatever_was_scanned()
     {
         var config = new AppConfig { WorktreeRoot = P("worktrees") };
 
-        await Assert.That(WorktreePath.ForBranch("feature/new-ui", config))
-            .IsEqualTo(P("worktrees", "feature-new-ui"));
+        // Every repo's worktrees land under the one root, so the clones don't come into it and there is
+        // no repo to attribute the answer to.
+        var candidates = WorktreePath.Candidates("feature/new-ui", [P("src", "platform"), P("src", "tools")], config);
+
+        await Assert.That(candidates.Count).IsEqualTo(1);
+        await Assert.That(candidates[0].Path).IsEqualTo(P("worktrees", "feature-new-ui"));
+        await Assert.That(candidates[0].RepoName).IsEqualTo("");
+        await Assert.That(candidates[0].HasRepoName).IsFalse();
     }
 
     [Test]
-    public async Task Without_a_root_a_branch_name_names_as_many_folders_as_there_are_repos_so_none_is_offered()
+    public async Task A_root_answers_even_before_anything_has_been_scanned()
+    {
+        var config = new AppConfig { WorktreeRoot = P("worktrees") };
+
+        var candidates = WorktreePath.Candidates("feature/new-ui", [], config);
+
+        await Assert.That(candidates.Count).IsEqualTo(1);
+        await Assert.That(candidates[0].Path).IsEqualTo(P("worktrees", "feature-new-ui"));
+    }
+
+    [Test]
+    public async Task Without_a_root_every_scanned_clone_contributes_its_own_sibling_folder()
+    {
+        var candidates = WorktreePath.Candidates(
+            "feature/new-ui", [P("src", "platform"), P("other", "tools")], new AppConfig());
+
+        await Assert.That(candidates.Count).IsEqualTo(2);
+        await Assert.That(candidates[0].Path).IsEqualTo(P("src", "platform.worktrees", "feature-new-ui"));
+        await Assert.That(candidates[0].RepoName).IsEqualTo("platform");
+        await Assert.That(candidates[1].Path).IsEqualTo(P("other", "tools.worktrees", "feature-new-ui"));
+        await Assert.That(candidates[1].RepoName).IsEqualTo("tools");
+    }
+
+    [Test]
+    public async Task Without_a_root_and_with_nothing_scanned_there_is_nothing_to_offer()
     {
         // The sibling convention needs a clone to sit beside, and a branch name doesn't name one.
-        await Assert.That(WorktreePath.ForBranch("feature/new-ui", new AppConfig())).IsEqualTo("");
+        await Assert.That(WorktreePath.Candidates("feature/new-ui", [], new AppConfig()).Count).IsEqualTo(0);
 
         // Not even a blank root counts as one.
-        await Assert.That(WorktreePath.ForBranch("feature/new-ui", new AppConfig { WorktreeRoot = "   " }))
-            .IsEqualTo("");
+        await Assert.That(WorktreePath.Candidates("feature/new-ui", [], new AppConfig { WorktreeRoot = "   " }).Count)
+            .IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Two_clones_that_would_share_a_folder_are_offered_once()
+    {
+        var clone = P("src", "platform");
+
+        var candidates = WorktreePath.Candidates("release", [clone, clone + Path.DirectorySeparatorChar], new AppConfig());
+
+        await Assert.That(candidates.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Blank_clone_entries_are_ignored()
+    {
+        var candidates = WorktreePath.Candidates("release", ["   ", P("src", "platform")], new AppConfig());
+
+        await Assert.That(candidates.Count).IsEqualTo(1);
+        await Assert.That(candidates[0].RepoName).IsEqualTo("platform");
     }
 
     [Test]
@@ -83,8 +132,37 @@ public class WorktreePathTests
     {
         var config = new AppConfig { WorktreeRoot = P("worktrees") };
 
-        await Assert.That(WorktreePath.ForBranch("", config)).IsEqualTo("");
-        await Assert.That(WorktreePath.ForBranch("   ", config)).IsEqualTo("");
+        await Assert.That(WorktreePath.Candidates("", [], config).Count).IsEqualTo(0);
+        await Assert.That(WorktreePath.Candidates("   ", [], config).Count).IsEqualTo(0);
+    }
+
+    // --- Ranking the clones ------------------------------------------------------------
+
+    [Test]
+    public async Task Clones_that_already_have_a_worktrees_folder_lead_and_the_rest_follow_by_name()
+    {
+        using var world = new TestRepoWorld();
+        var root = world.SearchRoot("root");
+        var alpha = Path.Combine(root, "alpha");
+        var zulu = Path.Combine(root, "zulu");
+        var mike = Path.Combine(root, "mike");
+        foreach (var clone in new[] { alpha, zulu, mike }) Directory.CreateDirectory(clone);
+        // zulu is the only one that demonstrably works in worktrees, so it leads despite its name.
+        Directory.CreateDirectory(zulu + ".worktrees");
+
+        var ranked = WorktreePath.RankClones([mike, alpha, zulu]);
+
+        await Assert.That(ranked[0]).IsEqualTo(zulu);
+        await Assert.That(ranked[1]).IsEqualTo(alpha);
+        await Assert.That(ranked[2]).IsEqualTo(mike);
+    }
+
+    [Test]
+    public async Task Ranking_drops_blank_entries()
+    {
+        var ranked = WorktreePath.RankClones([P("src", "platform"), "", "  "]);
+
+        await Assert.That(ranked.Count).IsEqualTo(1);
     }
 
     // --- Opening a folder that may not exist yet --------------------------------------

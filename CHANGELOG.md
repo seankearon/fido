@@ -9,20 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The branch box now says where that branch's worktree would live.** A branch name is usually all it
-  takes to work the path out, so Fido shows it on a line **under the branch box, as you type** — before
-  any scan has run, and whether or not the folder is there yet — with a button to **copy** it and a
-  button to **open it in File Explorer / Finder**. It is the *same rule Fido creates worktrees by*, not a
-  second answer to the same question: both now go through one `WorktreePath` helper, so the path shown and
-  the path created can't drift apart. The **open** button leans on the line being answerable early — a
-  folder that doesn't exist yet opens the **nearest folder above it that does** (usually the worktree
-  root), with the flight log naming which, rather than failing at a path you can plainly see on screen.
+- **The branch box now says where that branch's worktree would live.** A line under the branch box shows
+  the folder the typed branch's worktree would occupy — before any scan has found anything, and whether
+  or not the folder is there yet — with a button to **copy** it and a button to **open it in File
+  Explorer / Finder**. It answers even when discovery finds **nothing**: a brand-new branch name that no
+  repo has yet still has a folder it *would* occupy, which is exactly when you want to know. It is the
+  *same rule Fido creates worktrees by*, not a second answer to the same question: both now go through
+  one `WorktreePath` helper, so the path shown and the path created can't drift apart.
 
-  **It needs a worktree root** (Settings → **Worktree root**), because that is what makes a branch name
-  enough: every branch lands under the one root whatever repo it belongs to. Leave the root blank and
-  worktrees are siblings of their clone, so a branch names one folder *per repo* rather than one folder
-  — the line stays away rather than picking a repo for you, and the **new worktree** card goes on
-  carrying the path once a scan has run. Editing the root in Settings re-answers the line straight away.
+  **How many rows you get depends on where your worktrees live.** With a **worktree root** configured
+  every branch lands under that one root whatever repo it belongs to, so there's a single row, no repo
+  named, answered **as you type** with no scan at all. Without one, a worktree is a sibling of its clone
+  and a branch names one folder *per repo* — so each clone the discovery scan reached gets its own row,
+  labelled with the repo. Those clones are **branch-independent**, so they're kept after the scan that
+  found them and every later branch answers instantly. Repos that already have a `<repo>.worktrees`
+  folder lead — one that demonstrably works this way is the likelier answer — and the rest follow by
+  name; only the first five are listed, with a dim note counting the remainder and naming the
+  **Worktree root** setting that collapses them into one path.
+
+  The **open** button leans on the line answering early — a folder that doesn't exist yet opens the
+  **nearest folder above it that does** (usually the repo's worktree container), with the flight log
+  naming which, rather than failing at a path you can plainly see on screen. The line only ever
+  *reports*: putting a branch on disk is still the **new worktree** card's job.
 
 - **A run command now starts from an up-to-date tree.** Picking a script or `aspire start` from the
   **Console run menu** fast-forwards the target onto `origin` before the console opens, so what runs is

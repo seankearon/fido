@@ -44,7 +44,7 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetField(ref _branchName, value))
-                OnWorktreePathChanged();
+                RebuildWorktreePaths();
         }
     }
 
@@ -61,34 +61,68 @@ public sealed class MainWindowViewModel : ObservableObject
 
     // --- Worktree path ----------------------------------------------------------------
 
+    /// <summary>
+    /// How many worktree paths the line shows before it stops listing them. A worktree root answers in
+    /// one row; without one there is a row per repo, and a machine with dozens of clones would otherwise
+    /// push the whole screen down — so the likeliest few are shown and the rest are counted.
+    /// </summary>
+    public const int MaxWorktreePaths = 5;
+
     private AppConfig _config = new();
+    private IReadOnlyList<string> _clones = [];
 
     /// <summary>
     /// Hands the view model the config the worktree-path line is worked out from. Called by the window
     /// on startup and again after Settings, so editing the worktree root re-answers the line under the
-    /// branch box straight away — the same instance both times, hence the unconditional re-raise.
+    /// branch box straight away — the same instance both times, hence the unconditional rebuild.
     /// </summary>
     public void SetConfig(AppConfig config)
     {
         _config = config;
-        OnWorktreePathChanged();
+        RebuildWorktreePaths();
     }
 
     /// <summary>
-    /// Where the typed branch's worktree would live — worked out from the branch name alone (see
-    /// <see cref="WorktreePath.ForBranch"/>), so it is answered as you type, long before discovery runs.
-    /// Empty when the branch name doesn't settle a single folder, which hides the line entirely.
+    /// Hands over the clones the last scan reached. They're what makes the sibling convention
+    /// answerable — a branch name alone doesn't name a repo — and they don't depend on the branch, so
+    /// they're kept and every later branch is answered without scanning again. Ranked once here rather
+    /// than per keystroke, which is what keeps <see cref="WorktreePath.RankClones"/>'s disk probe out of
+    /// the typing path.
     /// </summary>
-    public string ProposedWorktreePath => WorktreePath.ForBranch(_branchName, _config);
-
-    /// <summary>True when there is a path to show — drives the line's visibility and its two buttons.</summary>
-    public bool HasProposedWorktreePath => ProposedWorktreePath.Length > 0;
+    public void SetClones(IReadOnlyList<string> clones)
+    {
+        _clones = WorktreePath.RankClones(clones);
+        RebuildWorktreePaths();
+    }
 
     /// <summary>
-    /// The line's tooltip: the full path (the line itself ellipsises in a narrow window) under a note
-    /// that it is where the worktree <em>would</em> go, since the folder needn't exist yet.
+    /// Where the typed branch's worktree would live: one row when a worktree root settles it, else one
+    /// per scanned clone (the sibling convention needs a repo to sit beside). Capped at
+    /// <see cref="MaxWorktreePaths"/>; <see cref="ExtraWorktreePathCount"/> carries what didn't fit.
     /// </summary>
-    public string ProposedWorktreePathTip => $"Where a worktree for this branch would live:\n{ProposedWorktreePath}";
+    public ObservableCollection<WorktreeCandidate> WorktreePaths { get; } = new();
+
+    /// <summary>True when there is at least one path to show — drives the line's visibility.</summary>
+    public bool HasWorktreePaths => WorktreePaths.Count > 0;
+
+    private int _extraWorktreePathCount;
+
+    /// <summary>How many repos' worktree folders the cap left off the list; 0 when they all fit.</summary>
+    public int ExtraWorktreePathCount
+    {
+        get => _extraWorktreePathCount;
+        private set
+        {
+            if (SetField(ref _extraWorktreePathCount, value))
+                OnPropertyChanged(nameof(HasExtraWorktreePaths));
+        }
+    }
+
+    public bool HasExtraWorktreePaths => _extraWorktreePathCount > 0;
+
+    /// <summary>The overflow note — what was left out, and the setting that collapses it to one path.</summary>
+    public string ExtraWorktreePathsNote =>
+        $"+{_extraWorktreePathCount} more repo(s) — set a Worktree root in Settings for a single path";
 
     /// <summary>What this OS calls its file manager, so the open button's tooltip says Finder on a Mac.</summary>
     public static string FileManagerName =>
@@ -99,11 +133,17 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>The open button's tooltip, named for this OS's file manager.</summary>
     public string OpenWorktreePathTip => $"Open in {FileManagerName}";
 
-    private void OnWorktreePathChanged()
+    private void RebuildWorktreePaths()
     {
-        OnPropertyChanged(nameof(ProposedWorktreePath));
-        OnPropertyChanged(nameof(HasProposedWorktreePath));
-        OnPropertyChanged(nameof(ProposedWorktreePathTip));
+        var candidates = WorktreePath.Candidates(_branchName, _clones, _config);
+
+        WorktreePaths.Clear();
+        foreach (var candidate in candidates.Take(MaxWorktreePaths))
+            WorktreePaths.Add(candidate);
+
+        ExtraWorktreePathCount = Math.Max(0, candidates.Count - MaxWorktreePaths);
+        OnPropertyChanged(nameof(HasWorktreePaths));
+        OnPropertyChanged(nameof(ExtraWorktreePathsNote));
     }
 
     // --- Phase machine ----------------------------------------------------------------

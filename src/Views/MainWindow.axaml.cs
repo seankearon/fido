@@ -215,6 +215,12 @@ public partial class MainWindow : Window
                     _vm.SetScanTreeCount(count);
                     _vm.AppendLiveLog($"Scanning {count} working tree(s) for '{branch}'…");
                 },
+                onClones: clones =>
+                {
+                    // Branch-independent, so they outlive this scan and answer the worktree-path line for
+                    // every branch typed afterwards without another walk of the search roots.
+                    if (!cts.IsCancellationRequested) _vm.SetClones(clones);
+                },
                 ct: cts.Token);
 
             if (cts.IsCancellationRequested) return;
@@ -790,27 +796,35 @@ public partial class MainWindow : Window
     internal Task CopySelectedPathAsync() =>
         CopyToClipboardAsync(_vm.SelectedPath, "the path", path => $"📋 Copied path to clipboard: {path}");
 
-    private async void OnCopyWorktreePathClick(object? sender, RoutedEventArgs e) => await CopyWorktreePathAsync();
-
-    /// <summary>
-    /// Copies the branch's proposed worktree path — the line under the branch box — to the clipboard, so
-    /// it can be pasted into a terminal whether or not that folder exists yet. Internal for tests.
-    /// </summary>
-    internal Task CopyWorktreePathAsync() =>
-        CopyToClipboardAsync(_vm.ProposedWorktreePath, "the worktree path",
-            path => $"📋 Copied worktree path to clipboard: {path}");
-
-    private void OnOpenWorktreePathClick(object? sender, RoutedEventArgs e) => OpenWorktreePathInFileManager();
-
-    /// <summary>
-    /// Opens the branch's proposed worktree folder in the OS file manager. The whole point of the line is
-    /// that it answers <em>before</em> the worktree exists, so a folder that isn't there yet opens the
-    /// nearest ancestor that is — usually the worktree root — with the flight log saying so rather than
-    /// failing at a path the user can plainly see on screen. Internal for tests.
-    /// </summary>
-    internal void OpenWorktreePathInFileManager()
+    private async void OnCopyWorktreePathClick(object? sender, RoutedEventArgs e)
     {
-        var path = _vm.ProposedWorktreePath;
+        if (sender is Control { DataContext: WorktreeCandidate candidate })
+            await CopyWorktreePathAsync(candidate.Path);
+    }
+
+    /// <summary>
+    /// Copies one of the branch's proposed worktree paths — a row of the line under the branch box — to
+    /// the clipboard, so it can be pasted into a terminal whether or not that folder exists yet.
+    /// Internal for tests.
+    /// </summary>
+    internal Task CopyWorktreePathAsync(string path) =>
+        CopyToClipboardAsync(path, "the worktree path",
+            copied => $"📋 Copied worktree path to clipboard: {copied}");
+
+    private void OnOpenWorktreePathClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: WorktreeCandidate candidate })
+            OpenWorktreePathInFileManager(candidate.Path);
+    }
+
+    /// <summary>
+    /// Opens one of the branch's proposed worktree folders in the OS file manager. The whole point of the
+    /// line is that it answers <em>before</em> the worktree exists, so a folder that isn't there yet opens
+    /// the nearest ancestor that is — usually the worktree container — with the flight log saying so
+    /// rather than failing at a path the user can plainly see on screen. Internal for tests.
+    /// </summary>
+    internal void OpenWorktreePathInFileManager(string path)
+    {
         if (string.IsNullOrEmpty(path)) return;
 
         var folder = WorktreePath.NearestExistingFolder(path);
