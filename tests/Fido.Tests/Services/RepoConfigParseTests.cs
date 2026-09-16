@@ -113,4 +113,21 @@ public class RepoConfigParseTests
         await Assert.That(RepoConfigService.Parse("prefer main clone: false").IsEmpty).IsTrue();
         await Assert.That(RepoConfigService.Parse("prefer main clone: true").IsEmpty).IsFalse();
     }
+
+    [Test]
+    public async Task A_flow_sequence_opened_but_filled_with_block_items_still_reads_its_entries()
+    {
+        // Fido's own committed .fido/cfg.yaml is written this way: a `[` opens the list, but the entries
+        // below it are block items. Strict YAML would reject the mixture; the forgiving parser takes the
+        // `[` as an empty flow sequence and then lets the `- ` lines attach to the key above them, which
+        // lands on the list the author meant. Pinned here because the repo dogfoods this exact shape.
+        var config = RepoConfigService.Parse(
+            """
+            run files: [
+              - run-fido.ps1
+            ]
+            """);
+
+        await Assert.That(Joined(config.RunFiles)).IsEqualTo("run-fido.ps1");
+    }
 }
