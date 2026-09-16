@@ -85,6 +85,41 @@ search input or a mode switch.
 - Detects the **solution files** inside each target — **`.sln`**, **`.slnx`**, and
   **`.slnf`** (Visual Studio solution filter) — for the solution chips.
 
+### Where the worktree would be
+
+A branch name is often all it takes to know where that branch's **worktree** would live, so Fido
+answers it under the branch box **as you type** — before any scan, and whether or not the folder is
+there yet:
+
+```text
+Branch name
+┌──────────────────────────────────────────┐
+│ feature/new-ui                           │
+└──────────────────────────────────────────┘
+ 📁 D:\worktrees\feature-new-ui        ⧉  ↗
+```
+
+It is the **same rule Fido creates worktrees by**, not a second guess at it: the branch's slashes (and
+anything else a filesystem rejects) become dashes, and the folder goes under your **worktree root**.
+
+**It needs a worktree root** (Settings → *Worktree root*) — that is what makes a branch name enough,
+since every branch then lands under the one root whatever repo it belongs to. Leave the root blank and
+worktrees are siblings of their clone instead (`<clone>.worktrees\<branch>`), so a branch name names one
+folder *per repo* rather than one folder, and **the line stays away** rather than picking a repo for you.
+Nothing is lost by that: once a scan has run, the **new worktree** card carries the path for the repo it
+belongs to.
+
+Two buttons sit beside it:
+
+- **⧉ Copy** — the whole path to the clipboard, including the part a narrow window ellipsised away.
+- **↗ Open** — the folder in your **File Explorer / Finder** (whatever the *File Explorer* tool row is
+  set to). The point of the line is that it answers *before* the worktree exists, so a folder that
+  isn't there yet opens the **nearest folder above it that is** — usually the worktree root — and the
+  flight log says which, rather than failing at a path you can plainly see on screen.
+
+The line is purely informational: it never creates anything. Putting the branch **on disk** is still the
+**new worktree** card's job, reached by opening it.
+
 ### Cross-clone visibility
 
 Git enforces "one worktree per branch" only **within a single clone**. If you have two
@@ -506,7 +541,9 @@ is intentionally narrow:
   **●** radio to set the default (the hero button) — or use the ⚙ gear popover on the main screen,
   which offers the same choice plus **No default (equal weight)**. The rest are reached by
   **Ctrl+1 … Ctrl+9** or by their slug on the command line. **Add** appends a new row; **✕** removes one.
-- **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention.
+- **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention. Setting one also turns on
+  the **worktree path line** under the branch box, which then answers from any branch name (see
+  **[Where the worktree would be](#where-the-worktree-would-be)**).
 - **Theme** — **System**, **Light**, or **Dark**.
 - **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
   resolved branch renames the window to `<repo> · <branch>` (see **The window title** above); untick it
@@ -552,6 +589,7 @@ the next save writes to the new location.
 | Capability | Summary |
 | --- | --- |
 | Input | Branch name (required); the solution box **filters** the detected solution chips |
+| Worktree path | Shown under the branch box as you type — where that branch's worktree would live — with **copy** and **open in File Explorer / Finder** buttons; a folder that doesn't exist yet opens the nearest one above it |
 | Discovery | Debounced scan of the search roots for working trees **currently on the branch**; results inline as cards, worktrees before main clones |
 | Multiple locations | Every checkout shown, labelled **worktree** / **main clone** — you choose which to act on |
 | Open gate | Open & delete actions unlock only when discovery **finds** the branch |

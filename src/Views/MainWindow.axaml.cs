@@ -98,6 +98,7 @@ public partial class MainWindow : Window
         DataContext = _vm;
         _vm.LoadMru(_config.RecentBranches, _config.RecentSolutions);
         _vm.ShowTargetInTitle = _config.ShowTargetInWindowTitle;
+        _vm.SetConfig(_config);
 
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
@@ -784,29 +785,90 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Copies the selected target's working-tree path to the clipboard (the ellipsised card path is
-    /// otherwise unreadable and un-selectable), narrating the copy in the flight log. Best-effort: a
-    /// missing or throwing clipboard is reported, never crashes the async-void click. Internal for tests.
+    /// otherwise unreadable and un-selectable), narrating the copy in the flight log. Internal for tests.
     /// </summary>
-    internal async Task CopySelectedPathAsync()
+    internal Task CopySelectedPathAsync() =>
+        CopyToClipboardAsync(_vm.SelectedPath, "the path", path => $"📋 Copied path to clipboard: {path}");
+
+    private async void OnCopyWorktreePathClick(object? sender, RoutedEventArgs e) => await CopyWorktreePathAsync();
+
+    /// <summary>
+    /// Copies the branch's proposed worktree path — the line under the branch box — to the clipboard, so
+    /// it can be pasted into a terminal whether or not that folder exists yet. Internal for tests.
+    /// </summary>
+    internal Task CopyWorktreePathAsync() =>
+        CopyToClipboardAsync(_vm.ProposedWorktreePath, "the worktree path",
+            path => $"📋 Copied worktree path to clipboard: {path}");
+
+    private void OnOpenWorktreePathClick(object? sender, RoutedEventArgs e) => OpenWorktreePathInFileManager();
+
+    /// <summary>
+    /// Opens the branch's proposed worktree folder in the OS file manager. The whole point of the line is
+    /// that it answers <em>before</em> the worktree exists, so a folder that isn't there yet opens the
+    /// nearest ancestor that is — usually the worktree root — with the flight log saying so rather than
+    /// failing at a path the user can plainly see on screen. Internal for tests.
+    /// </summary>
+    internal void OpenWorktreePathInFileManager()
     {
-        var path = _vm.SelectedPath;
+        var path = _vm.ProposedWorktreePath;
         if (string.IsNullOrEmpty(path)) return;
 
-        var clipboard = Clipboard;
-        if (clipboard is null)
+        var folder = WorktreePath.NearestExistingFolder(path);
+        if (folder is null)
         {
-            _vm.AppendLog("⚠ Clipboard unavailable — couldn't copy the path.");
+            _vm.AppendLog($"⚠ Nothing to open — neither {path} nor any folder above it exists yet.");
+            return;
+        }
+
+        // The user's configured file manager when they kept one; the built-in otherwise, so removing the
+        // row from the tool list doesn't take this button with it.
+        var explorer = _config.Editors.FirstOrDefault(e => e.Kind == EditorKind.FileExplorer)
+                       ?? new Editor { Name = MainWindowViewModel.FileManagerName, Kind = EditorKind.FileExplorer };
+
+        var executable = _launcher.Locate(explorer);
+        if (executable is null)
+        {
+            _vm.AppendLog($"⚠ {explorer.Name} not located — set its path in Settings.");
             return;
         }
 
         try
         {
-            await clipboard.SetTextAsync(path);
-            _vm.AppendLog($"📋 Copied path to clipboard: {path}");
+            _vm.AppendLog(string.Equals(folder, path, StringComparison.Ordinal)
+                ? $"▸ Opening {path} in {explorer.Name}"
+                : $"▸ {path} doesn't exist yet — opening {folder} in {explorer.Name} instead.");
+            _launcher.Launch(explorer, executable, folder);
         }
         catch (Exception ex)
         {
-            _vm.AppendLog($"⚠ Couldn't copy the path: {ex.Message}");
+            _vm.AppendLog($"⚠ {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Puts <paramref name="text"/> on the clipboard and narrates it in the flight log. Best-effort: a
+    /// missing or throwing clipboard is reported — named by <paramref name="subject"/> — and never
+    /// crashes the async-void click that called it. Nothing to copy is a no-op, log included.
+    /// </summary>
+    private async Task CopyToClipboardAsync(string text, string subject, Func<string, string> success)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        var clipboard = Clipboard;
+        if (clipboard is null)
+        {
+            _vm.AppendLog($"⚠ Clipboard unavailable — couldn't copy {subject}.");
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(text);
+            _vm.AppendLog(success(text));
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ Couldn't copy {subject}: {ex.Message}");
         }
     }
 
@@ -871,28 +933,11 @@ public partial class MainWindow : Window
     /// lines, and a launch that went wrong is worth pasting somewhere. Best-effort: a missing or throwing
     /// clipboard is reported, never crashes the async-void click. Internal for tests.
     /// </summary>
-    internal async Task CopyFlightLogAsync()
+    internal Task CopyFlightLogAsync()
     {
-        var text = _vm.LogText;
-        if (text.Length == 0) return;
-        var lines = _vm.Log.Count;
-
-        var clipboard = Clipboard;
-        if (clipboard is null)
-        {
-            _vm.AppendLog("⚠ Clipboard unavailable — couldn't copy the flight log.");
-            return;
-        }
-
-        try
-        {
-            await clipboard.SetTextAsync(text);
-            _vm.AppendLog($"📋 Copied {lines} flight-log line(s) to the clipboard.");
-        }
-        catch (Exception ex)
-        {
-            _vm.AppendLog($"⚠ Couldn't copy the flight log: {ex.Message}");
-        }
+        var lines = _vm.Log.Count;   // read before the copy's own line joins them
+        return CopyToClipboardAsync(_vm.LogText, "the flight log",
+            _ => $"📋 Copied {lines} flight-log line(s) to the clipboard.");
     }
 
     /// <summary>
@@ -970,12 +1015,19 @@ public partial class MainWindow : Window
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
     }
 
-    private async void OnAllSettingsClick(object? sender, RoutedEventArgs e)
+    private async void OnAllSettingsClick(object? sender, RoutedEventArgs e) => await ShowSettingsAsync();
+
+    /// <summary>
+    /// Opens the settings dialog and re-applies what it changed to the live screen. Internal for tests,
+    /// which can't reach the button inside the gear flyout without opening it.
+    /// </summary>
+    internal async Task ShowSettingsAsync()
     {
         GearButton.Flyout?.Hide();
         await _dialogs.ShowSettingsAsync(_config, _configService);
         // Editors (and the default) may have changed; the CLI per-run override yields to explicit edits.
         _vm.ShowTargetInTitle = _config.ShowTargetInWindowTitle;
+        _vm.SetConfig(_config);   // the worktree root may have moved the line under the branch box
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();

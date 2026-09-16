@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The branch box now says where that branch's worktree would live.** A branch name is usually all it
+  takes to work the path out, so Fido shows it on a line **under the branch box, as you type** — before
+  any scan has run, and whether or not the folder is there yet — with a button to **copy** it and a
+  button to **open it in File Explorer / Finder**. It is the *same rule Fido creates worktrees by*, not a
+  second answer to the same question: both now go through one `WorktreePath` helper, so the path shown and
+  the path created can't drift apart. The **open** button leans on the line being answerable early — a
+  folder that doesn't exist yet opens the **nearest folder above it that does** (usually the worktree
+  root), with the flight log naming which, rather than failing at a path you can plainly see on screen.
+
+  **It needs a worktree root** (Settings → **Worktree root**), because that is what makes a branch name
+  enough: every branch lands under the one root whatever repo it belongs to. Leave the root blank and
+  worktrees are siblings of their clone, so a branch names one folder *per repo* rather than one folder
+  — the line stays away rather than picking a repo for you, and the **new worktree** card goes on
+  carrying the path once a scan has run. Editing the root in Settings re-answers the line straight away.
+
 - **A run command now starts from an up-to-date tree.** Picking a script or `aspire start` from the
   **Console run menu** fast-forwards the target onto `origin` before the console opens, so what runs is
   what the branch actually has. The flight log narrates it (`Pulling origin/feature/x…`) and the console

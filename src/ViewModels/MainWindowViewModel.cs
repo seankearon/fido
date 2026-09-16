@@ -41,7 +41,11 @@ public sealed class MainWindowViewModel : ObservableObject
     public string BranchName
     {
         get => _branchName;
-        set => SetField(ref _branchName, value);
+        set
+        {
+            if (SetField(ref _branchName, value))
+                OnWorktreePathChanged();
+        }
     }
 
     /// <summary>Filters which detected solutions appear as chips (blank = show every one).</summary>
@@ -53,6 +57,53 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetField(ref _solutionFilter, value))
                 RebuildSolutionChips();
         }
+    }
+
+    // --- Worktree path ----------------------------------------------------------------
+
+    private AppConfig _config = new();
+
+    /// <summary>
+    /// Hands the view model the config the worktree-path line is worked out from. Called by the window
+    /// on startup and again after Settings, so editing the worktree root re-answers the line under the
+    /// branch box straight away — the same instance both times, hence the unconditional re-raise.
+    /// </summary>
+    public void SetConfig(AppConfig config)
+    {
+        _config = config;
+        OnWorktreePathChanged();
+    }
+
+    /// <summary>
+    /// Where the typed branch's worktree would live — worked out from the branch name alone (see
+    /// <see cref="WorktreePath.ForBranch"/>), so it is answered as you type, long before discovery runs.
+    /// Empty when the branch name doesn't settle a single folder, which hides the line entirely.
+    /// </summary>
+    public string ProposedWorktreePath => WorktreePath.ForBranch(_branchName, _config);
+
+    /// <summary>True when there is a path to show — drives the line's visibility and its two buttons.</summary>
+    public bool HasProposedWorktreePath => ProposedWorktreePath.Length > 0;
+
+    /// <summary>
+    /// The line's tooltip: the full path (the line itself ellipsises in a narrow window) under a note
+    /// that it is where the worktree <em>would</em> go, since the folder needn't exist yet.
+    /// </summary>
+    public string ProposedWorktreePathTip => $"Where a worktree for this branch would live:\n{ProposedWorktreePath}";
+
+    /// <summary>What this OS calls its file manager, so the open button's tooltip says Finder on a Mac.</summary>
+    public static string FileManagerName =>
+        OperatingSystem.IsMacOS() ? "Finder"
+        : OperatingSystem.IsWindows() ? "File Explorer"
+        : "your file manager";
+
+    /// <summary>The open button's tooltip, named for this OS's file manager.</summary>
+    public string OpenWorktreePathTip => $"Open in {FileManagerName}";
+
+    private void OnWorktreePathChanged()
+    {
+        OnPropertyChanged(nameof(ProposedWorktreePath));
+        OnPropertyChanged(nameof(HasProposedWorktreePath));
+        OnPropertyChanged(nameof(ProposedWorktreePathTip));
     }
 
     // --- Phase machine ----------------------------------------------------------------

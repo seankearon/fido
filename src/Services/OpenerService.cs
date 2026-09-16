@@ -856,27 +856,8 @@ public sealed class OpenerService
 
     // --- Path helpers -------------------------------------------------------------------
 
-    private static string BuildWorktreePath(RepositoryInfo repo, string branch, AppConfig config)
-    {
-        var sanitized = SanitizeBranch(branch);
-
-        if (!string.IsNullOrWhiteSpace(config.WorktreeRoot))
-            return Path.Combine(config.WorktreeRoot, sanitized);
-
-        var repoDir = repo.MainWorktreePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var parent = Path.GetDirectoryName(repoDir) ?? repoDir;
-        var repoName = Path.GetFileName(repoDir);
-        return Path.Combine(parent, $"{repoName}.worktrees", sanitized);
-    }
-
-    private static string SanitizeBranch(string branch)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = branch
-            .Select(c => c is '/' or '\\' || Array.IndexOf(invalid, c) >= 0 ? '-' : c)
-            .ToArray();
-        return new string(chars);
-    }
+    private static string BuildWorktreePath(RepositoryInfo repo, string branch, AppConfig config) =>
+        WorktreePath.InRepo(repo.MainWorktreePath, branch, config);
 
     private static string EnsureUniquePath(string path)
     {
