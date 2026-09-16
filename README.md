@@ -11,10 +11,10 @@ solution or folder in your editor. Set a **default tool** for the big Open butto
 local branch — and, optionally, its remote branch too (unless an open PR says otherwise) — from the
 same screen, with an inline confirm.
 
-It also shows **where that branch's worktree would live** right under the branch box — even when the
-branch is checked out nowhere yet — one button from your clipboard and one from your **File Explorer /
-Finder**. A configured **worktree root** makes that a single path, answered as you type; otherwise each
-scanned repo offers its own sibling `<repo>.worktrees` folder.
+It also lists the **worktree folders that branch already has on disk**, right under the branch box — one
+button from your clipboard and one from your **File Explorer / Finder**. A folder counts even when no
+repo has the branch, so a leftover from last month is pointed out the moment you type the name; when
+there's no folder anywhere, the line says nothing.
 
 <p align="center">
   <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">

@@ -9,27 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The branch box now says where that branch's worktree would live.** A line under the branch box shows
-  the folder the typed branch's worktree would occupy — before any scan has found anything, and whether
-  or not the folder is there yet — with a button to **copy** it and a button to **open it in File
-  Explorer / Finder**. It answers even when discovery finds **nothing**: a brand-new branch name that no
-  repo has yet still has a folder it *would* occupy, which is exactly when you want to know. It is the
-  *same rule Fido creates worktrees by*, not a second answer to the same question: both now go through
-  one `WorktreePath` helper, so the path shown and the path created can't drift apart.
+- **The branch box now lists the worktree folders that branch already has on disk.** Type a branch and
+  the folders holding a worktree for it appear underneath — one row each, with a button to **copy** the
+  path and a button to **open it in File Explorer / Finder**. Where to look is the *same rule Fido
+  creates worktrees by*, not a second answer to the same question: both go through one `WorktreePath`
+  helper, so what is shown and what would be created can't drift apart.
 
-  **How many rows you get depends on where your worktrees live.** With a **worktree root** configured
-  every branch lands under that one root whatever repo it belongs to, so there's a single row, no repo
-  named, answered **as you type** with no scan at all. Without one, a worktree is a sibling of its clone
-  and a branch names one folder *per repo* — so each clone the discovery scan reached gets its own row,
-  labelled with the repo. Those clones are **branch-independent**, so they're kept after the scan that
-  found them and every later branch answers instantly. Repos that already have a `<repo>.worktrees`
-  folder lead — one that demonstrably works this way is the likelier answer — and the rest follow by
-  name; only the first five are listed, with a dim note counting the remainder and naming the
-  **Worktree root** setting that collapses them into one path.
+  **A folder counts even when no repo has the branch** — that is the point. A folder sitting at
+  `<repo>.worktrees/<branch>` while discovery reports "no working tree or clone has it" is a leftover, or
+  a tree since switched to another branch, and it is exactly what you want pointed out when you type the
+  name again. There is no git in this check, just a folder. Equally, when the branch has no folder
+  anywhere the line **says nothing at all**: it reports what is there, never what could be.
 
-  The **open** button leans on the line answering early — a folder that doesn't exist yet opens the
-  **nearest folder above it that does** (usually the repo's worktree container), with the flight log
-  naming which, rather than failing at a path you can plainly see on screen. The line only ever
+  **How many rows depends on where your worktrees live.** With a **worktree root** configured every
+  branch lands under that one root whatever repo it belongs to, so there's at most one row, no repo
+  named, answered **as you type** with no scan at all. Without one, a worktree is a sibling of its clone,
+  so each clone that has a folder for the branch gets its own row, labelled with the repo. Those clones
+  come from the discovery scan and are **branch-independent**, so they're kept after the scan that found
+  them and every later branch answers instantly.
+
+  Opening a row whose folder has been deleted since it was drawn falls back to the nearest folder above
+  it, with the flight log naming which, rather than failing at a path still on screen. The line only ever
   *reports*: putting a branch on disk is still the **new worktree** card's job.
 
 - **A run command now starts from an up-to-date tree.** Picking a script or `aspire start` from the

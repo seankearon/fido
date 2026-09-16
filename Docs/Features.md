@@ -85,50 +85,45 @@ search input or a mode switch.
 - Detects the **solution files** inside each target — **`.sln`**, **`.slnx`**, and
   **`.slnf`** (Visual Studio solution filter) — for the solution chips.
 
-### Where the worktree would be
+### The branch's worktree folders
 
-Under the branch box, Fido shows **where that branch's worktree would live** — before any scan has
-found anything, and whether or not the folder is there yet:
+Under the branch box, Fido lists the worktree folders the typed branch **already has on disk** — one
+row each, with a button to **copy** the path and one to **open** it in your **File Explorer / Finder**:
 
 ```text
 Branch name
 ┌────────────────────────────────────────┐
-│ qwe                                      │
+│ xyz                                      │
 └────────────────────────────────────────┘
- 📁 platform  D:\src\platform.worktrees\qwe   ⌨  ↗
- 📁 tools     D:\src\tools.worktrees\qwe      ⌨  ↗
+ 📁 fido  D:\main\fido.worktrees\xyz            ⌨  ↗
 ```
 
-It is the **same rule Fido creates worktrees by**, not a second guess at it: the branch's slashes (and
-anything else a filesystem rejects) become dashes, and the folder goes where that repo's worktrees go.
-It works even when discovery found **nothing** — a brand-new branch name that no repo has yet still has
-a folder it *would* occupy, which is exactly when you want to know.
+Where to look is the **same rule Fido creates worktrees by**, not a second guess at it: the branch's
+slashes (and anything else a filesystem rejects) become dashes, and the folder sits under your
+**worktree root** if you have one, else beside the clone in `<clone>.worktrees`. Fido then shows only
+the folders that are **actually there**, so the line reports what exists rather than what could, and
+**says nothing at all** when the branch has no folder anywhere.
+
+**A folder counts even when no repo has the branch.** That is the point: `D:\main\fido.worktrees\xyz`
+on disk while discovery reports *"no working tree or clone has 'xyz'"* is a leftover, or a tree since
+switched to another branch — exactly what you want pointed out when you type the name again. There is
+no git in this check, just a folder.
 
 **How many rows you get depends on where your worktrees live:**
 
 - With a **worktree root** configured (Settings → *Worktree root*), every branch lands under that one
-  root whatever repo it belongs to — so there is a **single row**, no repo named, and it answers
-  **as you type**, with no scan needed at all.
-- With **no root**, a worktree is a sibling of its clone (`<clone>.worktrees\<branch>`), so a branch
-  names one folder **per repo** — and each clone gets its own row, labelled with the repo. Those clones
-  come from the **discovery scan**, so the rows appear once the first scan lands; after that they're
-  kept (they don't depend on the branch) and **every later branch answers instantly**.
+  root whatever repo it belongs to — so there is at most a **single row**, no repo named, and it
+  answers **as you type**, with no scan needed at all.
+- With **no root**, a worktree is a sibling of its clone, so each clone can have its own folder for the
+  branch — and each one that does gets a row, labelled with the repo, ordered by name. Those clones come
+  from the **discovery scan**, so the rows appear once the first scan lands; after that they're kept
+  (they don't depend on the branch) and **every later branch answers instantly**.
 
-Rows are ordered with the repos that **already have a `<repo>.worktrees` folder** first — a repo that
-demonstrably works this way is the likelier answer — and the rest by name. Only the first
-**five** are listed; past that a dim note counts the remainder and points at the **Worktree root**
-setting, which collapses them all into one path.
+The **open** button opens the row's folder. If it has been deleted since the row was drawn, the nearest
+folder above it opens instead and the flight log says which, rather than failing at a path still on
+screen.
 
-Two buttons sit on every row:
-
-- **⌨ Copy** — the whole path to the clipboard, including the part a narrow window ellipsised away.
-- **↗ Open** — the folder in your **File Explorer / Finder** (whatever the *File Explorer* tool row is
-  set to). The point of the line is that it answers *before* the worktree exists, so a folder that
-  isn't there yet opens the **nearest folder above it that is** — usually the repo's worktree
-  container — and the flight log says which, rather than failing at a path you can plainly see on
-  screen.
-
-The line is purely informational: it never creates anything. Putting the branch **on disk** is still the
+The line is purely informational: it never creates anything. Putting a branch **on disk** is still the
 **new worktree** card's job, reached by opening it.
 
 ### Cross-clone visibility
@@ -553,8 +548,8 @@ is intentionally narrow:
   which offers the same choice plus **No default (equal weight)**. The rest are reached by
   **Ctrl+1 … Ctrl+9** or by their slug on the command line. **Add** appends a new row; **✕** removes one.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention. Setting one also collapses
-  the **worktree path line** under the branch box to a single path, answered from the branch name alone
-  with no scan needed (see **[Where the worktree would be](#where-the-worktree-would-be)**).
+  the **worktree folders line** under the branch box to a single row, answered from the branch name alone
+  with no scan needed (see **[The branch's worktree folders](#the-branchs-worktree-folders)**).
 - **Theme** — **System**, **Light**, or **Dark**.
 - **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
   resolved branch renames the window to `<repo> · <branch>` (see **The window title** above); untick it
@@ -600,7 +595,7 @@ the next save writes to the new location.
 | Capability | Summary |
 | --- | --- |
 | Input | Branch name (required); the solution box **filters** the detected solution chips |
-| Worktree path | Shown under the branch box — where that branch's worktree would live, even when discovery found nothing — with **copy** and **open in File Explorer / Finder** buttons per row; one row for a configured **worktree root**, else one per scanned clone (likeliest first, capped at five). A folder that doesn't exist yet opens the nearest one above it |
+| Worktree folders | Listed under the branch box: the worktree folders the branch **already has on disk**, with **copy** and **open in File Explorer / Finder** buttons per row. Found the way a worktree would be created (worktree root, else beside each scanned clone); a folder counts even when no repo has the branch, and nothing shows when there is no folder |
 | Discovery | Debounced scan of the search roots for working trees **currently on the branch**; results inline as cards, worktrees before main clones |
 | Multiple locations | Every checkout shown, labelled **worktree** / **main clone** — you choose which to act on |
 | Open gate | Open & delete actions unlock only when discovery **finds** the branch |

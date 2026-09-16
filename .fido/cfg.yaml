@@ -11,9 +11,8 @@ prefer main clone: false
 # Scripts offered under the Console button, in the order given; '*' stands for every
 # script in the repository root.  e.g.  run files: [build.ps1, '*']
 # Scripts in this tree right now: release.ps1
-run files: [
+run files:
   - run-fido.ps1
-]
 
 # Offer `aspire start` under the Console button too.
 aspire start: false

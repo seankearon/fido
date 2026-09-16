@@ -39,12 +39,14 @@ public static class WorktreePath
     }
 
     /// <summary>
-    /// Every folder <paramref name="branch"/>'s worktree could live in, for the line under the branch box.
-    /// A configured <see cref="AppConfig.WorktreeRoot"/> settles it outright — one answer, no repo to
-    /// attribute it to, and <paramref name="clonePaths"/> doesn't matter. Without one the sibling
-    /// convention applies and a branch names one folder <em>per clone</em>, so each scanned clone
-    /// contributes its own, named by its repo. Paths are de-duplicated, and a blank branch or an empty
-    /// clone list (nothing scanned yet) yields nothing.
+    /// The folders holding a worktree for <paramref name="branch"/> that are <em>actually on disk</em>, for
+    /// the line under the branch box. Candidates are worked out exactly as a worktree would be created —
+    /// under the configured <see cref="AppConfig.WorktreeRoot"/> when there is one (repo-independent, so a
+    /// single answer with no repo to attribute it to), else the sibling convention beside each of
+    /// <paramref name="clonePaths"/> — and then only the ones that exist are returned. A folder that
+    /// exists but isn't a worktree of this branch still counts: a leftover, or a tree since switched to
+    /// another branch, is exactly what you want pointed out when you type the name again. Ordered by repo
+    /// so the list doesn't shuffle between keystrokes, and de-duplicated by path.
     /// </summary>
     public static IReadOnlyList<WorktreeCandidate> Candidates(
         string branch, IReadOnlyList<string> clonePaths, AppConfig config)
@@ -52,7 +54,10 @@ public static class WorktreePath
         if (string.IsNullOrWhiteSpace(branch)) return [];
 
         if (!string.IsNullOrWhiteSpace(config.WorktreeRoot))
-            return [new WorktreeCandidate(InRepo("", branch, config), "")];
+        {
+            var rooted = InRepo("", branch, config);
+            return Exists(rooted) ? [new WorktreeCandidate(rooted, "")] : [];
+        }
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new List<WorktreeCandidate>();
@@ -60,28 +65,16 @@ public static class WorktreePath
         {
             if (string.IsNullOrWhiteSpace(clone)) continue;
             var path = InRepo(clone, branch, config);
-            if (seen.Add(path)) candidates.Add(new WorktreeCandidate(path, RepoNameOf(clone)));
+            if (seen.Add(path) && Exists(path))
+                candidates.Add(new WorktreeCandidate(path, RepoNameOf(clone)));
         }
-        return candidates;
+        return [.. candidates.OrderBy(c => c.RepoName, StringComparer.OrdinalIgnoreCase)];
     }
 
-    /// <summary>
-    /// The scanned clones in the order their worktree folders are worth offering: the ones that already
-    /// have a worktree container beside them lead — a repo with a <c>&lt;repo&gt;.worktrees</c> folder
-    /// demonstrably works this way, so its answer is the likelier one — and the rest follow by name.
-    /// Branch-independent, so the caller ranks once per scan rather than once per keystroke, which is
-    /// what keeps the disk out of the typing path.
-    /// </summary>
-    public static IReadOnlyList<string> RankClones(IEnumerable<string> clonePaths) =>
-        [.. clonePaths
-            .Where(clone => !string.IsNullOrWhiteSpace(clone))
-            .OrderByDescending(HasWorktreeContainer)
-            .ThenBy(RepoNameOf, StringComparer.OrdinalIgnoreCase)];
-
-    /// <summary>Whether the clone's sibling <c>&lt;repo&gt;.worktrees</c> folder is already on disk.</summary>
-    private static bool HasWorktreeContainer(string clonePath)
+    /// <summary>Whether the folder is on disk. An unreadable or malformed path simply isn't offered.</summary>
+    private static bool Exists(string path)
     {
-        try { return Directory.Exists(ContainerOf(clonePath)); }
+        try { return Directory.Exists(path); }
         catch { return false; }
     }
 

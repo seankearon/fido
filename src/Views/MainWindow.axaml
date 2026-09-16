@@ -117,12 +117,13 @@
                             </AutoCompleteBox.ItemTemplate>
                         </AutoCompleteBox>
 
-                        <!-- Where this branch's worktree would live. A configured worktree root settles
-                             it from the branch name alone, so that row answers as you type. Otherwise a
-                             worktree is a sibling of its clone and a branch names one folder per repo, so
-                             the clones the last scan reached each contribute a row — kept across branches
-                             (they don't depend on one), likeliest first, capped with a note for the rest. -->
-                        <ItemsControl x:Name="WorktreePathRows" ItemsSource="{Binding WorktreePaths}">
+                        <!-- The worktree folders this branch already has on disk, one row each. The
+                             path is worked out the way a worktree would be created — under a configured
+                             worktree root, else beside each clone the last scan reached — and only the
+                             folders that exist are listed, so the line reports what is there rather than
+                             what could be, and says nothing at all when there is nothing to say. -->
+                        <ItemsControl x:Name="WorktreePathRows" ItemsSource="{Binding WorktreePaths}"
+                                      IsVisible="{Binding HasWorktreePaths}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:WorktreeCandidate">
                                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,2">
@@ -178,12 +179,6 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-
-                        <!-- More repos than the line lists: say how many, and name the setting that
-                             collapses them all into a single path. -->
-                        <TextBlock Text="{Binding ExtraWorktreePathsNote}" IsVisible="{Binding HasExtraWorktreePaths}"
-                                   FontSize="11.5" Margin="2,1,0,0" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource FidoTextDim}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">

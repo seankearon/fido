@@ -61,13 +61,6 @@ public sealed class MainWindowViewModel : ObservableObject
 
     // --- Worktree path ----------------------------------------------------------------
 
-    /// <summary>
-    /// How many worktree paths the line shows before it stops listing them. A worktree root answers in
-    /// one row; without one there is a row per repo, and a machine with dozens of clones would otherwise
-    /// push the whole screen down — so the likeliest few are shown and the rest are counted.
-    /// </summary>
-    public const int MaxWorktreePaths = 5;
-
     private AppConfig _config = new();
     private IReadOnlyList<string> _clones = [];
 
@@ -85,44 +78,23 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Hands over the clones the last scan reached. They're what makes the sibling convention
     /// answerable — a branch name alone doesn't name a repo — and they don't depend on the branch, so
-    /// they're kept and every later branch is answered without scanning again. Ranked once here rather
-    /// than per keystroke, which is what keeps <see cref="WorktreePath.RankClones"/>'s disk probe out of
-    /// the typing path.
+    /// they're kept and every later branch is answered without scanning again.
     /// </summary>
     public void SetClones(IReadOnlyList<string> clones)
     {
-        _clones = WorktreePath.RankClones(clones);
+        _clones = clones;
         RebuildWorktreePaths();
     }
 
     /// <summary>
-    /// Where the typed branch's worktree would live: one row when a worktree root settles it, else one
-    /// per scanned clone (the sibling convention needs a repo to sit beside). Capped at
-    /// <see cref="MaxWorktreePaths"/>; <see cref="ExtraWorktreePathCount"/> carries what didn't fit.
+    /// The worktree folders this branch already has on disk — one row each, with the repo that owns it
+    /// (unnamed when a configured worktree root settles the path for every repo at once). Empty, and so
+    /// hidden, when the branch has no folder anywhere: the line reports what is there, never what could be.
     /// </summary>
     public ObservableCollection<WorktreeCandidate> WorktreePaths { get; } = new();
 
-    /// <summary>True when there is at least one path to show — drives the line's visibility.</summary>
+    /// <summary>True when there is at least one folder to show — drives the line's visibility.</summary>
     public bool HasWorktreePaths => WorktreePaths.Count > 0;
-
-    private int _extraWorktreePathCount;
-
-    /// <summary>How many repos' worktree folders the cap left off the list; 0 when they all fit.</summary>
-    public int ExtraWorktreePathCount
-    {
-        get => _extraWorktreePathCount;
-        private set
-        {
-            if (SetField(ref _extraWorktreePathCount, value))
-                OnPropertyChanged(nameof(HasExtraWorktreePaths));
-        }
-    }
-
-    public bool HasExtraWorktreePaths => _extraWorktreePathCount > 0;
-
-    /// <summary>The overflow note — what was left out, and the setting that collapses it to one path.</summary>
-    public string ExtraWorktreePathsNote =>
-        $"+{_extraWorktreePathCount} more repo(s) — set a Worktree root in Settings for a single path";
 
     /// <summary>What this OS calls its file manager, so the open button's tooltip says Finder on a Mac.</summary>
     public static string FileManagerName =>
@@ -135,15 +107,10 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void RebuildWorktreePaths()
     {
-        var candidates = WorktreePath.Candidates(_branchName, _clones, _config);
-
         WorktreePaths.Clear();
-        foreach (var candidate in candidates.Take(MaxWorktreePaths))
+        foreach (var candidate in WorktreePath.Candidates(_branchName, _clones, _config))
             WorktreePaths.Add(candidate);
-
-        ExtraWorktreePathCount = Math.Max(0, candidates.Count - MaxWorktreePaths);
         OnPropertyChanged(nameof(HasWorktreePaths));
-        OnPropertyChanged(nameof(ExtraWorktreePathsNote));
     }
 
     // --- Phase machine ----------------------------------------------------------------

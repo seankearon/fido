@@ -65,9 +65,8 @@
         </StackPanel>
 
         <StackPanel Spacing="9">
-            <TextBlock Classes="label" TextWrapping="Wrap">
-                <Run Text="Worktree root " /><Run Text="· blank = sibling &quot;.worktrees&quot;, one worktree path per repo · set one for a single path"
-                                            Foreground="{DynamicResource FidoTextDim}" />
+            <TextBlock Classes="label">
+                <Run Text="Worktree root " /><Run Text="· blank = sibling &quot;.worktrees&quot;" Foreground="{DynamicResource FidoTextDim}" />
             </TextBlock>
             <TextBox Classes="fido" Text="{Binding WorktreeRoot, Mode=TwoWay}" PlaceholderText="sibling .worktrees folder" />
         </StackPanel>
