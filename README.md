@@ -42,6 +42,11 @@ choice, never the scan, so every location is still found and listed and each sta
 run files and `aspire start` become a drop-down beside the **Console** button, run in a console at the
 selected location. Fido only ever *offers* them; nothing runs on its own.
 
+It reads the file **off the branch, not just out of your folder**: your uncommitted edit first, then the
+copy on `origin` whenever it differs from the one here, then the one this machine has. So a worktree made
+before the config landed still gets it, and the flight log names the copy that answered — or says the
+branch carries none, rather than leaving you guessing.
+
 Don't hand-write it: the **OPEN** strip has a button that creates the file in the selected location and
 opens it in your editor, seeded with the scripts Fido just found and every setting at its default — so
 it changes nothing until you edit it, and an existing file is only ever opened, never overwritten. Full
