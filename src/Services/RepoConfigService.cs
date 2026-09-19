@@ -165,7 +165,9 @@ public sealed class RepoConfigService
     /// <summary>The branch's tracking ref — what this clone last fetched from <c>origin</c>.</summary>
     public static string OriginRef(string branch) => "origin/" + branch;
 
-    private static bool IsScript(string name) =>
+    /// <summary>Whether <paramref name="name"/> is one of the run-file kinds Fido recognises. Internal so
+    /// the console shares this one list rather than keeping a second that can drift from it.</summary>
+    internal static bool IsScript(string name) =>
         ScriptExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Top-level file names in <paramref name="folder"/>; empty when it can't be read.</summary>

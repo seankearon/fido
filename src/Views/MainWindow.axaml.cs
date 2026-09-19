@@ -167,6 +167,16 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Opening the Console tab is what asks for a shell — Fido doesn't spawn one on every launch just
+        // in case. Only for a checkout that exists: a placement card's folder hasn't been created yet, and
+        // the pane keeps its "pick a location" placeholder until one has.
+        if (e.PropertyName == nameof(MainWindowViewModel.IsConsoleTab) && _vm.IsConsoleTab)
+        {
+            if (_vm.SelectedTarget is { Target: { Kind: TargetKind.Worktree or TargetKind.MainClone } target })
+                ConsoleView.EnsureStarted(target.Path);
+            return;
+        }
+
         if (e.PropertyName != nameof(MainWindowViewModel.BranchName)) return;
 
         _scanDebounce.Stop();
@@ -513,9 +523,30 @@ public partial class MainWindow : Window
     /// </summary>
     internal async Task RunConsoleOptionAsync(ConsoleRunOption run)
     {
-        if (run.ToolIndex < 0 || run.ToolIndex >= _config.Editors.Count) return;
-        await OpenWithAsync(_config.Editors[run.ToolIndex], consoleCommand: run.Command);
+        // A shell entry has nothing to run, so it travels as a null command — which also means it skips
+        // the pull-before-run fast-forward below. Opening a shell to look around isn't running the thing.
+        var command = run.IsShell ? null : run.Command;
+
+        // No tool index means the pick came from the Console tab's own menu rather than a tool button's.
+        // That menu exists to drive the pane beneath it, so it always runs there — RunInFido is about
+        // what the *launch* buttons do, and has no say over a tab the user is already looking at.
+        if (run.ToolIndex < 0)
+        {
+            await OpenWithAsync(ConsoleEditor(), consoleCommand: command, fromRunMenu: true, inConsolePane: true);
+            return;
+        }
+
+        if (run.ToolIndex >= _config.Editors.Count) return;
+        await OpenWithAsync(_config.Editors[run.ToolIndex], consoleCommand: command, fromRunMenu: true);
     }
+
+    /// <summary>
+    /// The Console tool to attribute a Console-tab run to. Its configured path is irrelevant — the pane
+    /// hosts the shell itself — so a setup with no Console tool still gets a working tab.
+    /// </summary>
+    private Editor ConsoleEditor() =>
+        _config.Editors.FirstOrDefault(e => e.Kind == EditorKind.Console)
+        ?? new Editor { Name = "Console", Kind = EditorKind.Console };
 
     /// <summary>
     /// Opens the selected target with <paramref name="editor"/>. Gated on the phase machine: does
@@ -525,7 +556,8 @@ public partial class MainWindow : Window
     /// tool opens the folder. <paramref name="consoleCommand"/> — a pick from the Console button's run
     /// menu — is run in the terminal at that folder instead of just opening one there. Internal for tests.
     /// </summary>
-    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null)
+    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null,
+        bool fromRunMenu = false, bool inConsolePane = false)
     {
         if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
 
@@ -590,6 +622,24 @@ public partial class MainWindow : Window
             }
 
             var targetPath = solution ?? folder;
+
+            // Run it here rather than hand it off, when that's what the user has asked for. Only ever for
+            // a run-menu pick at the Console tool: opening a folder to look at it is a launch, and belongs
+            // in their terminal. The hand-off closure is the escape hatch — same command, same folder,
+            // their terminal — so choosing this is never a one-way door.
+            if (fromRunMenu && editor.Kind == EditorKind.Console && (inConsolePane || _config.RunInFido))
+            {
+                _vm.AppendLog(consoleCommand is null
+                    ? $"▸ Opening a shell in {folder} (Console tab)"
+                    : $"▸ Running '{consoleCommand}' in {folder} (Console tab)");
+                _vm.AppendLog("Fido? GO!");
+                // Show the pane before running: a command driven from the flight log tab would otherwise
+                // produce output nobody is looking at.
+                _vm.IsConsoleTab = true;
+                ConsoleView.Run(folder, consoleCommand);
+                return;
+            }
+
             var editorPath = _launcher.Locate(editor);
             if (editorPath is null)
             {
@@ -1400,6 +1450,9 @@ public partial class MainWindow : Window
         CancelPendingClose();
         _scanCts?.Cancel();
         _scanDebounce.Stop();
+        // The console holds a live child process. Fido is on its way out, and an orphaned shell with no
+        // terminal attached to it would linger.
+        ConsoleView.Stop();
         base.OnClosed(e);
     }
 }

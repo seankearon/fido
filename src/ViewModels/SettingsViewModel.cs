@@ -16,6 +16,7 @@ public sealed class SettingsViewModel : ObservableObject
     private AppTheme _selectedTheme = AppTheme.System;
     private bool _showTargetInWindowTitle = true;
     private bool _pullBeforeRun = true;
+    private bool _runInFido;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
     private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
@@ -113,6 +114,14 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _pullBeforeRun, value);
     }
 
+    /// <summary>Whether the Console run menu runs its pick in Fido's own window rather than handing it
+    /// to the configured terminal. Ticking it also adds a "shell here" entry to that menu.</summary>
+    public bool RunInFido
+    {
+        get => _runInFido;
+        set => SetField(ref _runInFido, value);
+    }
+
     public CloseAfterOpen CloseAfterOpen
     {
         get => _closeAfterOpen;
@@ -180,6 +189,7 @@ public sealed class SettingsViewModel : ObservableObject
         SelectedTheme = config.Theme;
         ShowTargetInWindowTitle = config.ShowTargetInWindowTitle;
         PullBeforeRun = config.PullBeforeRun;
+        RunInFido = config.RunInFido;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -200,6 +210,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.Theme = SelectedTheme;
         config.ShowTargetInWindowTitle = ShowTargetInWindowTitle;
         config.PullBeforeRun = PullBeforeRun;
+        config.RunInFido = RunInFido;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer

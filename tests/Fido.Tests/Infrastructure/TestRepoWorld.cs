@@ -235,6 +235,7 @@ public sealed class TestRepoWorld : IDisposable
         CloseAfterOpen closeAfterOpen = CloseAfterOpen.CommandLine,
         int closeAfterOpenDelaySeconds = 0,
         bool pullBeforeRun = true,
+        bool runInFido = false,
         GitService? git = null,
         GitHubCli? gitHub = null)
     {
@@ -247,6 +248,7 @@ public sealed class TestRepoWorld : IDisposable
             CloseAfterOpen = closeAfterOpen,
             CloseAfterOpenDelaySeconds = closeAfterOpenDelaySeconds,
             PullBeforeRun = pullBeforeRun,
+            RunInFido = runInFido,
         };
 
         var configDir = Path.Combine(Root, "config", Guid.NewGuid().ToString("N"));

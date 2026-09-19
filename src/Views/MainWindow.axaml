@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Fido.ViewModels"
         xmlns:models="using:Fido.Models"
+        xmlns:views="using:Fido.Views"
         xmlns:sys="using:System"
         x:Class="Fido.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -458,7 +459,7 @@
                                                           ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                             <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource FidoTextMuted}"
-                                                       Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                       Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
                                             <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                     Click="OnRepoConfigClick" />
@@ -508,7 +509,7 @@
                                                                       ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                                         <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                                    Foreground="{DynamicResource FidoTextMuted}"
-                                                                   Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                                   Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
                                                         <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                                 Click="OnRepoConfigClick" />
@@ -603,14 +604,23 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- ============================= 6. Flight log ============================= -->
+        <!-- ======================= 6. Flight log / Console ======================= -->
         <Grid x:Name="LogRegion" Grid.Row="1" RowDefinitions="Auto,Auto" Margin="0,20,0,0">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,9">
-                <TextBlock Grid.Column="0" Classes="label" Text="Flight log" VerticalAlignment="Center" />
+                <!-- Two views of the same strip of window: the narration, or a shell at the selected
+                     location. The right-hand end of this line belongs to whichever tab is showing. -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <RadioButton x:Name="FlightLogTab" Classes="tab" GroupName="LogTab" Content="Flight log"
+                                 IsChecked="{Binding IsFlightLogTab, Mode=TwoWay}" />
+                    <RadioButton x:Name="ConsoleTab" Classes="tab" GroupName="LogTab" Content="Console"
+                                 IsChecked="{Binding IsConsoleTab, Mode=TwoWay}" />
+                </StackPanel>
                 <Border Grid.Column="1" Height="1" Background="{DynamicResource FidoLogRule}"
                         VerticalAlignment="Center" Margin="10,0" />
+
                 <!-- Take the narration with you: the whole log to the clipboard, or out to a text file -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                            IsVisible="{Binding IsFlightLogTab}">
                     <Button x:Name="CopyLogButton" Classes="iconaction" Click="OnCopyLogClick"
                             IsTabStop="False" IsEnabled="{Binding HasLog}"
                             ToolTip.Tip="Copy the flight log to the clipboard">
@@ -624,25 +634,58 @@
                               Data="M12,3 V15 M8,11 L12,15 L16,11 M4,17 V20 A1,1 0 0 0 5,21 H19 A1,1 0 0 0 20,20 V17" />
                     </Button>
                 </StackPanel>
+
+                <!-- What this branch offers to run, straight into the console below it. -->
+                <Button Grid.Column="2" x:Name="ConsoleRunsButton" Classes="runcaret"
+                        IsVisible="{Binding IsConsoleTab}" IsEnabled="{Binding CanOpen}"
+                        ToolTip.Tip="Run something here — a script from this branch's .fido config, or a fresh shell">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Run" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource FidoTextBody}" />
+                        <Path Data="M0,0 L9,0 L4.5,5.5 Z" Width="9" Height="6"
+                              Fill="{DynamicResource FidoTextBody}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight" ShowMode="Transient">
+                            <StackPanel Width="250" Spacing="8" Margin="4">
+                                <TextBlock Classes="label" Text="Run in console" />
+                                <ItemsControl ItemsSource="{Binding ConsoleTabRuns}"
+                                              ItemTemplate="{StaticResource ConsoleRunTemplate}" />
+                                <TextBlock FontSize="11.5" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource FidoTextMuted}"
+                                           Text="Runs at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
+                                <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Click="OnRepoConfigClick" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
             </Grid>
             <!-- MinHeight/MaxHeight are the design's content-sized panel (104 → 150 as lines land); an
                  explicit Height set from code-behind takes over once the window has slack to give. -->
             <Border x:Name="LogPanel" Grid.Row="1"
                     Background="{DynamicResource FidoLogBg}" BorderBrush="{DynamicResource FidoLogBorder}"
                     BorderThickness="1" CornerRadius="10" Padding="15,12" MinHeight="104" MaxHeight="150">
-                <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Log}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="vm:LogLine">
-                                <TextBlock Classes="logline" Text="{Binding Text}"
-                                           Classes.accent="{Binding IsAccent}"
-                                           Classes.ok="{Binding IsOk}"
-                                           Classes.warn="{Binding IsWarn}"
-                                           Classes.plain="{Binding IsPlain}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <Grid>
+                    <ScrollViewer x:Name="LogScroller" IsVisible="{Binding IsFlightLogTab}"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Log}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:LogLine">
+                                    <TextBlock Classes="logline" Text="{Binding Text}"
+                                               Classes.accent="{Binding IsAccent}"
+                                               Classes.ok="{Binding IsOk}"
+                                               Classes.warn="{Binding IsWarn}"
+                                               Classes.plain="{Binding IsPlain}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <!-- Kept loaded rather than swapped out, so a running shell survives a trip to the
+                         flight log and back: its scrollback is the record of what just ran. -->
+                    <views:ConsolePane x:Name="ConsoleView" IsVisible="{Binding IsConsoleTab}" />
+                </Grid>
             </Border>
         </Grid>
 

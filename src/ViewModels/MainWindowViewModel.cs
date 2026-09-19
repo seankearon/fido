@@ -318,6 +318,39 @@ public sealed class MainWindowViewModel : ObservableObject
     private int _defaultToolIndex = AppConfig.NoDefaultEditor;
     private IReadOnlyList<ConsoleRunOption> _consoleRuns = [];
 
+    private bool _isConsoleTab;
+
+    /// <summary>
+    /// Which of the two bottom panels is showing. They share the strip of window under the open actions,
+    /// and the right-hand end of the tab row belongs to whichever is selected — the log's copy/save
+    /// buttons, or the console's run menu.
+    /// </summary>
+    public bool IsConsoleTab
+    {
+        get => _isConsoleTab;
+        set
+        {
+            if (!SetField(ref _isConsoleTab, value)) return;
+            OnPropertyChanged(nameof(IsFlightLogTab));
+        }
+    }
+
+    /// <summary>The other side of <see cref="IsConsoleTab"/>; bound two-way by the Flight log tab.</summary>
+    public bool IsFlightLogTab
+    {
+        get => !_isConsoleTab;
+        set => IsConsoleTab = !value;
+    }
+
+    /// <summary>
+    /// The Console tab's run menu: a fresh shell first, then whatever the branch's <c>.fido/cfg.yaml</c>
+    /// nominated. The shell entry is unconditional here — unlike the Console <em>tool</em> button, which
+    /// launches the user's own terminal, this menu only ever runs in the pane below it, so "give me a
+    /// clean prompt again" is a useful thing to ask for after a script has left the screen full.
+    /// </summary>
+    public IReadOnlyList<ConsoleRunOption> ConsoleTabRuns =>
+        [ConsoleRunOption.ShellHere, .. _consoleRuns];
+
     /// <summary>
     /// Sets the tools the screen offers. <paramref name="defaultIndex"/> is a position into
     /// <paramref name="editors"/>; <see cref="AppConfig.NoDefaultEditor"/> (or out of range) means no
@@ -342,6 +375,7 @@ public sealed class MainWindowViewModel : ObservableObject
         // rather than churning the tool buttons on each keystroke-debounced scan.
         if (_consoleRuns.Count == 0 && runs.Count == 0) return;
         _consoleRuns = runs;
+        OnPropertyChanged(nameof(ConsoleTabRuns));
         RebuildTools();
     }
 
