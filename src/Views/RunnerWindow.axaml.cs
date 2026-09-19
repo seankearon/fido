@@ -24,6 +24,9 @@ public partial class RunnerWindow : Window
 {
     private readonly Action? _handOff;
 
+    /// <summary>Whether <see cref="OnOpened"/> got as far as starting the shell — see <see cref="OnClosed"/>.</summary>
+    private bool _launched;
+
     public RunnerWindow()
     {
         InitializeComponent();
@@ -63,6 +66,7 @@ public partial class RunnerWindow : Window
         // Launching after the window is up means the PTY is sized from a laid-out control, so the shell's
         // first prompt is drawn at the real width instead of an 80x24 default it would have to reflow.
         Terminal.LaunchProcess();
+        _launched = true;
         Terminal.Focus();
     }
 
@@ -89,11 +93,19 @@ public partial class RunnerWindow : Window
     /// <summary>
     /// Closing the window must take the shell with it. The PTY holds a live child process and Fido may
     /// well be about to exit itself; an orphaned pwsh with no terminal attached would linger.
+    ///
+    /// Guarded twice over, because this is teardown and there is no useful way to fail here. The window is
+    /// shown owned by the main window, so closing Fido closes this one too — possibly before
+    /// <see cref="OnOpened"/> ever ran, leaving nothing to kill. <see cref="_launched"/> covers that;
+    /// the catch covers a shell that has already exited, which the control reports by throwing.
     /// </summary>
     protected override void OnClosed(EventArgs e)
     {
-        try { Terminal.Kill(); }
-        catch (InvalidOperationException) { /* already gone */ }
+        if (_launched)
+        {
+            try { Terminal.Kill(); }
+            catch (Exception) { /* already gone, or never fully started — nothing left to do */ }
+        }
         base.OnClosed(e);
     }
 }

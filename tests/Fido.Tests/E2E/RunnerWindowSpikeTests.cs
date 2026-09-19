@@ -2,7 +2,9 @@ using System.IO;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
+using Fido.Models;
 using Fido.Services;
+using Fido.ViewModels;
 using Fido.Tests.Infrastructure;
 using Fido.Views;
 
@@ -112,6 +114,76 @@ public class RunnerWindowSpikeTests
 
             window.Close();
             UiTestExtensions.Pump();
+        });
+    }
+
+    private static EditorLaunchOption ConsoleTool(MainWindow window) =>
+        window.Vm().GridTools.First(t => t.Name == "Console");
+
+    /// <summary>A world with one clone on a branch, and no <c>.fido/cfg.yaml</c> anywhere.</summary>
+    private static (TestRepoWorld World, string Root) PlainRepo()
+    {
+        var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        world.Clone(origin, root, "Foo");
+        return (world, root);
+    }
+
+    [Test]
+    public async Task The_run_menu_offers_a_shell_even_when_the_branch_has_no_fido_config()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService(), runInFido: true);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            // The shell offer belongs to the scan, not to a repo config — a branch with no cfg.yaml
+            // still gets one, which is the whole point of seeding it before the config is applied.
+            var console = ConsoleTool(window);
+            await Assert.That(console.HasRuns).IsTrue();
+            await Assert.That(console.Runs[0].IsShell).IsTrue();
+            await Assert.That(console.Runs[0].Label).IsEqualTo("shell here");
+        });
+    }
+
+    [Test]
+    public async Task The_shell_entry_is_absent_when_Fido_is_not_hosting_consoles()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            // Off by default: the Console button already opens the user's own terminal at the folder,
+            // so a second entry doing the same thing would be noise. The UI is exactly as it was.
+            await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
+        });
+    }
+
+    [Test]
+    public async Task A_shell_pick_is_never_handed_to_the_configured_terminal()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService(), runInFido: true);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(ConsoleTool(window).Runs[0]);
+
+            // It opens in Fido's window instead, so the launcher is never asked to start anything.
+            await Assert.That(launcher.Launches.Count).IsEqualTo(0);
+            await Assert.That(window.LogText()).Contains("Opening a shell in");
         });
     }
 }

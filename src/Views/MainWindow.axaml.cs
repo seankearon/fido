@@ -241,9 +241,17 @@ public partial class MainWindow : Window
                     ? $"✓ '{branch}' isn't checked out anywhere — {placementRepos} repo(s) can place it (new worktree, or switch the main tree)."
                     : $"✓ Found {targets.Count} location(s) for '{branch}'.");
 
+            // The Console menu starts with a shell at the selected folder whenever Fido hosts consoles
+            // itself — that offer belongs to the scan, not to the branch's config, so a repo with no
+            // .fido/cfg.yaml still gets one. The branch's own config then appends to it.
+            var runs = new List<ConsoleRunOption>();
+            if (_config.RunInFido) runs.Add(ConsoleRunOption.ShellHere);
+
             // What the branch's own .fido/cfg.yaml asked for: narrated, and stocked into the Console menu.
             if (repoConfig is { } repo)
-                await ApplyRepoConfigAsync(repo.Config, repo.Target, branch, cts.Token);
+                await ApplyRepoConfigAsync(repo.Config, repo.Target, branch, cts.Token, runs);
+            else
+                _vm.SetConsoleRuns(runs);
 
             // Starting a scan wipes the log, so a bad CLI tool id is reported here — after the first
             // completed scan — where it stays visible.
@@ -334,9 +342,8 @@ public partial class MainWindow : Window
     /// <c>aspire start</c> when it asked for one. Nothing here runs a command — the menu only offers them.
     /// </summary>
     private async Task ApplyRepoConfigAsync(RepoConfig config, DiscoveredTarget target, string branch,
-        CancellationToken ct)
+        CancellationToken ct, List<ConsoleRunOption> runs)
     {
-        var runs = new List<ConsoleRunOption>();
         try
         {
             foreach (var file in await _repoConfigs.ResolveRunFilesAsync(config, target, branch, ct))
@@ -461,7 +468,10 @@ public partial class MainWindow : Window
     internal async Task RunConsoleOptionAsync(ConsoleRunOption run)
     {
         if (run.ToolIndex < 0 || run.ToolIndex >= _config.Editors.Count) return;
-        await OpenWithAsync(_config.Editors[run.ToolIndex], consoleCommand: run.Command);
+        // A shell entry has nothing to run, so it travels as a null command — which also means it skips
+        // the pull-before-run fast-forward below. Opening a shell to look around isn't running the thing.
+        await OpenWithAsync(_config.Editors[run.ToolIndex],
+            consoleCommand: run.IsShell ? null : run.Command, fromRunMenu: true);
     }
 
     /// <summary>
@@ -472,7 +482,8 @@ public partial class MainWindow : Window
     /// tool opens the folder. <paramref name="consoleCommand"/> — a pick from the Console button's run
     /// menu — is run in the terminal at that folder instead of just opening one there. Internal for tests.
     /// </summary>
-    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null)
+    internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null,
+        bool fromRunMenu = false)
     {
         if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
 
@@ -542,9 +553,11 @@ public partial class MainWindow : Window
             // a run-menu pick at the Console tool: opening a folder to look at it is a launch, and belongs
             // in their terminal. The hand-off closure is the escape hatch — same command, same folder,
             // their terminal — so choosing this is never a one-way door.
-            if (consoleCommand is not null && editor.Kind == EditorKind.Console && _config.RunInFido)
+            if (fromRunMenu && editor.Kind == EditorKind.Console && _config.RunInFido)
             {
-                _vm.AppendLog($"▸ Running '{consoleCommand}' in {folder} (Fido console)");
+                _vm.AppendLog(consoleCommand is null
+                    ? $"▸ Opening a shell in {folder} (Fido console)"
+                    : $"▸ Running '{consoleCommand}' in {folder} (Fido console)");
                 _vm.AppendLog("Fido? GO!");
                 var handOffPath = _launcher.Locate(editor);
                 new RunnerWindow(branch, folder, consoleCommand,

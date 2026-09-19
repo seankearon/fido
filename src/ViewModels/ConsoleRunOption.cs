@@ -23,4 +23,19 @@ public sealed record ConsoleRunOption(string Label, string Command)
 
     /// <summary>The <c>Aspire start</c> option: launch the repo's .NET Aspire app host.</summary>
     public static ConsoleRunOption AspireStart { get; } = new("aspire start", "aspire start");
+
+    /// <summary>
+    /// True for <see cref="ShellHere"/>, which has no command to run. Kept as a flag rather than inferred
+    /// from an empty <see cref="Command"/> so the two cases can't be confused by a config that somehow
+    /// nominates a blank run file.
+    /// </summary>
+    public bool IsShell { get; init; }
+
+    /// <summary>
+    /// A plain interactive shell at the selected folder — no command, nothing run. Offered at the top of
+    /// the run menu only when Fido hosts consoles itself (<see cref="Models.AppConfig.RunInFido"/>);
+    /// otherwise the Console button already does exactly this by opening the user's own terminal there,
+    /// and a second way to do the same thing would just be noise.
+    /// </summary>
+    public static ConsoleRunOption ShellHere { get; } = new("shell here", "") { IsShell = true };
 }

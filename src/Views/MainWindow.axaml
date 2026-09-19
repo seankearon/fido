@@ -458,7 +458,7 @@
                                                           ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                             <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource FidoTextMuted}"
-                                                       Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                       Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
                                             <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                     Click="OnRepoConfigClick" />
@@ -508,7 +508,7 @@
                                                                       ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                                         <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                                    Foreground="{DynamicResource FidoTextMuted}"
-                                                                   Text="Offered by this branch's .fido/cfg.yaml; runs in a console at the selected location." />
+                                                                   Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
                                                         <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                                 Click="OnRepoConfigClick" />
