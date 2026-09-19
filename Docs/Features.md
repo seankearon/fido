@@ -342,10 +342,34 @@ inline lists (`run files: [build.ps1, test.ps1]`) are understood; a setting Fido
 skipped rather than rejected, and a missing or unreadable file simply means "no in-repo config" — a scan
 never fails because of one.
 
-**Where it's read from.** For a location that's **already on the branch** the file is read from that
-working tree, so an edit you haven't committed yet counts. For a **placement offer** — the branch isn't
-checked out anywhere — it's read straight out of the branch with `git show`, including from
-`origin/<branch>` when only the remote has it. Nothing has to be checked out for the config to apply.
+**Where it's read from, and in what order.** A branch can be carrying the file in more than one place at
+once, and the copies needn't agree, so Fido takes them in a fixed order and says which one answered:
+
+1. **A local edit** — the file in the working tree with changes that aren't committed. The one you're
+   writing right now wins outright; an edit in flight has always counted.
+2. **The copy on `origin`**, whenever it differs from the one this machine has. This is the case a
+   **checkout that's behind** creates: the config — or a newer one — landed on the branch after your
+   worktree was made, so there's nothing in that folder to find. The flight log says
+   `Read from origin/<branch> — the copy here is missing or out of date`, because the tree your commands
+   will run in hasn't caught up with the settings offering them.
+3. **The local copy** — the committed file in the tree, or the one on the local branch ref for a branch
+   that's checked out nowhere.
+
+A copy that **asks for nothing is treated as no file at all**, so it never shadows the one below it: a
+starter file you created and haven't edited yet can't mask the settings the branch really carries. A `*`
+in `run files` is expanded against **whichever tree the settings came from** — `origin/<branch>`'s root
+for a config read off `origin` — so settings from one commit are never paired with a file listing from
+another. A script the folder hasn't got yet is no obstacle: a run fast-forwards the tree first.
+
+Everything is read from **what this machine already has**: the working tree, and the tracking refs *as
+last fetched*. A scan runs on a keystroke, so it never goes to the network — a config pushed since your
+last `git fetch` isn't visible yet, and fetching then pressing **Enter** picks it up. When the branch
+carries nothing anywhere the log **says so** (`No .fido/cfg.yaml on 'feature/x' — nothing here, and
+nothing on origin/feature/x as last fetched`) rather than leaving you wondering whether it looked.
+
+**Nothing has to be checked out** for the config to apply: a placement offer reads the branch's refs, and
+placing the branch reads the tree that placement just created — which is how a branch this clone had
+never fetched, config and all, arrives without a second scan.
 
 **Creating it.** The **OPEN** strip carries a small **document button** beside the copy-path icon:
 it creates `.fido/cfg.yaml` in the selected location and opens it in your default tool, so a repo can

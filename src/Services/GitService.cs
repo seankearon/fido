@@ -203,6 +203,21 @@ public sealed class GitService
         return null;
     }
 
+    /// <summary>
+    /// True when <paramref name="path"/> carries work that isn't committed in the tree at
+    /// <paramref name="dir"/> — modified, staged, or not tracked at all. <paramref name="path"/> is a
+    /// pathspec resolved against <paramref name="dir"/>, so this is asked at the root of a working tree.
+    /// A git that can't answer (not a tree, no such path) counts as "nothing uncommitted" rather than an
+    /// error: the caller is choosing between copies of a file, not reporting on the repository.
+    /// </summary>
+    public async Task<bool> HasUncommittedChangesAsync(string dir, string path, CancellationToken ct = default)
+    {
+        // --untracked-files=all so a file in a folder git has never seen is listed in its own right,
+        // rather than collapsed into the folder.
+        var r = await Git(dir, ct, "status", "--porcelain=v1", "--untracked-files=all", "--", path);
+        return r.Success && r.StdOut.Trim().Length > 0;
+    }
+
     /// <summary>Outstanding changes as porcelain lines; empty when the tree is clean.</summary>
     public async Task<List<string>> GetStatusAsync(string dir, CancellationToken ct = default)
     {
