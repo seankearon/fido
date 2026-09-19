@@ -52,11 +52,25 @@
         <InternalsVisibleTo Include="Fido.Tests" />
     </ItemGroup>
 
+    <!-- TerminalControl's static constructor loads its own theme by building a StyleInclude from an
+         avares: Uri, which goes through AvaloniaXamlLoader's runtime loader. Under Native AOT the trimmer
+         drops that assembly's precompiled XAML index (nothing references it statically), the lookup finds
+         nothing, and the type initializer throws the moment a terminal is constructed - a hard crash, not a
+         degraded render. Rooting the assembly keeps the index reachable. Verified by publishing the AOT exe
+         and driving a real shell through it; without this line the same binary aborts on startup.
+         The library still reports IL2104 for that code path: the analyzer cannot see that the resource it
+         needs is now rooted. Left visible rather than suppressed - it is a true statement about the library,
+         and the runtime behaviour is pinned by the RunnerWindow spike tests. -->
+    <ItemGroup>
+        <TrimmerRootAssembly Include="Iciclecreek.Avalonia.Terminal" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="12.0.4" />
         <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
         <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+        <PackageReference Include="Iciclecreek.Avalonia.Terminal" Version="4.0.2" />
         <!-- Polly.Core is the lean, Native-AOT/trim-safe core (no DI/reflection) — used to retry the
              transient failures git's deletion commands hit (a still-locked worktree file, a racing ref
              .lock, a network blip deleting the origin branch). -->

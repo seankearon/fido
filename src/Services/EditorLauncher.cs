@@ -238,7 +238,7 @@ public sealed class EditorLauncher : IEditorLauncher
     /// (the working directory isn't on <c>PATH</c>), a <c>.ps1</c> is handed to <c>pwsh</c>, and anything else
     /// — <c>aspire start</c>, an npm script — is passed through untouched.
     /// </summary>
-    private static string UnixCommand(string command)
+    internal static string UnixCommand(string command)
     {
         var tokens = SplitCommand(command);
         if (tokens.Length == 0) return command;
@@ -286,7 +286,7 @@ public sealed class EditorLauncher : IEditorLauncher
     }
 
     /// <summary>Single-quotes a token for a unix shell, leaving plain ones (the usual case) alone.</summary>
-    private static string ShellQuote(string token) =>
+    internal static string ShellQuote(string token) =>
         token.Length > 0 && token.All(c => char.IsLetterOrDigit(c) || c is '.' or '_' or '-' or '/' or '+' or '=' or ':')
             ? token
             : "'" + token.Replace("'", "'\\''") + "'";

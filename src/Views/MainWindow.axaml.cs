@@ -537,6 +537,22 @@ public partial class MainWindow : Window
             }
 
             var targetPath = solution ?? folder;
+
+            // Run it here rather than hand it off, when that's what the user has asked for. Only ever for
+            // a run-menu pick at the Console tool: opening a folder to look at it is a launch, and belongs
+            // in their terminal. The hand-off closure is the escape hatch — same command, same folder,
+            // their terminal — so choosing this is never a one-way door.
+            if (consoleCommand is not null && editor.Kind == EditorKind.Console && _config.RunInFido)
+            {
+                _vm.AppendLog($"▸ Running '{consoleCommand}' in {folder} (Fido console)");
+                _vm.AppendLog("Fido? GO!");
+                var handOffPath = _launcher.Locate(editor);
+                new RunnerWindow(branch, folder, consoleCommand,
+                    handOffPath is null ? null : () => _launcher.Launch(editor, handOffPath, folder, consoleCommand))
+                    .Show(this);
+                return;
+            }
+
             var editorPath = _launcher.Locate(editor);
             if (editorPath is null)
             {
