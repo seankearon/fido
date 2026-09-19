@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:term="using:Iciclecreek.Terminal"
+             x:Class="Fido.Views.ConsolePane">
+
+    <Grid>
+        <!-- Nothing to open a shell at yet: the branch hasn't resolved, or no location is selected. -->
+        <TextBlock x:Name="Placeholder" Classes="logline"
+                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                   TextWrapping="Wrap" TextAlignment="Center"
+                   Foreground="{DynamicResource FidoTextMuted}"
+                   Text="Find a branch and pick a location — the console opens there." />
+
+        <!-- The terminal is created here but only started when the tab is first opened (see
+             ConsolePane.EnsureStarted): Fido shouldn't spawn a shell on every launch just in case. -->
+        <term:TerminalControl x:Name="Terminal"
+                              IsVisible="False"
+                              FontFamily="{DynamicResource FidoMono}"
+                              FontSize="12.5"
+                              AutoScrollToBottom="True"
+                              ProcessExited="OnProcessExited" />
+    </Grid>
+</UserControl>

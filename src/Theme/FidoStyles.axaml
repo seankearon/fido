@@ -220,6 +220,34 @@
         <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
     </Style>
 
+    <!-- Panel tab (RadioButton as a section heading that can be picked). Deliberately not the segment
+         pill above: this labels the panel beneath it rather than offering a setting, so it reads as the
+         "Flight log" heading always did, with the unselected one dimmed back. -->
+    <Style Selector="RadioButton.tab">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextDim}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="tab" Background="Transparent" CornerRadius="5" Padding="7,3">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.tab:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextMuted}" />
+    </Style>
+    <Style Selector="RadioButton.tab:checked">
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextLabel}" />
+    </Style>
+    <Style Selector="RadioButton.tab:checked /template/ Border#tab">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
+    </Style>
+
     <!-- Flight-log lines (level-coded via conditional classes; muted is the default) -->
     <Style Selector="TextBlock.logline">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
