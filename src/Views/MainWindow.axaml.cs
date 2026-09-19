@@ -54,6 +54,11 @@ public partial class MainWindow : Window
     /// <summary>One-shot CLI <c>--folder</c>: pre-select the Folder chip when the startup scan lands.</summary>
     private bool _startupPreferFolder;
 
+    /// <summary>Whether this scan found the branch an in-repo config. Placing the branch can turn up one the
+    /// scan couldn't see (see <see cref="RefreshRepoConfigAsync"/>); this keeps that from re-narrating a
+    /// config the scan already applied.</summary>
+    private bool _scanFoundRepoConfig;
+
     /// <summary>The deletion plan built when the confirm strip was armed; consumed on Delete.</summary>
     private WorktreeDeletion? _pendingDeletePlan;
     private TargetCard? _pendingDeleteCard;
@@ -229,9 +234,10 @@ public partial class MainWindow : Window
             // the main clone and stock the Console button's run menu.
             var repoConfig = await ReadRepoConfigAsync(targets, branch, cts.Token);
             if (cts.IsCancellationRequested) return;
+            _scanFoundRepoConfig = repoConfig.Read is not null;
 
             _vm.CompleteScan(targets, IsProtectedBranch(branch),
-                preferMainClone: repoConfig?.Config.PreferMainClone == true);
+                preferMainClone: repoConfig.Read?.Config.PreferMainClone == true);
             var placementRepos = targets.Count > 0 && targets.All(IsPlacementKind)
                 ? targets.Select(t => t.MainPath).Distinct(StringComparer.OrdinalIgnoreCase).Count()
                 : 0;
@@ -242,8 +248,13 @@ public partial class MainWindow : Window
                     : $"✓ Found {targets.Count} location(s) for '{branch}'.");
 
             // What the branch's own .fido/cfg.yaml asked for: narrated, and stocked into the Console menu.
-            if (repoConfig is { } repo)
-                await ApplyRepoConfigAsync(repo.Config, repo.Target, branch, cts.Token);
+            // A branch that carries none is said out loud too — "looked, found nothing" and "never looked"
+            // are not the same thing to anyone wondering where their run menu went.
+            if (repoConfig is { Read: { } read, Target: { } readFrom })
+                await ApplyRepoConfigAsync(read, readFrom, branch, cts.Token);
+            else if (!repoConfig.Reported && targets.Count > 0)
+                _vm.AppendLog($"▸ No {RepoConfigService.RepoRelativePath} on '{branch}' — nothing here, " +
+                              $"and nothing on {RepoConfigService.OriginRef(branch)} as last fetched.");
 
             // Starting a scan wipes the log, so a bad CLI tool id is reported here — after the first
             // completed scan — where it stays visible.
@@ -297,16 +308,25 @@ public partial class MainWindow : Window
     // --- In-repo config (.fido/cfg.yaml) ------------------------------------------------
 
     /// <summary>
+    /// The outcome of a scan's in-repo config read: the settings that applied and the target they were read
+    /// from, or neither. <paramref name="Reported"/> marks a read that <em>failed</em> and has already said
+    /// so in the log, so the plain "this branch carries none" line isn't printed over the top of an error.
+    /// </summary>
+    private sealed record RepoConfigLookup(
+        RepoConfigRead? Read = null, DiscoveredTarget? Target = null, bool Reported = false);
+
+    /// <summary>
     /// The Fido config the scanned branch carries, and the target it was read from. The results are all
     /// the same branch, so the file is the <em>branch's</em> rather than any one card's: the targets are
     /// consulted in order (worktrees first) and the first that carries a config wins — which also means
-    /// a clone that has the branch but no <c>.fido</c> folder doesn't mask one that has. Null when no
-    /// result carries a config, or when it asks for nothing Fido acts on.
+    /// a clone that has the branch but no <c>.fido</c> folder doesn't mask one that has. Each target is
+    /// asked through <see cref="RepoConfigService.ReadAsync"/>, so a copy on <c>origin</c> counts as the
+    /// branch carrying one even when the checkout in hand is too old to have it.
     /// </summary>
-    private async Task<(RepoConfig Config, DiscoveredTarget Target)?> ReadRepoConfigAsync(
+    private async Task<RepoConfigLookup> ReadRepoConfigAsync(
         IReadOnlyList<DiscoveredTarget> targets, string branch, CancellationToken ct)
     {
-        // A clone's two placement cards read the same file out of the same ref, so ask git once.
+        // A clone's two placement cards read the same file out of the same refs, so ask git once.
         var clonesRead = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var target in targets)
         {
@@ -315,17 +335,17 @@ public partial class MainWindow : Window
             // Reading a repo's own file must never sink a scan: report and carry on without it.
             try
             {
-                if (await _repoConfigs.ReadAsync(target, branch, ct) is { IsEmpty: false } config)
-                    return (config, target);
+                if (await _repoConfigs.ReadAsync(target, branch, ct) is { } read)
+                    return new RepoConfigLookup(read, target);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 _vm.AppendLog($"[!] Couldn't read {RepoConfigService.RepoRelativePath} in {target.RepoName}: {ex.Message}");
-                return null;
+                return new RepoConfigLookup(Reported: true);
             }
         }
-        return null;
+        return new RepoConfigLookup();
     }
 
     /// <summary>
@@ -333,13 +353,13 @@ public partial class MainWindow : Window
     /// Console button's run menu with its run files (a <c>*</c> expanded against the branch) plus
     /// <c>aspire start</c> when it asked for one. Nothing here runs a command — the menu only offers them.
     /// </summary>
-    private async Task ApplyRepoConfigAsync(RepoConfig config, DiscoveredTarget target, string branch,
+    private async Task ApplyRepoConfigAsync(RepoConfigRead read, DiscoveredTarget target, string branch,
         CancellationToken ct)
     {
         var runs = new List<ConsoleRunOption>();
         try
         {
-            foreach (var file in await _repoConfigs.ResolveRunFilesAsync(config, target, branch, ct))
+            foreach (var file in await _repoConfigs.ResolveRunFilesAsync(read, target, branch, ct))
                 runs.Add(ConsoleRunOption.ForRunFile(file));
         }
         catch (OperationCanceledException) { throw; }
@@ -347,22 +367,55 @@ public partial class MainWindow : Window
         {
             _vm.AppendLog($"[!] Couldn't list the run files on '{branch}': {ex.Message}");
         }
-        if (config.AspireStart) runs.Add(ConsoleRunOption.AspireStart);
+        if (read.Config.AspireStart) runs.Add(ConsoleRunOption.AspireStart);
 
         if (ct.IsCancellationRequested) return;
         _vm.SetConsoleRuns(runs);
 
         var asked = new List<string>();
-        if (config.PreferMainClone) asked.Add("main clone preferred");
+        if (read.Config.PreferMainClone) asked.Add("main clone preferred");
         if (runs.Count > 0) asked.Add($"{runs.Count} console run option(s)");
         _vm.AppendLog(asked.Count > 0
             ? $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — {string.Join(", ", asked)}."
             : $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — nothing in it applies here.");
 
+        // Which copy answered is only worth a line when there's a folder it disagrees with: the settings
+        // just applied are the branch's, but the tree the open actions will act on hasn't caught up. A
+        // placement offer has no such folder — reading a branch off its refs is simply how those work, and
+        // placing it brings the tree down level anyway.
+        if (read.IsFromOrigin && !IsPlacementKind(target))
+            _vm.AppendLog($"[!] Read from {RepoConfigService.OriginRef(branch)} — the copy here is missing " +
+                          "or out of date. Pull to bring this checkout level.");
+
         // A preference for the main clone that this scan can't honour is worth saying out loud, rather
         // than leaving the user wondering why a worktree is selected.
-        if (config.PreferMainClone && _vm.SelectedTarget is { IsMainClone: false, IsSwitchClone: false })
+        if (read.Config.PreferMainClone && _vm.SelectedTarget is { IsMainClone: false, IsSwitchClone: false })
             _vm.AppendLog("[!] No main clone among the results — staying on the first location.");
+    }
+
+    /// <summary>
+    /// Reads the in-repo config again for a target that has <em>just</em> become a folder on disk, and applies
+    /// it when the scan itself came back with nothing. That gap is real: a branch this clone had never fetched
+    /// has no config for a scan to find — the scan won't go to the network — and placing it brings both the
+    /// branch and its <c>.fido/cfg.yaml</c> down in one go. Skipped when the scan already applied a config, so
+    /// a placement never narrates the same settings twice. Never throws: the placement worked and the launch
+    /// it belongs to must carry on regardless.
+    /// </summary>
+    private async Task RefreshRepoConfigAsync(DiscoveredTarget placed, string branch)
+    {
+        if (_scanFoundRepoConfig || branch.Length == 0) return;
+        try
+        {
+            if (await _repoConfigs.ReadAsync(placed, branch) is { } read)
+            {
+                _scanFoundRepoConfig = true;
+                await ApplyRepoConfigAsync(read, placed, branch, CancellationToken.None);
+            }
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"[!] Couldn't read {RepoConfigService.RepoRelativePath} in {placed.RepoName}: {ex.Message}");
+        }
     }
 
     private async void OnRepoConfigClick(object? sender, RoutedEventArgs e) => await EditRepoConfigAsync();
@@ -582,6 +635,10 @@ public partial class MainWindow : Window
             UpdatedUtc = updated,
         };
         _vm.ReplaceTarget(card, materialised);
+
+        // The branch is a working tree now, which is more than the scan had to read: a branch this clone
+        // had never fetched arrived with the placement, config and all.
+        await RefreshRepoConfigAsync(materialised, _vm.ScannedBranch);
     }
 
     // --- Delete (inline two-step confirm) -------------------------------------------------

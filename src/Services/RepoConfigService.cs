@@ -8,10 +8,25 @@ namespace Fido.Services;
 /// <summary>
 /// Reads a repository's own Fido settings — the <c>.fido/cfg.yaml</c> file a repo commits — for a
 /// discovered target, so the branch can say how it prefers to be opened <em>before</em> the checkout
-/// options are offered. The file is read from the working tree when the branch is checked out there
-/// (so an edit in flight counts), and straight from the branch via <c>git show</c> for a placement
-/// offer, where nothing is on disk yet. A missing, unreadable or unparseable file is not an error: it
-/// yields no configuration and the scan carries on exactly as it always has.
+/// options are offered. A missing, unreadable or unparseable file is not an error: it yields no
+/// configuration and the scan carries on exactly as it always has.
+/// <para>
+/// A branch can carry the file in three places at once, and they need not agree, so
+/// <see cref="ReadAsync"/> takes them in a fixed order (see <see cref="RepoConfigSource"/>):
+/// <list type="number">
+///   <item><description>the <b>local edit</b> — the file in the working tree with changes that aren't
+///   committed, which is the one being written right now;</description></item>
+///   <item><description>the copy on <b>origin</b>, whenever it differs from the one this machine has —
+///   the case a stale checkout creates, where the branch grew a config after this worktree was made and
+///   reading only what's on disk would silently miss it;</description></item>
+///   <item><description>the <b>local</b> copy — the committed file in the tree, or the one on the local
+///   branch ref for a branch that's checked out nowhere.</description></item>
+/// </list>
+/// A copy that parses to nothing is treated as no file at all, so it never shadows the one below it: a
+/// freshly created starter file can't mask the settings the branch really carries. Everything is read
+/// from what this machine already has — the working tree, and the tracking ref as last fetched — because
+/// a scan runs on a keystroke and must never go to the network.
+/// </para>
 /// Also writes the starter file (<see cref="CreateAsync"/>) behind the UI's create/edit action, so a
 /// repo can be set up without hand-writing YAML — seeded at its defaults, and never overwriting one
 /// the repo already has.
@@ -38,36 +53,65 @@ public sealed class RepoConfigService
     public RepoConfigService(GitService git) => _git = git;
 
     /// <summary>
-    /// The Fido configuration <paramref name="branch"/> carries at <paramref name="target"/>, or null when
-    /// it carries none. A real checkout (<see cref="TargetKind.Worktree"/> / <see cref="TargetKind.MainClone"/>)
-    /// is read from disk; a placement offer is read from the branch itself — its own tree isn't on the
-    /// branch yet, and for <see cref="TargetKind.SwitchMainClone"/> the folder on disk is another branch
-    /// entirely, so reading it would answer the wrong question.
+    /// The Fido configuration <paramref name="branch"/> carries at <paramref name="target"/> and which copy
+    /// of it answered, or null when the branch carries none that asks for anything.
+    /// <para>
+    /// A real checkout (<see cref="TargetKind.Worktree"/> / <see cref="TargetKind.MainClone"/>) has a file
+    /// on disk to read; a placement offer has only refs, and for <see cref="TargetKind.SwitchMainClone"/>
+    /// the folder on disk is another branch entirely, so reading it would answer the wrong question. Either
+    /// way <c>origin</c>'s copy is consulted too and preferred when it differs, because what's here can be
+    /// older than the branch — the whole point of the order the class comment sets out.
+    /// </para>
     /// </summary>
-    public async Task<RepoConfig?> ReadAsync(DiscoveredTarget target, string branch, CancellationToken ct = default)
+    public async Task<RepoConfigRead?> ReadAsync(DiscoveredTarget target, string branch, CancellationToken ct = default)
     {
-        if (target.Kind is TargetKind.Worktree or TargetKind.MainClone)
-            return await Task.Run(() => ReadFile(PathIn(target.Path)), ct);
+        var checkedOut = target.Kind is TargetKind.Worktree or TargetKind.MainClone;
 
-        var yaml = await _git.ShowFileAsync(target.MainPath, BranchRef(target, branch), RepoRelativePath, ct);
-        return yaml is null ? null : Parse(yaml);
+        // 1. The local edit: a file in the tree that isn't committed as it stands. Asking git costs a
+        //    process, so only ask when there's actually a file here to be in that state.
+        var onDisk = checkedOut ? await Task.Run(() => ReadFileText(PathIn(target.Path)), ct) : null;
+        if (onDisk is not null
+            && await _git.HasUncommittedChangesAsync(target.Path, RepoRelativePath, ct)
+            && Applies(onDisk) is { } edited)
+            return new RepoConfigRead(edited, RepoConfigSource.LocalEdit);
+
+        // 2. origin's copy, when it says something different to the one here. Identical text means the
+        //    checkout is level on this file, and there's nothing to report — it reads as the local copy.
+        var local = checkedOut ? onDisk : await LocalRefTextAsync(target, branch, ct);
+        var onOrigin = await _git.ShowFileAsync(target.MainPath, OriginRef(branch), RepoRelativePath, ct);
+        if (onOrigin is not null && !SameText(onOrigin, local) && Applies(onOrigin) is { } theirs)
+            return new RepoConfigRead(theirs, RepoConfigSource.Origin);
+
+        // 3. What this machine has.
+        return local is not null && Applies(local) is { } ours
+            ? new RepoConfigRead(ours, RepoConfigSource.Local)
+            : null;
     }
 
     /// <summary>
-    /// The run files to offer for <paramref name="target"/>: the configured names in the order given, with a
-    /// <see cref="RunFilesWildcard"/> entry expanded in place to every script at the tree root — globbed
-    /// from the working tree when the branch is checked out, and listed from the branch itself
-    /// (<c>git ls-tree</c>) for a placement offer. Names are de-duplicated case-insensitively, so a name
-    /// listed explicitly <em>and</em> caught by the wildcard is offered once, keeping its explicit position.
+    /// The committed copy for a placement offer, read off the local branch ref — null when this clone knows
+    /// the branch only from <c>origin</c> (there's no local ref to read, and origin's copy is step 2's job).
+    /// </summary>
+    private async Task<string?> LocalRefTextAsync(DiscoveredTarget target, string branch, CancellationToken ct) =>
+        target.BranchOnOriginOnly
+            ? null
+            : await _git.ShowFileAsync(target.MainPath, branch, RepoRelativePath, ct);
+
+    /// <summary>
+    /// The run files to offer for <paramref name="read"/> at <paramref name="target"/>: the configured names
+    /// in the order given, with a <see cref="RunFilesWildcard"/> entry expanded in place to every script at
+    /// the root of the tree those settings came from (see <see cref="RootScriptsAsync"/>). Names are
+    /// de-duplicated case-insensitively, so a name listed explicitly <em>and</em> caught by the wildcard is
+    /// offered once, keeping its explicit position.
     /// </summary>
     public async Task<IReadOnlyList<string>> ResolveRunFilesAsync(
-        RepoConfig config, DiscoveredTarget target, string branch, CancellationToken ct = default)
+        RepoConfigRead read, DiscoveredTarget target, string branch, CancellationToken ct = default)
     {
         var resolved = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<string>? rootScripts = null;
 
-        foreach (var entry in config.RunFiles)
+        foreach (var entry in read.Config.RunFiles)
         {
             if (entry != RunFilesWildcard)
             {
@@ -75,7 +119,7 @@ public sealed class RepoConfigService
                 continue;
             }
 
-            rootScripts ??= await RootScriptsAsync(target, branch, ct);
+            rootScripts ??= await RootScriptsAsync(read.Source, target, branch, ct);
             foreach (var script in rootScripts)
                 if (seen.Add(script)) resolved.Add(script);
         }
@@ -83,13 +127,23 @@ public sealed class RepoConfigService
     }
 
     /// <summary>
-    /// The scripts at the root of the branch's tree: enumerated on disk for a checkout, and read out of
-    /// the branch with <c>git ls-tree</c> for a placement offer (nothing is on disk to look at). Sorted
-    /// by name so the Console menu is stable from one scan to the next.
+    /// The scripts the wildcard stands for: the root of whichever tree the settings themselves came from,
+    /// sorted by name so the Console menu is stable from one scan to the next.
+    /// <para>
+    /// Settings read off <c>origin</c> are expanded against <c>origin/&lt;branch&gt;</c> (<c>git ls-tree</c>),
+    /// not against the folder here: the two disagreed, which is why origin's copy was taken, and offering
+    /// that config alongside a stale file listing would pair settings from one commit with scripts from
+    /// another. A script the checkout hasn't got yet is no obstacle — a run fast-forwards the tree first, and
+    /// a named script has always been offered whether or not it's in the tree today. Otherwise it's the
+    /// working tree on disk for a checkout, and the branch's own root for a placement offer.
+    /// </para>
     /// </summary>
     private async Task<IReadOnlyList<string>> RootScriptsAsync(
-        DiscoveredTarget target, string branch, CancellationToken ct)
+        RepoConfigSource source, DiscoveredTarget target, string branch, CancellationToken ct)
     {
+        if (source is RepoConfigSource.Origin)
+            return Sorted(await _git.ListRootFilesAsync(target.MainPath, OriginRef(branch), ct));
+
         if (target.Kind is TargetKind.Worktree or TargetKind.MainClone)
             return await Task.Run(() => RootScripts(target.Path), ct);
 
@@ -106,7 +160,10 @@ public sealed class RepoConfigService
     /// <summary>The ref carrying the branch for a placement offer: the local branch, or <c>origin</c>'s
     /// when this clone only knows the branch from the remote.</summary>
     internal static string BranchRef(DiscoveredTarget target, string branch) =>
-        target.BranchOnOriginOnly ? "origin/" + branch : branch;
+        target.BranchOnOriginOnly ? OriginRef(branch) : branch;
+
+    /// <summary>The branch's tracking ref — what this clone last fetched from <c>origin</c>.</summary>
+    public static string OriginRef(string branch) => "origin/" + branch;
 
     private static bool IsScript(string name) =>
         ScriptExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
@@ -174,12 +231,30 @@ public sealed class RepoConfigService
                 """.ReplaceLineEndings();
     }
 
-    /// <summary>Parses the file at <paramref name="path"/>; null when it isn't there or can't be read.</summary>
-    private static RepoConfig? ReadFile(string path)
+    /// <summary>The text of the file at <paramref name="path"/>; null when it isn't there or can't be read.</summary>
+    private static string? ReadFileText(string path)
     {
-        try { return File.Exists(path) ? Parse(File.ReadAllText(path)) : null; }
+        try { return File.Exists(path) ? File.ReadAllText(path) : null; }
         catch { return null; }   // unreadable file -> no configuration, never a failed scan
     }
+
+    /// <summary>
+    /// The settings <paramref name="yaml"/> asks for, or null when it asks for nothing Fido acts on. That
+    /// second case is what lets the read fall through to the next copy: a file present but inert — a starter
+    /// file nobody has edited yet — is "no config here", exactly as a missing one is.
+    /// </summary>
+    private static RepoConfig? Applies(string yaml) => Parse(yaml) is { IsEmpty: false } config ? config : null;
+
+    /// <summary>
+    /// Whether two copies of the file say the same thing, line endings aside — a checkout with git's
+    /// CRLF translation on holds the same file as the blob on <c>origin</c>, and calling that a difference
+    /// would report every Windows checkout as out of date.
+    /// </summary>
+    private static bool SameText(string? left, string? right) =>
+        left is null
+            ? right is null
+            : right is not null && string.Equals(
+                left.ReplaceLineEndings("\n"), right.ReplaceLineEndings("\n"), StringComparison.Ordinal);
 
     // --- Parsing --------------------------------------------------------------------------
 

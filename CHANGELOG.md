@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A checkout that's behind no longer loses the branch's `.fido/cfg.yaml`.** The in-repo config was read
+  only out of the folder in front of you (or off the local branch ref), so a worktree made *before* the
+  config landed on the branch had nothing to find — no run menu, no `prefer main clone`, and not a word
+  about why. Since a merge or a teammate's push can put the file on a branch long after your worktree was
+  made, whether Fido "picked the config up" came down to how fresh your copy happened to be.
+
+  There are now **three copies and a fixed order**, and Fido says which one answered:
+
+  1. **A local edit** — the file in the working tree with changes that aren't committed. What you're
+     writing right now still wins outright.
+  2. **The copy on `origin`**, whenever it differs from the one this machine has. The flight log says
+     `Read from origin/<branch> — the copy here is missing or out of date`, because the tree your commands
+     will run in hasn't caught up with the settings offering them.
+  3. **The local copy** — the committed file in the tree, or the branch ref's for a branch checked out
+     nowhere.
+
+  A copy that **asks for nothing counts as no file at all**, so it never shadows the one below it: the
+  starter file the create button writes can't mask the settings the branch really carries. A `*` in
+  `run files` now expands against **whichever tree the settings came from**, so a config read off `origin`
+  is never paired with a stale file listing. Reads stay on **what this machine already has** — the working
+  tree and the tracking refs as last fetched — because a scan runs on a keystroke and must never go to the
+  network; fetch and press **Enter** to pick up something pushed since. Placing a branch re-reads the tree
+  it just created, which is how a branch this clone had **never fetched** turns up with its config in one
+  go rather than needing a second scan.
+
+- **A branch with no in-repo config now says so.** `No .fido/cfg.yaml on 'feature/x' — nothing here, and
+  nothing on origin/feature/x as last fetched` — because "looked, found nothing" and "never looked" are
+  not the same thing to anyone wondering where their run menu went.
+
 ### Added
 
 - **The branch box now lists the worktree folders that branch already has on disk.** Type a branch and

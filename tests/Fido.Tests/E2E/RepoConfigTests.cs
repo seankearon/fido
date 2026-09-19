@@ -260,6 +260,66 @@ public class RepoConfigTests
     }
 
     [Test]
+    public async Task A_checkout_behind_the_branch_still_gets_its_run_menu()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/stale");
+
+        // The worktree was made before the repo had any Fido settings; they landed on the branch after,
+        // and all this machine has done since is fetch. Nothing is on disk here to read.
+        world.PushBranch(worktree, "feature/stale");
+        world.CommitFidoConfigToOrigin(origin, "feature/stale", "run files: [build.ps1]\naspire start: true\n");
+        TestRepoWorld.Fetch(clone);
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/stale");
+
+            // The menu is the branch's, not the folder's — and the log says where it came from, because
+            // the tree the commands will run in hasn't caught up with the settings running them.
+            var console = ConsoleTool(window);
+            await Assert.That(string.Join('|', console.Runs.Select(r => r.Label))).IsEqualTo("build.ps1|aspire start");
+            await Assert.That(window.LogText()).Contains("Read from origin/feature/stale");
+            await Assert.That(window.LogText()).Contains("2 console run option(s)");
+            Screenshots.Save(window, "repo-config-from-origin");
+
+            // And picking one still runs at the selected location, as it always has.
+            await window.RunConsoleOptionAsync(console.Runs[0]);
+            await Assert.That(launcher.LastLaunch!.Value.ConsoleCommand).IsEqualTo("build.ps1");
+            await Assert.That(Paths.StartsWith(launcher.LastLaunch!.Value.Target, worktree)).IsTrue();
+        });
+    }
+
+    [Test]
+    public async Task A_branch_carrying_no_config_says_so_rather_than_saying_nothing()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        world.AddWorktree(clone, "feature/plain");
+
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/plain");
+
+            // "Looked, found nothing" and "never looked" are not the same thing to anyone wondering where
+            // their run menu went — and the line names both places that were checked.
+            await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
+            await Assert.That(window.LogText()).Contains("No .fido/cfg.yaml on 'feature/plain'");
+            await Assert.That(window.LogText()).Contains("origin/feature/plain");
+        });
+    }
+
+    [Test]
     public async Task The_context_strip_creates_the_config_file_and_opens_it()
     {
         using var world = new TestRepoWorld();
