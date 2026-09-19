@@ -44,7 +44,51 @@ public class ConsoleTabTests
         if (!OperatingSystem.IsWindows())
             await Assert.That(spec.Args[1]).Contains("pwsh build.ps1");
         else
-            await Assert.That(spec.Args).Contains("build.ps1 --no-restore");
+            await Assert.That(spec.Args).Contains("& ./build.ps1 --no-restore");
+    }
+
+    // --- PowerShell's current-directory rule -------------------------------------------------
+    //
+    // These run everywhere, not just on Windows: WindowsCommand is a pure string composition, and the
+    // rule it encodes is the one thing about this path a Linux CI box can still check.
+
+    [Test]
+    public async Task A_root_script_is_made_relative_because_PowerShell_wont_look_in_the_current_folder()
+    {
+        // Bare 'build.ps1' is "not recognized …" even standing in the folder that holds it.
+        await Assert.That(RunnerShell.WindowsCommand("build.ps1")).IsEqualTo("& ./build.ps1");
+        await Assert.That(RunnerShell.WindowsCommand("build.cmd")).IsEqualTo("& ./build.cmd");
+    }
+
+    [Test]
+    public async Task Arguments_ride_along_after_the_relative_script()
+    {
+        await Assert.That(RunnerShell.WindowsCommand("build.ps1 --no-restore -c Release"))
+            .IsEqualTo("& ./build.ps1 --no-restore -c Release");
+    }
+
+    [Test]
+    public async Task A_script_whose_name_has_spaces_is_quoted_for_PowerShell()
+    {
+        // The run menu double-quotes such a name; PowerShell wants single quotes, and the call operator
+        // is what stops the quoted path being read as a bare string expression.
+        await Assert.That(RunnerShell.WindowsCommand("\"my script.ps1\""))
+            .IsEqualTo("& './my script.ps1'");
+    }
+
+    [Test]
+    public async Task A_native_command_is_left_alone()
+    {
+        // 'aspire start' resolves on PATH; ./aspire is a path that doesn't exist.
+        await Assert.That(RunnerShell.WindowsCommand("aspire start")).IsEqualTo("aspire start");
+        await Assert.That(RunnerShell.WindowsCommand("dotnet build")).IsEqualTo("dotnet build");
+    }
+
+    [Test]
+    public async Task A_command_that_already_carries_a_path_is_left_alone()
+    {
+        await Assert.That(RunnerShell.WindowsCommand("./build.ps1")).IsEqualTo("./build.ps1");
+        await Assert.That(RunnerShell.WindowsCommand(@"C:\tools\build.ps1")).IsEqualTo(@"C:\tools\build.ps1");
     }
 
     private static EditorLaunchOption ConsoleTool(MainWindow window) =>

@@ -108,7 +108,9 @@ public sealed class RepoConfigService
     internal static string BranchRef(DiscoveredTarget target, string branch) =>
         target.BranchOnOriginOnly ? "origin/" + branch : branch;
 
-    private static bool IsScript(string name) =>
+    /// <summary>Whether <paramref name="name"/> is one of the run-file kinds Fido recognises. Internal so
+    /// the console shares this one list rather than keeping a second that can drift from it.</summary>
+    internal static bool IsScript(string name) =>
         ScriptExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Top-level file names in <paramref name="folder"/>; empty when it can't be read.</summary>
