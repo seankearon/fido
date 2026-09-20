@@ -114,8 +114,9 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _pullBeforeRun, value);
     }
 
-    /// <summary>Whether the Console run menu runs its pick in Fido's own window rather than handing it
-    /// to the configured terminal. Ticking it also adds a "shell here" entry to that menu.</summary>
+    /// <summary>Whether a pick from the Console <em>tool button's</em> run menu runs in Fido's own Console
+    /// tab rather than being handed to the configured terminal. The Console tab's own Run menu always runs
+    /// in the pane, whichever way this is set.</summary>
     public bool RunInFido
     {
         get => _runInFido;

@@ -89,12 +89,14 @@ public sealed class AppConfig
     public bool PullBeforeRun { get; set; } = true;
 
     /// <summary>
-    /// Whether a pick from the Console button's run menu runs in Fido's own window rather than being handed
-    /// to the configured terminal. Off by default: Fido is a launcher, and the terminal the user has set up —
-    /// with their prompt, profile and keybindings — is the better place to be. On, the script runs over a
-    /// pseudo-terminal Fido owns, which is worth having when the output is the point and you want it beside
-    /// the flight log rather than in a window that closes. The in-app console offers a one-click hand-off to
-    /// the real terminal, so this is a default, never a lock-in.
+    /// Whether a pick from the Console <em>tool button's</em> run menu runs in Fido's own Console tab rather
+    /// than being handed to the configured terminal. Off by default: Fido is a launcher, and the terminal the
+    /// user has set up — with their prompt, profile and keybindings — is the better place to be. On, the
+    /// script runs over a pseudo-terminal Fido owns, which is worth having when the output is the point and
+    /// you want it beside the flight log rather than in a window that closes.
+    ///
+    /// It says nothing about the <em>Console tab's own</em> Run menu, which exists to drive the pane beneath
+    /// it and so always runs there. The tool button is the launch; this decides where that launch lands.
     /// </summary>
     public bool RunInFido { get; set; }
 

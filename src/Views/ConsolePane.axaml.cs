@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Fido.Services;
@@ -77,22 +78,19 @@ public partial class ConsolePane : UserControl
         Terminal.IsVisible = true;
         _started = true;
 
+        // Colour it *before* the shell starts. The emulator takes its colours when the process is
+        // launched and keeps that copy: a palette applied afterwards leaves Options.Theme holding
+        // Fido's values while the screen still paints xterm's stock black. Measured, not assumed —
+        // see ConsoleTabTests.The_console_takes_Fidos_palette_before_the_shell_starts.
+        ApplyPalette();
+
         var shell = RunnerShell.For(command);
         Terminal.LaunchProcess(folder, shell.Executable, shell.Args);
         Terminal.Focus();
 
-        // The control builds its Options — and the emulator that reads them — inside LaunchProcess, so
-        // there is nothing to colour until after it returns.
-        ApplyPalette();
-
         // The pane is usually still mid-layout when this runs (the tab was revealed a beat ago), so the
         // terminal sizes its grid against a height it is about to grow out of. A repaint once layout has
         // settled costs a frame.
-        //
-        // KNOWN ISSUE: under Avalonia.Headless the pane renders blank regardless — the shell runs and the
-        // control reports a correct grid (81x8 against real bounds), but nothing is painted. The same
-        // control in a top-level window paints fine, so this is specific to the embedded pane and/or the
-        // headless renderer, and is NOT yet confirmed either way in a real window. See ConsoleTabTests.
         Dispatcher.UIThread.Post(() =>
         {
             Terminal.Refresh();
@@ -112,16 +110,46 @@ public partial class ConsolePane : UserControl
         Dispatcher.UIThread.Post(() => ProcessExited?.Invoke(this, EventArgs.Empty));
 
     /// <summary>
-    /// Puts Fido's own ANSI palette on the terminal, in place.
+    /// Puts Fido's own ANSI palette on the terminal, ready for the next shell.
     ///
-    /// Both <c>Options</c> and its <c>Theme</c> are mutated rather than replaced: the control keeps its
-    /// own reference to each and reads through it, so handing it a fresh object leaves it reading the old
-    /// one and the renderer draws nothing at all.
+    /// Two things have to happen together, and both are the result of measurement rather than the docs:
+    ///
+    /// <list type="number">
+    /// <item><description>Both <c>Options</c> and its <c>Theme</c> are mutated rather than replaced. The
+    /// control keeps its own reference to each and reads through it, so handing it a fresh object leaves
+    /// it reading the old one and the renderer draws nothing at all.</description></item>
+    /// <item><description>The control's own <c>Background</c>/<c>Foreground</c> brushes are set to match.
+    /// The emulator seeds itself from those when a process launches, and with them left at their defaults
+    /// it ignores <c>Options.Theme</c> entirely — stock black ground, stock colours — however carefully
+    /// that object was filled in. Both come out of the same <see cref="TerminalPalette"/> lookup, so the
+    /// seeds and the palette can't disagree.</description></item>
+    /// </list>
+    ///
+    /// Called before <see cref="Terminal"/> launches anything, because that is when the colours are taken.
+    /// A shell already running keeps the palette it started with; the next run picks the new one up, which
+    /// is why a theme change here only repaints the pane's own ground.
     /// </summary>
     private void ApplyPalette()
     {
+        var variant = Application.Current?.ActualThemeVariant ?? ThemeVariant.Light;
+        var palette = TerminalPalette.For(variant);
+
+        // The brushes first, and unconditionally: they are what the emulator seeds itself from, and they
+        // are on the control rather than on anything it builds later.
+        Terminal.Background = Brush(palette.Background) ?? Terminal.Background;
+        Terminal.Foreground = Brush(palette.Foreground) ?? Terminal.Foreground;
+
+        // A pane that has never been shown has never been measured, and an unmeasured templated control
+        // has no Options to colour. Applying the template here costs nothing when it already has one and
+        // means a run started from the flight-log tab is coloured like any other.
+        Terminal.ApplyTemplate();
+
         if (Terminal.Options?.Theme is not { } theme) return;
-        TerminalPalette.Apply(theme, Application.Current?.ActualThemeVariant ?? ThemeVariant.Light);
+        TerminalPalette.Apply(theme, variant);
         Terminal.Options.MinimumContrastRatio = TerminalPalette.MinimumContrast;
     }
+
+    /// <summary>A brush for a palette entry, or null for one the palette somehow left unset.</summary>
+    private static IBrush? Brush(string? hex) =>
+        Color.TryParse(hex, out var colour) ? new SolidColorBrush(colour) : null;
 }

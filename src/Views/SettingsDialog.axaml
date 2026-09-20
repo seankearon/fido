@@ -106,8 +106,8 @@
                       ToolTip.Tip="On: a script or `aspire start` runs against what origin has. Only ever fast-forwards — a diverged branch or an unreachable origin is reported and the console still opens." />
             <CheckBox x:Name="RunInFidoCheck" Classes="fido"
                       IsChecked="{Binding RunInFido, Mode=TwoWay}"
-                      Content="Run it in Fido's own window"
-                      ToolTip.Tip="On: the run menu's pick runs in a Fido window over a real terminal — colour, Ctrl+C, and the output still there after it finishes — and the menu gains a “shell here” entry. Off: it goes to your configured terminal, as it always has. Either way the Fido console offers a one-click hand-off." />
+                      Content="Run it in Fido's Console tab"
+                      ToolTip.Tip="On: a pick from the Console button's run menu runs in Fido's own Console tab, over a real terminal — colour, Ctrl+C, and the output still on screen after it finishes. Off: it goes to your configured terminal, as it always has. The Console tab's own Run menu always runs there, whichever way this is set." />
         </StackPanel>
 
         <StackPanel Spacing="9">

@@ -1,9 +1,12 @@
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Fido.Models;
 using Fido.Services;
+using Fido.Theme;
 using Fido.ViewModels;
 using Fido.Tests.Infrastructure;
 using Fido.Views;
@@ -187,11 +190,88 @@ public class ConsoleTabTests
     }
 
     /// <summary>
-    /// Captures the Console tab for review. Deliberately asserts almost nothing: under
-    /// Avalonia.Headless the embedded terminal paints nothing at all, even though the shell runs and the
-    /// control reports a correct grid against real bounds. The same control in a top-level window paints
-    /// fine, so this is specific to the embedded pane and/or the headless renderer. Until that is
-    /// understood, this exists to produce the screenshot — it is not evidence the pane works.
+    /// The console is wearing Fido's colours before the shell starts.
+    ///
+    /// The brushes are what this pins, because they are what the emulator seeds itself from: leave them
+    /// at their defaults and it ignores the palette in <c>Options.Theme</c> entirely — stock black
+    /// ground, stock colours — however carefully that object was filled in. They are also set on the
+    /// control itself, so this holds whether or not the headless harness gave the pane a template.
+    ///
+    /// Ordering is the other half, and it is why <c>ApplyPalette</c> runs before <c>LaunchProcess</c>:
+    /// the emulator takes its colours at launch and keeps that copy, so a palette applied afterwards
+    /// paints nothing. What the palette itself says is pinned by
+    /// <see cref="The_palette_is_Fidos_own_in_both_themes"/>.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task The_console_takes_Fidos_palette_before_the_shell_starts()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            var terminal = window.FindControl<ConsolePane>("ConsoleView")!
+                .FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+
+            // Fido's light ground and ink — not xterm's black.
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Color.Parse("#F5F1E8"));
+            await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color).IsEqualTo(Color.Parse("#211E17"));
+
+            // And the emulator's own options, when the harness built them (see the capture test below).
+            if (terminal.Options?.Theme is { } theme)
+            {
+                await Assert.That(theme.Background).IsEqualTo("#F5F1E8");
+                await Assert.That(theme.Green).IsEqualTo("#3E7C55");
+                await Assert.That(terminal.Options.MinimumContrastRatio).IsEqualTo(TerminalPalette.MinimumContrast);
+            }
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// The palette itself: Fido's brushes, per theme, rather than xterm's. Asserted on a bare
+    /// <c>ThemeOptions</c>, so it holds wherever the control does or doesn't get built.
+    /// </summary>
+    [Test]
+    public async Task The_palette_is_Fidos_own_in_both_themes()
+    {
+        var light = new XTerm.Options.ThemeOptions();
+        TerminalPalette.Apply(light, ThemeVariant.Light);
+
+        await Assert.That(light.Background).IsEqualTo("#F5F1E8");   // FidoLogBg
+        await Assert.That(light.Foreground).IsEqualTo("#211E17");   // FidoTextPrimary
+        await Assert.That(light.Green).IsEqualTo("#3E7C55");        // FidoLogOk — the flight log's own ✓
+        // On a pale ground "bright" means more contrast, so the Bright* entries are darker, not lighter.
+        await Assert.That(light.BrightGreen).IsEqualTo("#2E6341");
+
+        var dark = new XTerm.Options.ThemeOptions();
+        TerminalPalette.Apply(dark, ThemeVariant.Dark);
+
+        await Assert.That(dark.Background).IsEqualTo("#1C1812");
+        await Assert.That(dark.Foreground).IsEqualTo("#F0EBDF");
+        await Assert.That(dark.Green).IsEqualTo("#5FA97C");
+        await Assert.That(dark.BrightGreen).IsEqualTo("#83C79C");
+    }
+
+    /// <summary>
+    /// Captures the Console tab for the docs gallery and for review.
+    ///
+    /// It asserts little on purpose. The embedded terminal only paints in the <em>first</em> window a
+    /// headless process shows: in a window opened after another has come and gone the control never
+    /// resolves its own control theme (no template, no visual children), so the pane comes out blank
+    /// however long the shell is given. Run this test on its own — <c>--treenode-filter
+    /// "/*/*/ConsoleTabTests/Capture_the_console_tab_for_review"</c>, which is how the gallery generator
+    /// captures it — and the same code paints a real shell. Nothing about the app is conditional on that;
+    /// it is a headless-harness artefact, and the palette above is where the colours are actually pinned.
     /// </summary>
     [Test]
     [Timeout(120_000)]
