@@ -38,6 +38,12 @@
 .PARAMETER Force
     Skips the confirmation prompt. Intended for unattended use.
 
+.PARAMETER NoDocs
+    Releases without building or publishing the documentation. For a machine that has no
+    Zensical installed; the published site then stays at whatever the last release left
+    behind. Without this, a broken link in the docs stops the release before anything is
+    built, signed or tagged.
+
 .EXAMPLE
     .\release.ps1
     Releases the next patch version after prompting for confirmation.
@@ -59,7 +65,11 @@ param(
     [switch] $DryRun,
 
     # Skip the confirmation prompt.
-    [switch] $Force
+    [switch] $Force,
+
+    # Release without building or publishing the documentation. For a machine that
+    # has no Zensical on it; the docs then stay at whatever the last release left.
+    [switch] $NoDocs
 )
 
 $ErrorActionPreference = 'Stop'
@@ -205,6 +215,7 @@ $buildArgs = @('run', '--project', (Join-Path $root 'build'), '-c', 'Release', '
 
 if (-not $DryRun) { $buildArgs += 'release' }
 if ($Version) { $buildArgs += "version:$Version" }
+if ($NoDocs)  { $buildArgs += 'nodocs' }
 
 Write-Step "Running the build$(if ($DryRun) { ' (dry run)' })"
 Write-Host "    dotnet $($buildArgs -join ' ')" -ForegroundColor DarkGray

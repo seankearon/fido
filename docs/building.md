@@ -1,3 +1,8 @@
+---
+icon: lucide/hammer
+description: Prerequisites, running from source, publishing and the release pipeline.
+---
+
 # Building Fido
 
 Fido is a **.NET 10 / Avalonia 12** desktop app. Windows is the primary target;
@@ -17,7 +22,7 @@ macOS is a bonus. The solution is `Fido.slnx`; the project is
 - **For a release only** — the [**Avalonia Parcel**](https://avaloniaui.net/parcel) CLI
   (`parcel`, which packages and signs the installers) and the **GitHub CLI** (`gh`,
   authenticated), plus the code-signing configuration described under
-  [Release](#release--build-sign-package-publish).
+  [Release](#release-build-sign-package-publish).
 
 ## Develop & run
 
@@ -64,7 +69,7 @@ dotnet publish -c Release -p:PublishAot=false
 
 ## Release — build, sign, package, publish
 
-The release is driven by **[`release.ps1`](release.ps1)**, and the work itself is a
+The release is driven by **[`release.ps1`](https://github.com/seankearon/fido/blob/main/release.ps1)**, and the work itself is a
 program rather than a script: **`build/Fido.Build.fsproj`**, an F# console app that runs a
 sequence of named stages, times each one and prints a summary. It is in the solution, so
 it compiles with everything else and breaks loudly rather than at 2 a.m.

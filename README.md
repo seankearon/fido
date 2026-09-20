@@ -3,6 +3,8 @@
 **Fido** is a launch manager for your IDE — [**JetBrains Rider**](https://www.jetbrains.com/rider/),
 [**WebStorm**](https://www.jetbrains.com/webstorm/), [**VS Code**](https://code.visualstudio.com/), [**Visual Studio**](https://visualstudio.microsoft.com/), [**Zed**](https://zed.dev/), or any custom editor.
 
+**📖 [Full documentation](https://seankearon.github.io/fido/)**
+
 Give it a branch name; it scans your repos for every **worktree** and **clone** currently on
 that branch, lists them right on the main screen — clearly labelled — and opens your pick's
 solution or folder in your editor. Set a **default tool** for the big Open button; every tool is a
@@ -17,7 +19,7 @@ repo has the branch, so a leftover from last month is pointed out the moment you
 there's no folder anywhere, the line says nothing.
 
 <p align="center">
-  <img src="Docs/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
+  <img src="docs/assets/screenshots/the-eagle-has-landed.png" alt="Fido — GO! WebStorm launched; “The Eagle has landed”" width="440">
 </p>
 
 <p align="center">
@@ -50,7 +52,7 @@ branch carries none, rather than leaving you guessing.
 Don't hand-write it: the **OPEN** strip has a button that creates the file in the selected location and
 opens it in your editor, seeded with the scripts Fido just found and every setting at its default — so
 it changes nothing until you edit it, and an existing file is only ever opened, never overwritten. Full
-reference in **[Features](Docs/Features.md#in-repo-config--fidocfgyaml)**.
+reference in **[In-repo config](https://seankearon.github.io/fido/guide/in-repo-config/)**.
 
 ---
 
@@ -74,7 +76,7 @@ Each tool has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`, plus `ter
 `--tool` (also `-e` / `--editor`) — and the built-in kinds answer to aliases like `vscode` or
 `explorer` too. The named tool becomes the run's default (the hero button); `--tool none` shows the
 equal-weight grid instead. Slugs are editable in **Settings**; an unknown id is called out in the
-flight log rather than silently using the default. See **[Features](Docs/Features.md)** for the
+flight log rather than silently using the default. See **[the docs](https://seankearon.github.io/fido/)** for the
 full reference.
 
 ---
@@ -83,7 +85,36 @@ full reference.
 
 Fido ships with matching **dark** and **light** themes. Browse the full set — the home screen
 with its inline discovery results, the delete confirm, and settings — in the
-**[screenshot gallery](Docs/screenshots/)**.
+**[screenshot gallery](https://seankearon.github.io/fido/screenshots/)**.
+
+---
+
+## Documentation
+
+The full reference — discovery, opening, in-repo config, settings and the command line —
+lives at **[seankearon.github.io/fido](https://seankearon.github.io/fido/)**.
+
+It is built with [Zensical](https://zensical.org/) from the `docs/` folder in this
+repository. **`release.ps1` builds and publishes it** — the *Verify Docs* stage builds the
+site with `--strict` before anything is signed or tagged, so a broken link stops the
+release, and *Publish Docs* force-pushes the result to the `gh-pages` branch that Pages
+serves. [`.github/workflows/docs.yml`](.github/workflows/docs.yml) only validates the
+build on pull requests; it does not publish.
+
+That means the published site always describes the **released** version, not `main`.
+
+Zensical needs to be on PATH on the release machine:
+
+```powershell
+uv tool install zensical    # or: pip install zensical
+```
+
+Set `ZENSICAL` to its full path if you keep it in a virtual environment, or pass
+`-NoDocs` to release without touching the documentation. To preview locally:
+
+```bash
+zensical serve
+```
 
 ---
 

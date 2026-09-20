@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{#
+  Landing page for the docs site. The `hero` block sits inside `.md-container`,
+  above the tabs and the content container, so it can run full-bleed.
+  Applied per page via `template: home.html` in the front matter.
+#}
+{% block hero %}
+  <section class="fido-hero">
+    <div class="fido-hero__inner">
+      <div class="fido-hero__copy">
+        <img
+          class="fido-hero__mark"
+          src="{{ 'assets/fido-icon.svg' | url }}"
+          alt=""
+          width="96" height="96"
+        >
+        <h1 class="fido-hero__title">Fido</h1>
+        <p class="fido-hero__tagline">
+          A branch name in. Your IDE open on it.
+        </p>
+        <p class="fido-hero__lede">
+          Fido scans your repos for every <strong>worktree</strong> and <strong>clone</strong>
+          currently on a branch, lists them on one screen, and opens your pick in
+          Rider, WebStorm, VS Code, Visual Studio or Zed.
+        </p>
+        {# `md-button` is scoped to `.md-typeset`, and the hero renders outside
+           the content container — so the wrapper opts back into it. #}
+        <div class="fido-hero__actions md-typeset">
+          <a href="{{ 'getting-started/' | url }}" class="md-button md-button--primary">
+            Get started
+          </a>
+          <a href="{{ 'screenshots/' | url }}" class="md-button">
+            See it working
+          </a>
+        </div>
+        <p class="fido-hero__meta">
+          Windows, macOS and Linux &middot; .NET&nbsp;10 &middot; Avalonia&nbsp;12
+        </p>
+      </div>
+      <div class="fido-hero__shot">
+        <img
+          src="{{ 'assets/screenshots/the-eagle-has-landed.png' | url }}"
+          alt="Fido after a successful launch — the flight log reads &quot;The Eagle has landed&quot;"
+          loading="eager"
+        >
+      </div>
+    </div>
+  </section>
+{% endblock %}

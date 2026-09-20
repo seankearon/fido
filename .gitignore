@@ -14,3 +14,7 @@ TestResults/
 
 # Publish, packaging and release output from the Fido.Build project
 /_build/
+
+# Zensical docs build output
+/site/
+.zensical/
