@@ -309,13 +309,17 @@ public class ConsoleTabTests
     }
 
     /// <summary>
-    /// And with the setting off — the default — Fido keeps its hands off the colours entirely, so the
-    /// console comes up in the scheme the emulator ships with. Asserted on the brushes again, because
+    /// And with the setting off — the default — the console keeps the emulator's <em>sixteen colours</em>,
+    /// but not its ground: that is black-and-white the right way up for the theme, so a light Fido gets a
+    /// white console rather than a black box sitting in a cream window.
+    ///
+    /// The setting chooses between the plain scheme and Fido's, in other words, not between a fixed
+    /// console and one that follows the theme. Asserted on the brushes as well as the options, because
     /// setting those is what makes any of it take.
     /// </summary>
     [Test]
     [Timeout(120_000)]
-    public async Task By_default_the_console_keeps_the_terminals_own_colours()
+    public async Task By_default_the_console_keeps_the_terminals_own_colours_the_right_way_up()
     {
         var (world, root) = PlainRepo();
         using var _ = world;
@@ -333,11 +337,99 @@ public class ConsoleTabTests
             var terminal = pane.FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
 
             await Assert.That(pane.UseFidoPalette).IsFalse();
-            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsNotEqualTo(Color.Parse("#F5F1E8"));
-            await Assert.That(terminal.Options?.Theme?.Background).IsNotEqualTo("#F5F1E8");
+
+            // Plain, not Fido's: the light theme's white ground, and none of the warm cream.
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
+            await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color).IsEqualTo(Colors.Black);
+
+            // And the emulator's own options, when the harness built them (see the capture test below).
+            if (terminal.Options?.Theme is { } theme)
+            {
+                await Assert.That(theme.Background).IsEqualTo("#FFFFFF");
+                await Assert.That(theme.Background).IsNotEqualTo("#F5F1E8");
+                // The sixteen are still the emulator's own — Fido never writes them in this mode.
+                await Assert.That(theme.Green).IsNotEqualTo("#3E7C55");
+            }
 
             App.ApplyTheme(AppTheme.System);
         });
+    }
+
+    /// <summary>
+    /// The plain scheme turns over with the theme, and it does it under a <em>running</em> shell — the
+    /// emulator reads its colours through the live options object, so there is nothing to wait for.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task The_plain_console_turns_over_with_the_theme_under_a_running_shell()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            var terminal = window.FindControl<ConsolePane>("ConsoleView")!
+                .FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
+
+            App.ApplyTheme(AppTheme.Dark);
+            UiTestExtensions.Pump();
+
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.Black);
+            await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
+
+            if (terminal.Options?.Theme is { } theme)
+            {
+                await Assert.That(theme.Background).IsEqualTo("#000000");
+                // …and the caret with it, which is the entry that would otherwise be white on white.
+                await Assert.That(theme.Cursor).IsEqualTo("#FFFFFF");
+            }
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// The plain scheme, asserted on a bare <c>ThemeOptions</c> so it holds wherever the control does or
+    /// doesn't get built: the emulator's own sixteen, with only the ground, the ink and the caret turned
+    /// over for the theme.
+    ///
+    /// The round trip is the point. Everything colouring this control mutates one shared options object,
+    /// so "Fido's palette off" cannot mean "stop writing" — the last thing written would simply stay, and
+    /// unticking the setting would leave Fido's green sitting in the theme for ever. It means putting back
+    /// the snapshot taken before Fido ever wrote there, which is what this pins.
+    /// </summary>
+    [Test]
+    public async Task The_plain_scheme_is_the_emulators_own_sixteen_with_the_ground_the_right_way_up()
+    {
+        // Stand-in for whatever the emulator ships: what matters is that these exact values come back.
+        var stock = new XTerm.Options.ThemeOptions
+        {
+            Background = "#000000", Foreground = "#FFFFFF", Cursor = "#FFFFFF", Green = "#00CD00",
+        };
+
+        var options = new XTerm.Options.ThemeOptions();
+        TerminalPalette.Apply(options, ThemeVariant.Light);            // Fido's palette goes on…
+        await Assert.That(options.Green).IsEqualTo("#3E7C55");
+
+        TerminalPalette.ApplyPlain(options, ThemeVariant.Light, stock);   // …and comes off again
+        await Assert.That(options.Green).IsEqualTo("#00CD00");         // the emulator's own is back
+        await Assert.That(options.Background).IsEqualTo("#FFFFFF");    // on a light ground
+        await Assert.That(options.Foreground).IsEqualTo("#000000");
+        await Assert.That(options.Cursor).IsEqualTo("#000000");        // a caret you can find on white
+
+        var dark = new XTerm.Options.ThemeOptions();
+        TerminalPalette.ApplyPlain(dark, ThemeVariant.Dark, stock);
+        await Assert.That(dark.Background).IsEqualTo("#000000");       // the stock pair, untouched
+        await Assert.That(dark.Foreground).IsEqualTo("#FFFFFF");
+        await Assert.That(dark.Green).IsEqualTo("#00CD00");
     }
 
     /// <summary>

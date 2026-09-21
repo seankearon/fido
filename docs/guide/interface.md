@@ -87,8 +87,8 @@ actually running.
 ## The theme toggle
 
 Left of the ⚙ gear in the header sits a **sun/moon** button. Press it and the screen flips
-between **light** and **dark** — the whole screen, and wherever the Console tab is wearing
-[Fido's palette](console.md#its-colours), that with it.
+between **light** and **dark** — the whole screen, [the Console tab](console.md#its-colours)
+included, shell and scrollback and all.
 
 It flips **this run only**. Nothing is saved: your **Theme** preference in Settings is still
 whatever it was — **System**, **Light** or **Dark** — and the next launch comes up in it. So
@@ -100,10 +100,10 @@ The glyph shows the theme a press would **give** you, not the one you're in: a *
 light theme, a **sun** on the dark one. Under **System** it reads whichever theme the OS is
 actually showing, so one press always leaves it.
 
-One thing a flip can't reach: a **shell already running** in the Console tab keeps the sixteen
-ANSI colours it started with — the emulator takes those when the process launches, exactly as
-it does for a theme changed in Settings. The pane's own ground and ink change straight away,
-and the next run is in the new theme.
+The **Console tab turns over with it**, even mid-run: a shell that is still running repaints on
+the spot, scrollback and all, with its live prompt still under it. Nothing has to be restarted.
+This holds whichever colours the console is wearing — [Fido's palette or the terminal's own
+sixteen](console.md#its-colours) — because the ground follows the theme either way.
 
 ## Keyboard & shortcuts
 

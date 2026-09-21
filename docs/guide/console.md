@@ -129,12 +129,19 @@ than a page.
 
 ## Its colours
 
-Out of the box the console keeps the **terminal emulator's own scheme** — the plain, high-contrast
-one every terminal starts life with. It is a console, and it looks like one.
+Out of the box the console keeps the **terminal emulator's own sixteen colours** — the plain,
+high-contrast ones every terminal starts life with. It is a console, and it looks like one.
+
+What it does **not** keep is the emulator's ground. That follows the theme: **black on white** when
+Fido is light, **white on black** when it is dark. A terminal ships one scheme, built for a dark
+desktop, and a black box sitting in a cream window doesn't read as a plain console — it reads as
+something broken. The **contrast floor** below is what keeps those sixteen — every one of them
+chosen against black — legible once the ground turns pale.
 
 **Settings → Theme → _Colour the Console tab to match_** swaps that for **Fido's own palette**: the
 same brushes the flight log draws with, so a script's green `ok` and Fido's own `✓` are the same
-green, on the same warm ground, in whichever theme you are running.
+green, on the same warm ground, in whichever theme you are running. Untick it again and the
+emulator's own sixteen come straight back.
 
 ![The Console tab in Fido's own palette](../assets/screenshots/console-palette-light.png#only-light)
 ![The Console tab in Fido's own palette](../assets/screenshots/console-palette-dark.png#only-dark)
@@ -144,8 +151,11 @@ than their base, because on a pale background emphasis means more contrast, not 
 **contrast floor** lifts anything that would otherwise land unreadable, which is what keeps
 256-colour output — chosen by its author against black — legible on cream.
 
-Either way, the colours are taken **when the shell starts**: a **shell already running keeps the
-ones it came up with**, and the setting, like a change of theme, applies from the next run.
+Either way, **the change repaints what is already on screen**. The shell doesn't have to be restarted
+and the output doesn't have to be re-run: flip the theme — from
+[the header's toggle](interface.md#the-theme-toggle), from Settings, or because the OS did it at
+sunset — and the console turns over mid-session, scrollback and all, with a live prompt still under
+it. Ticking the setting itself lands the same way.
 
 ## Or hand it to your own terminal
 

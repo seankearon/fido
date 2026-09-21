@@ -51,11 +51,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preference, so one press is always enough to leave a system-dark desktop — and a **cancelled** Settings
   dialog puts back what you were looking at rather than quietly reverting the flip.
 
-  The whole screen follows, the **Console tab** included wherever it is wearing
-  [Fido's palette](https://seankearon.github.io/fido/guide/console/#its-colours) — its ground and ink
-  repaint at once. A **shell already running** keeps the sixteen ANSI colours it came up with, the same as
-  for a theme changed in Settings: the emulator takes those when the process launches, and the next run is
-  in the new theme.
+  The whole screen follows, the **Console tab** included — and it turns over **mid-run**: a shell still
+  running repaints on the spot, scrollback and all, with its live prompt still under it.
+
+- **The Console tab follows the theme out of the box.** Its ground used to be a fixed black whatever the
+  rest of Fido was wearing, so a light Fido meant a black box sitting in a cream window — and a theme
+  change didn't touch it. Now the ground goes the right way up with the theme: **black on white** when
+  Fido is light, **white on black** when it is dark.
+
+  The **terminal's own sixteen ANSI colours are still what you get** — that part of
+  [_Colour the Console tab to match_](https://seankearon.github.io/fido/reference/settings/) is unchanged
+  and still off by default. The setting picks between the **plain** colours and **Fido's**, which is what
+  it always meant; it was never meant to pick between a console that follows the theme and one that
+  ignores it. The **contrast floor** that already kept 256-colour output readable on cream now does the
+  same job for those sixteen on a white ground — every one of them was chosen against black. Untick the
+  setting again and the emulator's own sixteen come straight back, rather than leaving Fido's last word
+  in place.
 
 - **Fido has a console of its own.** The panel at the foot of the main screen now carries two tabs.
   **Flight log** is the narration it always was; **Console** is a real shell at the selected location,
@@ -86,11 +97,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tree root is made explicitly relative (`& ./build.ps1`) instead of coming back *"not recognized as the
   name of a cmdlet…"* while you stand in the very folder that holds it.
 
-  **Its colours are the terminal's own**, which is what a console is expected to look like, and
+  **Its sixteen colours are the terminal's own**, which is what a console is expected to look like, and
   **Settings → Theme → Colour the Console tab to match** swaps them for Fido's palette — the flight
-  log's own greens and ambers, following the theme, with a contrast floor for the 256-colour output no
-  palette can speak for. Either way the colours are taken when a shell starts, so one already running
-  keeps the ones it came up with.
+  log's own greens and ambers, with a contrast floor for the 256-colour output no palette can speak for.
+  Either way the ground follows the theme, and a change repaints the shell already running.
 
 - **Links in the Console tab open in your browser.** A URL the console prints — a dev server's
   `http://localhost:5173`, the pull-request link `git push` answers with, a CI build's report — is now a

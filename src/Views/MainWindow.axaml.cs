@@ -1200,7 +1200,8 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
-        // Takes effect from the next shell: the one running kept the colours it started with.
+        // Repaints a shell that is already running — the pane reads its colours through a live options
+        // object, so there is nothing to wait for.
         ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
     }
 

@@ -93,14 +93,12 @@ public class ThemeToggleTests
     }
 
     /// <summary>
-    /// The Console tab goes with it. Its palette is per variant and already watches the application's
-    /// theme (it has to — Fido's default follows the OS, which can change mid-run), so the toggle reaches
-    /// the terminal by the same road a system theme change does. With the Fido palette off — the default —
-    /// there is nothing to follow, which is <see cref="ConsoleTabTests.By_default_the_console_keeps_the_terminals_own_colours"/>'s
-    /// business; a shell already running keeps the sixteen colours it started with either way.
+    /// The Console tab goes with it, in Fido's palette. The pane watches the application's variant (it has
+    /// to — Fido's default follows the OS, which can change mid-run), so the toggle reaches the terminal by
+    /// the same road a system theme change does.
     /// </summary>
     [Test]
-    public async Task The_console_tab_follows_the_toggle()
+    public async Task The_console_tab_follows_the_toggle_in_Fidos_palette()
     {
         using var world = new TestRepoWorld();
         var services = world.BuildServices([world.SearchRoot("root")], new FakeEditorLauncher(), new FakeDialogService(),
@@ -123,6 +121,42 @@ public class ThemeToggleTests
                 .IsEqualTo(Color.Parse(TerminalPalette.For(ThemeVariant.Dark).Background!));
             await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color)
                 .IsEqualTo(Color.Parse(TerminalPalette.For(ThemeVariant.Dark).Foreground!));
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// …and it goes with it on the default setting too, where the console wears the plain scheme. That is
+    /// the case that matters most: with Fido's palette off — which is how Fido ships — a console that did
+    /// not follow would leave a black box sitting in a cream window every time the toggle was pressed.
+    /// </summary>
+    [Test]
+    public async Task The_console_tab_follows_the_toggle_in_the_plain_scheme_too()
+    {
+        using var world = new TestRepoWorld();
+        var services = world.BuildServices([world.SearchRoot("root")], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            var pane = window.FindControl<ConsolePane>("ConsoleView")!;
+            var terminal = pane.FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+            await Assert.That(pane.UseFidoPalette).IsFalse();   // the shipped default
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
+
+            window.ClickButton("ThemeToggleButton");
+            UiTestExtensions.Pump();
+
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.Black);
+            await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
+
+            window.ClickButton("ThemeToggleButton");
+            UiTestExtensions.Pump();
+
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Colors.White);
 
             App.ApplyTheme(AppTheme.System);
         });
