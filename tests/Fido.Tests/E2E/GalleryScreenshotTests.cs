@@ -85,6 +85,7 @@ public class GalleryScreenshotTests
             ConfigService = configService,
             Launcher = new FakeEditorLauncher(),
             Dialogs = new FakeDialogService(),
+            OpenUrl = new FakeBrowser().Open,
         };
 
         await Harness.WithWindow(services, async window =>

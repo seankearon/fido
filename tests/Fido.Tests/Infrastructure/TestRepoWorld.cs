@@ -238,7 +238,8 @@ public sealed class TestRepoWorld : IDisposable
         bool runInFido = false,
         bool consoleUsesFidoPalette = false,
         GitService? git = null,
-        GitHubCli? gitHub = null)
+        GitHubCli? gitHub = null,
+        FakeBrowser? browser = null)
     {
         var config = new AppConfig
         {
@@ -265,6 +266,9 @@ public sealed class TestRepoWorld : IDisposable
             Dialogs = dialogs,
             Git = git ?? new GitService(),
             GitHub = gitHub ?? FakeGitHub.None,
+            // Never the real one, even when a test doesn't care: a link opened from here would open on
+            // the machine running the suite.
+            OpenUrl = (browser ?? new FakeBrowser()).Open,
         };
     }
 

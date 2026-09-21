@@ -684,7 +684,8 @@
                     </ScrollViewer>
                     <!-- Kept loaded rather than swapped out, so a running shell survives a trip to the
                          flight log and back: its scrollback is the record of what just ran. -->
-                    <views:ConsolePane x:Name="ConsoleView" IsVisible="{Binding IsConsoleTab}" />
+                    <views:ConsolePane x:Name="ConsoleView" IsVisible="{Binding IsConsoleTab}"
+                                       UrlClicked="OnConsoleUrlClicked" />
                 </Grid>
             </Border>
         </Grid>

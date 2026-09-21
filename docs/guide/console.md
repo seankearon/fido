@@ -91,6 +91,29 @@ very folder holding it.
     live prompt underneath**, rather than vanishing with an exit code. That is the whole reason for
     running it here rather than in a window that closes.
 
+## Following a link
+
+A URL the console prints is a link you can follow: a dev server's
+`http://localhost:5173`, the pull-request link `git push` answers with, a build's report.
+**Hovering** one underlines it and turns the pointer into a hand; **++ctrl++ + click** opens it in
+your default browser — the gesture every other terminal uses. A plain click still selects text.
+
+Two kinds count. Text that **reads** as a URL, and one a program **declares** with an OSC 8 escape —
+where the screen says *"view the report"* and the URL rides along in the escape sequence, unseen.
+Both are treated alike, and both wrap across lines without breaking.
+
+**Only `http` and `https` go anywhere**, and the flight log names what went:
+
+```text
+▸ Opening https://github.com/you/platform/pull/42 in your browser
+```
+
+That line is not decoration: a declared link needn't show its target at all, so the log is the one
+place you get to read what your click actually opened. Anything else is refused out loud —
+`⚠ Not opening file:///… — the console only follows http and https links.` — because "open" means
+handing the string to the OS, and a scheme other than the web's can be a registered program rather
+than a page.
+
 ## Before it runs, and after it finishes
 
 - **Up to date first.** A run command from this menu fast-forwards the target onto `origin` exactly

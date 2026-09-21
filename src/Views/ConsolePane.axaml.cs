@@ -28,6 +28,15 @@ public partial class ConsolePane : UserControl
     /// <summary>Raised when the shell exits, so the host can reflect that.</summary>
     public event EventHandler? ProcessExited;
 
+    /// <summary>
+    /// Raised when a link on screen is Ctrl+Clicked, carrying the URL as the terminal read it.
+    ///
+    /// Forwarded rather than followed here: what to do with a URL is the window's business — it owns the
+    /// flight log the answer belongs in, and the rule about which URLs Fido will open at all
+    /// (<see cref="Services.UrlLauncher.IsWebUrl"/>) is the same one its pull-request link goes through.
+    /// </summary>
+    public event EventHandler<string>? UrlClicked;
+
     private bool _started;
     private bool _useFidoPalette;
 
@@ -129,6 +138,19 @@ public partial class ConsolePane : UserControl
 
     private void OnProcessExited(object? sender, Iciclecreek.Terminal.ProcessExitedEventArgs e) =>
         Dispatcher.UIThread.Post(() => ProcessExited?.Invoke(this, EventArgs.Empty));
+
+    /// <summary>
+    /// A link Ctrl+Clicked in the terminal — hover already underlines one and shows the hand cursor, so
+    /// the gesture is the one every other terminal uses and a plain click still selects text.
+    ///
+    /// The terminal reports two kinds and this treats them alike: text that <em>looks</em> like a URL
+    /// (matched as <c>http(s)://…</c>, so a scheme it found is one the user can read on screen), and one
+    /// a program <em>declared</em> with an OSC 8 escape — which may point anywhere at all, and needn't
+    /// show where. Telling them apart would only change how much the URL is trusted, and Fido trusts
+    /// neither: the window checks the scheme before anything is launched, and names what it opened.
+    /// </summary>
+    private void OnUrlClicked(object? sender, Iciclecreek.Terminal.UrlClickedEventArgs e) =>
+        UrlClicked?.Invoke(this, e.Url);
 
     /// <summary>
     /// Puts Fido's own ANSI palette on the terminal, ready for the next shell — or takes it off again,

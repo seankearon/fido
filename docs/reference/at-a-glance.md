@@ -18,7 +18,7 @@ description: Every capability in one table.
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens **your** terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
 | In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a run menu on the **Console** button *and* on the **Console tab**. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
-| Console tab | Fido's own terminal beside the **Flight log**, at the selected location: a real shell over a real pseudo-terminal — colour, prompts, **Ctrl+C**, and a live prompt still there when a script fails. Its **Run** menu leads with **shell here**, then the branch's run files; a run never closes Fido |
+| Console tab | Fido's own terminal beside the **Flight log**, at the selected location: a real shell over a real pseudo-terminal — colour, prompts, **Ctrl+C**, and a live prompt still there when a script fails. Its **Run** menu leads with **shell here**, then the branch's run files; a run never closes Fido. **Ctrl+Click** follows an `http`/`https` link in the output, and the flight log names what opened |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |

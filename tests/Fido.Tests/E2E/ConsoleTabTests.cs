@@ -189,6 +189,76 @@ public class ConsoleTabTests
         });
     }
 
+    // --- Links on screen ---------------------------------------------------------------------
+    //
+    // Ctrl+Click on a link in the terminal opens it in the default browser. The terminal finds the link
+    // and reports the click (it underlines one under the pointer and shows the hand cursor); what
+    // follows is Fido's, and that part is what these check. The window's handler is driven directly:
+    // the pane forwards the terminal's event to it, and that hop is a XAML event attribute the build
+    // already refuses to compile if the handler goes missing or changes shape.
+
+    [Test]
+    public async Task A_link_clicked_in_the_console_goes_to_the_browser_and_is_named_in_the_flight_log()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser();
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.OpenTerminalLink("https://example.com/build/42");
+
+            await Assert.That(browser.LastOpened).IsEqualTo("https://example.com/build/42");
+
+            // Named, not just opened: a wrapped URL is hard to read back off the screen, and an OSC 8
+            // hyperlink needn't show its target at all, so the log is where the user finds out where
+            // their click went.
+            await Assert.That(window.LogText()).Contains("▸ Opening https://example.com/build/42 in your browser");
+        });
+    }
+
+    [Test]
+    public async Task A_link_that_isnt_the_web_is_refused_out_loud_and_never_reaches_the_opener()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser();
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            // The scrollback belongs to whatever the shell just ran, and on Windows "open" would hand
+            // this to the shell — which for a scheme other than http(s) can run a program rather than
+            // show a page.
+            window.OpenTerminalLink("file:///etc/passwd");
+
+            await Assert.That(browser.Opened.Count).IsEqualTo(0);
+
+            // Out loud, because a silent refusal reads as a click that missed.
+            await Assert.That(window.LogText()).Contains("⚠ Not opening file:///etc/passwd");
+        });
+    }
+
+    [Test]
+    public async Task A_browser_that_never_opens_is_reported_rather_than_assumed()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser(succeeds: false);
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.OpenTerminalLink("https://example.com/build/42");
+
+            await Assert.That(window.LogText()).Contains("⚠ Couldn't open https://example.com/build/42");
+        });
+    }
+
     /// <summary>
     /// With the setting on, the console is wearing Fido's colours before the shell starts.
     ///
