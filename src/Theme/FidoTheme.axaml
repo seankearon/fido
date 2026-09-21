@@ -115,6 +115,11 @@
             <SolidColorBrush x:Key="FidoLogoTileBg" Color="#1B1712" />
             <SolidColorBrush x:Key="FidoBrandStroke" Color="#F4A62A" />
             <SolidColorBrush x:Key="FidoGearHoverBg" Color="#292319" />
+            <!-- Header theme toggle. The glyph and the tip name the theme a press would *give* you, not
+                 the one you are in: a button showing where you already are has nothing to offer. Dark
+                 therefore wears the sun. -->
+            <StreamGeometry x:Key="FidoThemeToggleGlyph">M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 1a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0V2a1 1 0 0 1 1-1zm0 18a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 0 2H2a1 1 0 0 1-1-1zm18 0a1 1 0 0 1 1-1h2a1 1 0 0 1 0 2h-2a1 1 0 0 1-1-1zM4.22 4.22a1 1 0 0 1 1.42 0l1.41 1.41a1 1 0 0 1-1.41 1.42L4.22 5.64a1 1 0 0 1 0-1.42zm12.73 12.73a1 1 0 0 1 1.41 0l1.42 1.41a1 1 0 0 1-1.42 1.42l-1.41-1.42a1 1 0 0 1 0-1.41zM19.78 4.22a1 1 0 0 1 0 1.42l-1.42 1.41a1 1 0 0 1-1.41-1.42l1.41-1.41a1 1 0 0 1 1.42 0zM7.05 16.95a1 1 0 0 1 0 1.41l-1.41 1.42a1 1 0 0 1-1.42-1.42l1.42-1.41a1 1 0 0 1 1.41 0z</StreamGeometry>
+            <x:String x:Key="FidoThemeToggleTip">Light theme — this run only, not the saved default</x:String>
         </ResourceDictionary>
 
         <!-- ============================ LIGHT (handoff palette, verbatim) ============================ -->
@@ -226,6 +231,9 @@
             <SolidColorBrush x:Key="FidoLogoTileBg" Color="#1B1712" />
             <SolidColorBrush x:Key="FidoBrandStroke" Color="#F4A62A" />
             <SolidColorBrush x:Key="FidoGearHoverBg" Color="#F1ECE0" />
+            <!-- …and light wears the crescent, for the same reason. -->
+            <StreamGeometry x:Key="FidoThemeToggleGlyph">M12.5 3a9 9 0 1 0 8.5 11.5A7 7 0 0 1 12.5 3z</StreamGeometry>
+            <x:String x:Key="FidoThemeToggleTip">Dark theme — this run only, not the saved default</x:String>
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

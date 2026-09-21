@@ -40,6 +40,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A theme toggle in the header, left of the gear.** A **sun/moon** button that flips the screen between
+  **light** and **dark** — and flips **this run only**. The **Theme** preference in Settings is untouched,
+  so it is still **System**, **Light** or **Dark** exactly as you left it, and the next launch comes up in
+  it. The button for the sun coming round onto the desk at four o'clock, in other words, rather than for
+  changing your mind — saving in Settings still takes back over.
+
+  The glyph offers the theme a press would **give** you rather than the one you are in: a **moon** on the
+  light theme, a **sun** on the dark one. Under **System** it reads the variant actually on screen, not the
+  preference, so one press is always enough to leave a system-dark desktop — and a **cancelled** Settings
+  dialog puts back what you were looking at rather than quietly reverting the flip.
+
+  The whole screen follows, the **Console tab** included wherever it is wearing
+  [Fido's palette](https://seankearon.github.io/fido/guide/console/#its-colours) — its ground and ink
+  repaint at once. A **shell already running** keeps the sixteen ANSI colours it came up with, the same as
+  for a theme changed in Settings: the emulator takes those when the process launches, and the next run is
+  in the new theme.
+
 - **Fido has a console of its own.** The panel at the foot of the main screen now carries two tabs.
   **Flight log** is the narration it always was; **Console** is a real shell at the selected location,
   running inside Fido. Its **Run** menu — at the right of the tab rule, where the log keeps its copy and

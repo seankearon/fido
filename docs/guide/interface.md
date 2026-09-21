@@ -84,6 +84,27 @@ fido  v0.9.3
 list or the exe's properties. It is read from the **running assembly**, so it names what is
 actually running.
 
+## The theme toggle
+
+Left of the ⚙ gear in the header sits a **sun/moon** button. Press it and the screen flips
+between **light** and **dark** — the whole screen, and wherever the Console tab is wearing
+[Fido's palette](console.md#its-colours), that with it.
+
+It flips **this run only**. Nothing is saved: your **Theme** preference in Settings is still
+whatever it was — **System**, **Light** or **Dark** — and the next launch comes up in it. So
+it's the button for the sun coming round onto the desk at four o'clock, not for changing your
+mind about the theme; for that, [Settings](../reference/settings.md#in-the-app) is still the
+place, and what it saves takes over from the toggle.
+
+The glyph shows the theme a press would **give** you, not the one you're in: a **moon** on the
+light theme, a **sun** on the dark one. Under **System** it reads whichever theme the OS is
+actually showing, so one press always leaves it.
+
+One thing a flip can't reach: a **shell already running** in the Console tab keeps the sixteen
+ANSI colours it started with — the emulator takes those when the process launches, exactly as
+it does for a theme changed in Settings. The pane's own ground and ink change straight away,
+and the next run is in the new theme.
+
 ## Keyboard & shortcuts
 
 - The **branch** field is focused on launch. Typing debounces into a scan; **Enter**

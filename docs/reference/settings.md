@@ -25,7 +25,9 @@ Reach these via ⚙ → **All settings…**.
 - **Theme** — **System**, **Light**, or **Dark**, plus **Colour the Console tab to match**
   *(default off)*. Off, [the Console tab](../guide/console.md#its-colours) keeps the terminal
   emulator's own plain scheme; on, its ground and its sixteen ANSI colours come from Fido's palette and
-  follow the theme. A shell already running keeps the colours it started with.
+  follow the theme. A shell already running keeps the colours it started with. This is the **saved
+  default**; the header's [sun/moon toggle](../guide/interface.md#the-theme-toggle) flips the screen for
+  the current run without touching it, and saving here takes back over.
 - **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
   resolved branch renames the window to `<repo> · <branch>` (see
   **[The window title](../guide/interface.md#the-window-title)**); untick it
