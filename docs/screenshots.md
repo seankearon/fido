@@ -21,6 +21,11 @@ button launches your **default tool** (the rest sit in the grid, ++ctrl+1++ … 
 panel at the foot carries two tabs: the **Flight log**, reporting each step as Fido "goes around
 the horn", and the **Console**.
 
+Above the cards sits the branch's **open pull request**, when it has one — `PR #128 · Checkout flow:
+address review`, one click from the browser. Fido asks GitHub afresh on every scan that finds the
+branch, so the row reports the PR as it stands rather than as it once was; see
+[The branch's pull request](guide/discovery.md#the-branchs-pull-request).
+
 ![Fido home screen](assets/screenshots/home-screen-light.png#only-light)
 ![Fido home screen](assets/screenshots/home-screen-dark.png#only-dark)
 
@@ -38,6 +43,9 @@ chips.
 ![Inline discovery results with target cards](assets/screenshots/open-dialog-dark.png#only-dark)
 
 ---
+
+A branch with **no** open pull request simply has no row — and the flight log says which of the two
+silences it is, so a missing `gh` is never mistaken for a branch that is clear to delete.
 
 ## Placing a branch that isn't checked out anywhere
 

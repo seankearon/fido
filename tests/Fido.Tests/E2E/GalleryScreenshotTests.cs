@@ -1,5 +1,6 @@
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Fido.Models;
 using Fido.Services;
 using Fido.Tests.Infrastructure;
@@ -88,9 +89,12 @@ public class GalleryScreenshotTests
             OpenUrl = new FakeBrowser().Open,
             // Scripted, like every other outside world here: the demo's origin is a folder on disk, so a
             // real gh would only ever fail — and the gallery would show the branch's pull-request row as
-            // an apology instead of as the feature it is.
-            GitHub = FakeGitHub.WithOpenPr(128, "https://github.com/acme/platform/pull/128",
-                "Checkout flow: address review"),
+            // an apology instead of as the feature it is. Answered per branch, so the shots carry both
+            // states: feature/checkout-flow has a PR open, feature/api-cleanup doesn't.
+            GitHub = new GitHubCli((_, args, _) => Task.FromResult(new ProcessResult(0,
+                args.SkipWhile(a => a != "--head").Skip(1).FirstOrDefault() == "feature/checkout-flow"
+                    ? """[{"number":128,"title":"Checkout flow: address review","url":"https://github.com/acme/platform/pull/128"}]"""
+                    : "[]", ""))),
         };
 
         await Harness.WithWindow(services, async window =>
@@ -105,6 +109,7 @@ public class GalleryScreenshotTests
                     UiTestExtensions.Pump();
                     if (arrange is not null) await arrange();
                     UiTestExtensions.Pump();
+                    FitWindowToContent(window);
                     Screenshots.Save(window, $"{name}-{suffix}");
                 }
             }
@@ -154,11 +159,13 @@ public class GalleryScreenshotTests
                 pane.UseFidoPalette = false;
                 await window.RunConsoleOptionAsync(script);
                 await SettleAsync(TimeSpan.FromSeconds(12));   // let the shell start, run and paint
+                FitWindowToContent(window);
                 Screenshots.Save(window, $"console-tab-{suffix}");
 
                 runMenu.Flyout?.ShowAt(runMenu);
                 UiTestExtensions.Pump();
                 await SettleAsync(TimeSpan.FromSeconds(1));
+                FitWindowToContent(window);
                 Screenshots.Save(window, $"console-run-menu-{suffix}");
                 runMenu.Flyout?.Hide();
                 UiTestExtensions.Pump();
@@ -167,6 +174,7 @@ public class GalleryScreenshotTests
                 pane.UseFidoPalette = true;
                 await window.RunConsoleOptionAsync(script);
                 await SettleAsync(TimeSpan.FromSeconds(12));
+                FitWindowToContent(window);
                 Screenshots.Save(window, $"console-palette-{suffix}");
                 pane.UseFidoPalette = false;
             }
@@ -183,6 +191,7 @@ public class GalleryScreenshotTests
             UiTestExtensions.Pump();
             await window.OpenWithAsync(new Editor { Name = "WebStorm", Kind = EditorKind.WebStorm });
             UiTestExtensions.Pump();
+            FitWindowToContent(window);
             Screenshots.Save(window, "the-eagle-has-landed");
 
             App.ApplyTheme(AppTheme.System);
@@ -206,6 +215,40 @@ public class GalleryScreenshotTests
         });
 
         ForceDelete(demo);
+    }
+
+    /// <summary>
+    /// Grows the window until its upper stack fits, so a gallery shot shows the screen whole.
+    ///
+    /// <para><c>SizeToContent="Height"</c> stops at the screen's working area, and the headless screen is
+    /// 1080 tall — so the taller states (the delete confirm, anything carrying the pull-request row) used
+    /// to be captured mid-scroll, with the confirm's own buttons sliced off the bottom. The window is
+    /// resizable and a real screen is usually taller, so the clipping is the harness's, not Fido's, and
+    /// the gallery shouldn't hand it on to the documentation. The overflow is read off the scroller
+    /// itself rather than guessed at, and re-read after each growth (a taller window gives the flight log
+    /// more room, which can change the sum), so this settles at the height the content actually wants.</para>
+    /// </summary>
+    private static void FitWindowToContent(MainWindow window)
+    {
+        var scroller = window.FindControl<ScrollViewer>("MainScroller");
+        if (scroller is null) return;
+
+        // Back to the natural height first: growth is one-way, so without this a state would inherit the
+        // window a taller one left behind and be shot in a box with room to spare.
+        window.ClearValue(Layoutable.HeightProperty);   // an explicit height outlives SizeToContent
+        window.SizeToContent = SizeToContent.Height;
+        UiTestExtensions.Pump();
+
+        window.SizeToContent = SizeToContent.Manual;   // else the screen clamp undoes every growth
+        for (var pass = 0; pass < 6; pass++)
+        {
+            UiTestExtensions.Pump();
+            var overflow = scroller.Extent.Height - scroller.Viewport.Height;
+            if (overflow <= 0.5) return;
+            // Grown from the height the window actually has: the Height property reads NaN until
+            // something sets it, so adding to it would only ever produce NaN.
+            window.Height = window.Bounds.Height + Math.Ceiling(overflow);
+        }
     }
 
     /// <summary>
