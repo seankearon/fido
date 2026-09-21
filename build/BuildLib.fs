@@ -121,8 +121,22 @@ let rec copyFolderTo (targetFolder: string) (sourceFolder: string) =
     Directory.GetDirectories source
     |> Array.iter (fun dir -> copyFolderTo (target +/ Path.GetFileName dir) dir)
 
+/// Deletes a folder and everything under it.
+///
+/// Not a bare Directory.Delete: the Publish Docs stage runs `git init` inside _build, and
+/// git marks every loose object it writes under .git/objects read-only. Deleting a
+/// read-only file throws UnauthorizedAccessException on Windows, so the next release's
+/// Clean stage would die on a name like '_build/docs/.git/objects/07/26264b7d37...'.
+/// Clearing the attribute first makes the delete work whatever the tree holds.
 let clean (path: string) =
-    if Directory.Exists path then Directory.Delete(path, recursive = true)
+    if Directory.Exists path then
+        for file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) do
+            let attributes = File.GetAttributes file
+
+            if attributes.HasFlag FileAttributes.ReadOnly then
+                File.SetAttributes(file, attributes &&& ~~~FileAttributes.ReadOnly)
+
+        Directory.Delete(path, recursive = true)
 
 /// Writes text to a file, creating the folder if this is a first run.
 let writeFile (path: string) (contents: string) =
