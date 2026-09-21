@@ -69,9 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tree root is made explicitly relative (`& ./build.ps1`) instead of coming back *"not recognized as the
   name of a cmdlet…"* while you stand in the very folder that holds it.
 
-  It wears **Fido's palette** rather than xterm's, per theme, with a contrast floor for the 256-colour
-  output no palette can speak for — the stock colours are built for pure black and are close to
-  illegible on the warm cream panel.
+  **Its colours are the terminal's own**, which is what a console is expected to look like, and
+  **Settings → Theme → Colour the Console tab to match** swaps them for Fido's palette — the flight
+  log's own greens and ambers, following the theme, with a contrast floor for the 256-colour output no
+  palette can speak for. Either way the colours are taken when a shell starts, so one already running
+  keeps the ones it came up with.
 
 - **A setting for where a run-menu pick lands.** **Settings → Before running → Run it in Fido's Console
   tab** *(off by default)* decides what the **Console button's** run menu does: hand the command to the

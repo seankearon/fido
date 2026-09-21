@@ -133,15 +133,19 @@ public class GalleryScreenshotTests
 
             // 6. The Console tab: the branch's own build script, run over a real pseudo-terminal — and
             //    the Run menu that started it. Its own theme loop rather than CapturePairAsync, because
-            //    the script has to be re-run per theme: the emulator takes its colours when the shell
-            //    launches and keeps them, so a shell started dark stays dark however the app is themed.
+            //    the script has to be re-run for each shot: the emulator takes its colours when the shell
+            //    launches and keeps them, so neither the theme nor the palette setting reaches a shell
+            //    that is already up.
             var script = window.Vm().ConsoleTabRuns.First(run => run.Label.StartsWith("build."));
             var runMenu = window.FindControl<Button>("ConsoleRunsButton")!;
+            var pane = window.FindControl<ConsolePane>("ConsoleView")!;
             foreach (var (theme, suffix) in Themes)
             {
                 App.ApplyTheme(theme);
                 UiTestExtensions.Pump();
 
+                // The default: the terminal's own scheme, which is what a fresh install shows.
+                pane.UseFidoPalette = false;
                 await window.RunConsoleOptionAsync(script);
                 await SettleAsync(TimeSpan.FromSeconds(12));   // let the shell start, run and paint
                 Screenshots.Save(window, $"console-tab-{suffix}");
@@ -152,6 +156,13 @@ public class GalleryScreenshotTests
                 Screenshots.Save(window, $"console-run-menu-{suffix}");
                 runMenu.Flyout?.Hide();
                 UiTestExtensions.Pump();
+
+                // And the same run with Settings → Theme → "Colour the Console tab to match" ticked.
+                pane.UseFidoPalette = true;
+                await window.RunConsoleOptionAsync(script);
+                await SettleAsync(TimeSpan.FromSeconds(12));
+                Screenshots.Save(window, $"console-palette-{suffix}");
+                pane.UseFidoPalette = false;
             }
 
             // Back to the narration, and rescan so the log holds one clean flight rather than the

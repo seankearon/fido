@@ -29,6 +29,7 @@ public partial class ConsolePane : UserControl
     public event EventHandler? ProcessExited;
 
     private bool _started;
+    private bool _useFidoPalette;
 
     public ConsolePane()
     {
@@ -38,6 +39,26 @@ public partial class ConsolePane : UserControl
         // the app is running, not just when the user picks one in Settings.
         if (Application.Current is { } app)
             app.ActualThemeVariantChanged += (_, _) => ApplyPalette();
+    }
+
+    /// <summary>
+    /// Whether the terminal wears Fido's palette rather than the emulator's own scheme
+    /// (<see cref="Models.AppConfig.ConsoleUsesFidoPalette"/>, off by default). The host sets it from the
+    /// config at startup and again whenever settings are saved.
+    ///
+    /// Switching it takes effect from the next shell, not this one: the emulator reads its colours when a
+    /// process launches and keeps that copy. Turning it off does clear the control's own brushes straight
+    /// away, since those are what the next launch would otherwise seed itself from.
+    /// </summary>
+    public bool UseFidoPalette
+    {
+        get => _useFidoPalette;
+        set
+        {
+            if (_useFidoPalette == value) return;
+            _useFidoPalette = value;
+            ApplyPalette();
+        }
     }
 
     /// <summary>Whether a shell has been started (and so whether there is anything to kill or re-run).</summary>
@@ -78,10 +99,10 @@ public partial class ConsolePane : UserControl
         Terminal.IsVisible = true;
         _started = true;
 
-        // Colour it *before* the shell starts. The emulator takes its colours when the process is
-        // launched and keeps that copy: a palette applied afterwards leaves Options.Theme holding
-        // Fido's values while the screen still paints xterm's stock black. Measured, not assumed —
-        // see ConsoleTabTests.The_console_takes_Fidos_palette_before_the_shell_starts.
+        // Settle the colours *before* the shell starts. The emulator takes them when the process is
+        // launched and keeps that copy: a palette applied afterwards leaves Options.Theme holding Fido's
+        // values while the screen still paints the stock scheme. Measured, not assumed — see
+        // ConsoleTabTests.The_console_takes_Fidos_palette_before_the_shell_starts.
         ApplyPalette();
 
         var shell = RunnerShell.For(command);
@@ -110,7 +131,8 @@ public partial class ConsolePane : UserControl
         Dispatcher.UIThread.Post(() => ProcessExited?.Invoke(this, EventArgs.Empty));
 
     /// <summary>
-    /// Puts Fido's own ANSI palette on the terminal, ready for the next shell.
+    /// Puts Fido's own ANSI palette on the terminal, ready for the next shell — or takes it off again,
+    /// when <see cref="UseFidoPalette"/> is off, which is the default.
     ///
     /// Two things have to happen together, and both are the result of measurement rather than the docs:
     ///
@@ -131,6 +153,15 @@ public partial class ConsolePane : UserControl
     /// </summary>
     private void ApplyPalette()
     {
+        if (!_useFidoPalette)
+        {
+            // Hand the control back its own colours. Clearing rather than writing defaults, so what shows
+            // is the emulator's scheme exactly as it ships it.
+            Terminal.ClearValue(BackgroundProperty);
+            Terminal.ClearValue(ForegroundProperty);
+            return;
+        }
+
         var variant = Application.Current?.ActualThemeVariant ?? ThemeVariant.Light;
         var palette = TerminalPalette.For(variant);
 

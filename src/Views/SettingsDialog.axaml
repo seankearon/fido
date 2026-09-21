@@ -84,6 +84,10 @@
                                  IsChecked="{Binding IsThemeDark, Mode=TwoWay}" />
                 </StackPanel>
             </Border>
+            <CheckBox x:Name="ConsolePaletteCheck" Classes="fido"
+                      IsChecked="{Binding ConsoleUsesFidoPalette, Mode=TwoWay}"
+                      Content="Colour the Console tab to match"
+                      ToolTip.Tip="On: the console's ground and its sixteen ANSI colours come from Fido's own palette, following the theme, with a contrast floor so 256-colour output stays readable. Off: the terminal's own scheme — plain, and high-contrast by construction. A shell already running keeps the colours it started with." />
         </StackPanel>
 
         <StackPanel Spacing="9">

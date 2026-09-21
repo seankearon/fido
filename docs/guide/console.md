@@ -104,16 +104,25 @@ very folder holding it.
 - **Closing Fido stops it.** The shell is a child process of Fido, and an orphan with no terminal
   attached would only linger.
 
-## It wears Fido's colours
+## Its colours
 
-The terminal uses **Fido's palette**, not xterm's — the same brushes the flight log draws with, so
-a script's green `ok` and Fido's own `✓` are the same green, on the same warm ground. In the light
-theme the `Bright*` colours are **darker** than their base, because on a pale background emphasis
-means more contrast, not less; and a **contrast floor** lifts anything that would land unreadable,
-which is what keeps 256-colour output — chosen by its author against black — legible on cream.
+Out of the box the console keeps the **terminal emulator's own scheme** — the plain, high-contrast
+one every terminal starts life with. It is a console, and it looks like one.
 
-The palette is taken when the shell starts, so a **shell already running keeps the colours it
-started with**; change theme and the next run comes up in the new one.
+**Settings → Theme → _Colour the Console tab to match_** swaps that for **Fido's own palette**: the
+same brushes the flight log draws with, so a script's green `ok` and Fido's own `✓` are the same
+green, on the same warm ground, in whichever theme you are running.
+
+![The Console tab in Fido's own palette](../assets/screenshots/console-palette-light.png#only-light)
+![The Console tab in Fido's own palette](../assets/screenshots/console-palette-dark.png#only-dark)
+
+Two details of that palette are deliberate. In the light theme the `Bright*` colours are **darker**
+than their base, because on a pale background emphasis means more contrast, not less. And a
+**contrast floor** lifts anything that would otherwise land unreadable, which is what keeps
+256-colour output — chosen by its author against black — legible on cream.
+
+Either way, the colours are taken **when the shell starts**: a **shell already running keeps the
+ones it came up with**, and the setting, like a change of theme, applies from the next run.
 
 ## Or hand it to your own terminal
 

@@ -17,6 +17,7 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _showTargetInWindowTitle = true;
     private bool _pullBeforeRun = true;
     private bool _runInFido;
+    private bool _consoleUsesFidoPalette;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
     private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
@@ -123,6 +124,14 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _runInFido, value);
     }
 
+    /// <summary>Whether the Console tab's terminal wears Fido's palette rather than the emulator's own
+    /// scheme. Off by default; a shell already running keeps the colours it started with.</summary>
+    public bool ConsoleUsesFidoPalette
+    {
+        get => _consoleUsesFidoPalette;
+        set => SetField(ref _consoleUsesFidoPalette, value);
+    }
+
     public CloseAfterOpen CloseAfterOpen
     {
         get => _closeAfterOpen;
@@ -191,6 +200,7 @@ public sealed class SettingsViewModel : ObservableObject
         ShowTargetInWindowTitle = config.ShowTargetInWindowTitle;
         PullBeforeRun = config.PullBeforeRun;
         RunInFido = config.RunInFido;
+        ConsoleUsesFidoPalette = config.ConsoleUsesFidoPalette;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -212,6 +222,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.ShowTargetInWindowTitle = ShowTargetInWindowTitle;
         config.PullBeforeRun = PullBeforeRun;
         config.RunInFido = RunInFido;
+        config.ConsoleUsesFidoPalette = ConsoleUsesFidoPalette;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer

@@ -100,6 +100,18 @@ public sealed class AppConfig
     /// </summary>
     public bool RunInFido { get; set; }
 
+    /// <summary>
+    /// Whether the Console tab's terminal is painted in Fido's own palette — the brushes the flight log
+    /// draws with — instead of the scheme the terminal emulator ships with.
+    ///
+    /// Off by default, because plain is legible: the stock scheme is high-contrast by construction, and a
+    /// console is a place people expect to look like a console. On, the ground and the sixteen ANSI colours
+    /// come from <c>TerminalPalette</c> and follow the app's theme, which reads as one window rather than a
+    /// terminal dropped into one. Either way the colours are taken when a shell starts, so a shell already
+    /// running keeps the ones it has.
+    /// </summary>
+    public bool ConsoleUsesFidoPalette { get; set; }
+
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
 

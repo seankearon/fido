@@ -108,6 +108,7 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
+        ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
 
         // Typing in the branch box debounces into a scan; Enter (below) fires one immediately.
         _scanDebounce = new DispatcherTimer { Interval = ScanDebounce };
@@ -1154,6 +1155,8 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
+        // Takes effect from the next shell: the one running kept the colours it started with.
+        ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
     }
 
     // --- Keyboard -------------------------------------------------------------------------

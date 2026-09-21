@@ -190,12 +190,12 @@ public class ConsoleTabTests
     }
 
     /// <summary>
-    /// The console is wearing Fido's colours before the shell starts.
+    /// With the setting on, the console is wearing Fido's colours before the shell starts.
     ///
     /// The brushes are what this pins, because they are what the emulator seeds itself from: leave them
-    /// at their defaults and it ignores the palette in <c>Options.Theme</c> entirely — stock black
-    /// ground, stock colours — however carefully that object was filled in. They are also set on the
-    /// control itself, so this holds whether or not the headless harness gave the pane a template.
+    /// at their defaults and it ignores the palette in <c>Options.Theme</c> entirely — stock ground,
+    /// stock colours — however carefully that object was filled in. They are also set on the control
+    /// itself, so this holds whether or not the headless harness gave the pane a template.
     ///
     /// Ordering is the other half, and it is why <c>ApplyPalette</c> runs before <c>LaunchProcess</c>:
     /// the emulator takes its colours at launch and keeps that copy, so a palette applied afterwards
@@ -208,7 +208,8 @@ public class ConsoleTabTests
     {
         var (world, root) = PlainRepo();
         using var _ = world;
-        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService(),
+            consoleUsesFidoPalette: true);
 
         await Harness.WithWindow(services, async window =>
         {
@@ -232,6 +233,38 @@ public class ConsoleTabTests
                 await Assert.That(theme.Green).IsEqualTo("#3E7C55");
                 await Assert.That(terminal.Options.MinimumContrastRatio).IsEqualTo(TerminalPalette.MinimumContrast);
             }
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// And with the setting off — the default — Fido keeps its hands off the colours entirely, so the
+    /// console comes up in the scheme the emulator ships with. Asserted on the brushes again, because
+    /// setting those is what makes any of it take.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task By_default_the_console_keeps_the_terminals_own_colours()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            var pane = window.FindControl<ConsolePane>("ConsoleView")!;
+            var terminal = pane.FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+
+            await Assert.That(pane.UseFidoPalette).IsFalse();
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsNotEqualTo(Color.Parse("#F5F1E8"));
+            await Assert.That(terminal.Options?.Theme?.Background).IsNotEqualTo("#F5F1E8");
 
             App.ApplyTheme(AppTheme.System);
         });

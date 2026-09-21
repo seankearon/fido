@@ -88,6 +88,13 @@ the branch's `.fido/cfg.yaml` nominated — its run files and `aspire start` —
 ![The Console tab's Run menu](assets/screenshots/console-run-menu-light.png#only-light)
 ![The Console tab's Run menu](assets/screenshots/console-run-menu-dark.png#only-dark)
 
+The console keeps the terminal's own colours by default. Tick **Settings → Theme → Colour the
+Console tab to match** and it takes Fido's palette instead — the flight log's own greens and ambers,
+following the theme.
+
+![The Console tab in Fido's own palette](assets/screenshots/console-palette-light.png#only-light)
+![The Console tab in Fido's own palette](assets/screenshots/console-palette-dark.png#only-dark)
+
 ---
 
 ## Settings
