@@ -40,6 +40,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Links in the Console tab open in your browser.** A URL the console prints — a dev server's
+  `http://localhost:5173`, the pull-request link `git push` answers with, a CI build's report — is now a
+  link you can follow. Hovering one underlines it and turns the pointer into a hand; **Ctrl+Click**
+  opens it in your default browser, the gesture every other terminal uses. A plain click still selects
+  text, so nothing you could do before has changed meaning.
+
+  Two kinds of link count: text that **reads** as a URL (`http://…`, `https://…`, with any trailing
+  `.` or `)` left out of it), and one a program **declares** with an OSC 8 escape — where the text on
+  screen says "view the report" and the URL rides along in the escape sequence. Both wrap across lines
+  without breaking.
+
+  **Only `http` and `https` go anywhere**, and the flight log names what went: `▸ Opening
+  https://… in your browser`. That matters most for the declared kind, which needn't show its target at
+  all — the log is where you get to read what your click actually opened. Anything else is refused out
+  loud (`⚠ Not opening file:///… — the console only follows http and https links.`), because "open" on
+  Windows means handing the string to the shell, and a scheme other than the web's can be a registered
+  program rather than a page. A refusal that said nothing would just read as a click that missed.
+
 - **The branch box now lists the worktree folders that branch already has on disk.** Type a branch and
   the folders holding a worktree for it appear underneath — one row each, with a button to **copy** the
   path and a button to **open it in File Explorer / Finder**. Where to look is the *same rule Fido

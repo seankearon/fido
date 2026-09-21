@@ -37,6 +37,9 @@ public partial class MainWindow : Window
     private readonly RepoConfigService _repoConfigs;
     private readonly AppConfig _config;
 
+    /// <summary>Hands a URL to the OS default browser — injected, so a test never opens one.</summary>
+    private readonly Func<string, bool> _openUrl;
+
     private readonly DispatcherTimer _scanDebounce;
 
     /// <summary>Cancels the in-flight discovery scan when a newer one supersedes it.</summary>
@@ -94,6 +97,7 @@ public partial class MainWindow : Window
         _configService = services.ConfigService;
         _git = services.Git;
         _launcher = services.Launcher;
+        _openUrl = services.OpenUrl;
 
         // Load config and apply the theme variant before the XAML resolves its DynamicResources.
         _config = _configService.Load();
@@ -890,8 +894,39 @@ public partial class MainWindow : Window
     {
         var url = _vm.OpenPullRequestUrl;
         if (string.IsNullOrWhiteSpace(url)) return;
-        if (!UrlLauncher.Open(url))
+        if (!_openUrl(url))
             _vm.AppendLog($"⚠ Couldn't open the pull request — {url}");
+    }
+
+    private void OnConsoleUrlClicked(object? sender, string url) => OpenTerminalLink(url);
+
+    /// <summary>
+    /// Follows a link Ctrl+Clicked in the Console tab, in the browser rather than in Fido, and says in
+    /// the flight log which URL went out. Internal for tests.
+    ///
+    /// The line is not decoration. A build log's link is often long enough to be ellipsised by the eye
+    /// rather than the terminal, and an OSC 8 hyperlink need not show its target at all — the tool
+    /// prints "view the report" and the URL lives in the escape sequence. Naming it after the fact is
+    /// the only place the user gets to read what their click actually opened.
+    ///
+    /// Only <c>http</c> and <c>https</c> go anywhere. What the shell puts on screen is the shell's
+    /// business, but handing an arbitrary scheme to the OS opener is not opening a page — see
+    /// <see cref="UrlLauncher.IsWebUrl"/> — and a refusal that said nothing would read as a click that
+    /// missed.
+    /// </summary>
+    internal void OpenTerminalLink(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        if (!UrlLauncher.IsWebUrl(url))
+        {
+            _vm.AppendLog($"⚠ Not opening {url} — the console only follows http and https links.");
+            return;
+        }
+
+        _vm.AppendLog($"▸ Opening {url} in your browser");
+        if (!_openUrl(url))
+            _vm.AppendLog($"⚠ Couldn't open {url}");
     }
 
     private async void OnCopyPathClick(object? sender, RoutedEventArgs e) => await CopySelectedPathAsync();
