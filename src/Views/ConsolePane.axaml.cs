@@ -40,24 +40,47 @@ public partial class ConsolePane : UserControl
     private bool _started;
     private bool _useFidoPalette;
 
+    /// <summary>
+    /// The emulator's own palette, taken the first time it is there to take and never written to again.
+    ///
+    /// Everything here mutates one live <c>ThemeOptions</c> instance (see <see cref="ApplyPalette"/>), so
+    /// once Fido's colours have gone on, the emulator's are gone unless they were kept. This is that copy,
+    /// and it is what turning the setting back off restores.
+    /// </summary>
+    private XTerm.Options.ThemeOptions? _stockTheme;
+
     public ConsolePane()
     {
         InitializeComponent();
 
-        // The palette is per theme variant, and Fido's default follows the OS — so it can change while
-        // the app is running, not just when the user picks one in Settings.
+        // The palette is per theme variant — and the variant moves under the pane's feet: Fido's default
+        // follows the OS, the Settings dialog previews live, and the header's toggle flips it outright.
         if (Application.Current is { } app)
             app.ActualThemeVariantChanged += (_, _) => ApplyPalette();
     }
 
     /// <summary>
-    /// Whether the terminal wears Fido's palette rather than the emulator's own scheme
+    /// Colours the pane as soon as it is in the tree, whichever mode it is in.
+    ///
+    /// Needed because "not Fido's palette" is now a scheme of its own rather than an absence of one: a Fido
+    /// that starts light, with the setting off and nobody touching the theme, would otherwise never paint
+    /// the console at all and leave the control on its built-in black. Attachment rather than the
+    /// constructor, because the template — and so <c>Options</c> — only resolves once the control has a
+    /// place in the tree.
+    /// </summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        ApplyPalette();
+    }
+
+    /// <summary>
+    /// Whether the terminal wears Fido's palette rather than the emulator's own sixteen colours
     /// (<see cref="Models.AppConfig.ConsoleUsesFidoPalette"/>, off by default). The host sets it from the
     /// config at startup and again whenever settings are saved.
     ///
-    /// Switching it takes effect from the next shell, not this one: the emulator reads its colours when a
-    /// process launches and keeps that copy. Turning it off does clear the control's own brushes straight
-    /// away, since those are what the next launch would otherwise seed itself from.
+    /// Either way the ground follows the theme — see <see cref="ApplyPalette"/>. Turning the setting off
+    /// puts the emulator's own sixteen back, rather than leaving Fido's last word sitting in the theme.
     /// </summary>
     public bool UseFidoPalette
     {
@@ -108,9 +131,9 @@ public partial class ConsolePane : UserControl
         Terminal.IsVisible = true;
         _started = true;
 
-        // Settle the colours *before* the shell starts. The emulator takes them when the process is
-        // launched and keeps that copy: a palette applied afterwards leaves Options.Theme holding Fido's
-        // values while the screen still paints the stock scheme. Measured, not assumed — see
+        // Settle the colours *before* the shell starts. The emulator seeds itself from the control's
+        // brushes at launch, so doing this after would paint the first frames in whatever it defaulted to
+        // and correct them a beat later. Measured, not assumed — see
         // ConsoleTabTests.The_console_takes_Fidos_palette_before_the_shell_starts.
         ApplyPalette();
 
@@ -153,15 +176,26 @@ public partial class ConsolePane : UserControl
         UrlClicked?.Invoke(this, e.Url);
 
     /// <summary>
-    /// Puts Fido's own ANSI palette on the terminal, ready for the next shell — or takes it off again,
-    /// when <see cref="UseFidoPalette"/> is off, which is the default.
+    /// Colours the terminal for the theme on screen. Both modes are theme-aware:
     ///
-    /// Two things have to happen together, and both are the result of measurement rather than the docs:
+    /// <list type="bullet">
+    /// <item><description><see cref="UseFidoPalette"/> on — Fido's own ground, ink and sixteen ANSI
+    /// colours, from <see cref="TerminalPalette.Apply"/>.</description></item>
+    /// <item><description>Off, the default — the terminal's own black-and-white, the right way up for the
+    /// theme (<see cref="TerminalPalette.ApplyPlain"/>), with its sixteen colours left exactly as it ships
+    /// them. The setting chooses between <em>plain</em> and <em>Fido's</em>, not between
+    /// <em>fixed</em> and <em>follows the theme</em>: a black box sitting in a cream window doesn't read
+    /// as a plain console, it reads as a bug.</description></item>
+    /// </list>
+    ///
+    /// Two mechanical details, both measured rather than read in the docs:
     ///
     /// <list type="number">
     /// <item><description>Both <c>Options</c> and its <c>Theme</c> are mutated rather than replaced. The
     /// control keeps its own reference to each and reads through it, so handing it a fresh object leaves
-    /// it reading the old one and the renderer draws nothing at all.</description></item>
+    /// it reading the old one and the renderer draws nothing at all. That same live reference is what lets
+    /// a <em>running</em> shell repaint on a theme change rather than waiting for the next
+    /// one.</description></item>
     /// <item><description>The control's own <c>Background</c>/<c>Foreground</c> brushes are set to match.
     /// The emulator seeds itself from those when a process launches, and with them left at their defaults
     /// it ignores <c>Options.Theme</c> entirely — stock black ground, stock colours — however carefully
@@ -169,28 +203,22 @@ public partial class ConsolePane : UserControl
     /// seeds and the palette can't disagree.</description></item>
     /// </list>
     ///
-    /// Called before <see cref="Terminal"/> launches anything, because that is when the colours are taken.
-    /// A shell already running keeps the palette it started with; the next run picks the new one up, which
-    /// is why a theme change here only repaints the pane's own ground.
+    /// <see cref="TerminalPalette.MinimumContrast"/> goes on in both modes. It matters most in the plain
+    /// one on a light theme: those sixteen colours were chosen against black, and the floor is the only
+    /// thing standing between them and an unreadable pale ground.
     /// </summary>
     private void ApplyPalette()
     {
-        if (!_useFidoPalette)
-        {
-            // Hand the control back its own colours. Clearing rather than writing defaults, so what shows
-            // is the emulator's scheme exactly as it ships it.
-            Terminal.ClearValue(BackgroundProperty);
-            Terminal.ClearValue(ForegroundProperty);
-            return;
-        }
-
         var variant = Application.Current?.ActualThemeVariant ?? ThemeVariant.Light;
-        var palette = TerminalPalette.For(variant);
+        var fido = TerminalPalette.For(variant);
+        var (background, foreground) = _useFidoPalette
+            ? (fido.Background, fido.Foreground)
+            : TerminalPalette.Plain(variant);
 
         // The brushes first, and unconditionally: they are what the emulator seeds itself from, and they
         // are on the control rather than on anything it builds later.
-        Terminal.Background = Brush(palette.Background) ?? Terminal.Background;
-        Terminal.Foreground = Brush(palette.Foreground) ?? Terminal.Foreground;
+        Terminal.Background = Brush(background) ?? Terminal.Background;
+        Terminal.Foreground = Brush(foreground) ?? Terminal.Foreground;
 
         // A pane that has never been shown has never been measured, and an unmeasured templated control
         // has no Options to colour. Applying the template here costs nothing when it already has one and
@@ -198,7 +226,16 @@ public partial class ConsolePane : UserControl
         Terminal.ApplyTemplate();
 
         if (Terminal.Options?.Theme is not { } theme) return;
-        TerminalPalette.Apply(theme, variant);
+
+        // Before the first write, not after: this is the only moment the emulator's own colours are still
+        // in there to be kept.
+        _stockTheme ??= TerminalPalette.Snapshot(theme);
+
+        if (_useFidoPalette)
+            TerminalPalette.Apply(theme, variant);
+        else
+            TerminalPalette.ApplyPlain(theme, variant, _stockTheme);
+
         Terminal.Options.MinimumContrastRatio = TerminalPalette.MinimumContrast;
     }
 

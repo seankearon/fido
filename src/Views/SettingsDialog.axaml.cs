@@ -13,6 +13,13 @@ public partial class SettingsDialog : Window
     private readonly SettingsViewModel _vm = new();
     private readonly AppConfig _config = null!;
     private readonly ConfigService _configService = null!;
+
+    /// <summary>
+    /// The theme that was on screen when the dialog opened, so a cancel puts back what the user was
+    /// looking at. <see cref="App.CurrentTheme"/> rather than <c>config.Theme</c>, because the header's
+    /// toggle may have moved this run's theme away from the saved default — and a cancelled dialog has no
+    /// business undoing that.
+    /// </summary>
     private readonly AppTheme _originalTheme;
     private bool _saved;
 
@@ -26,7 +33,7 @@ public partial class SettingsDialog : Window
     {
         _config = config;
         _configService = configService;
-        _originalTheme = config.Theme;
+        _originalTheme = App.CurrentTheme;
 
         _vm.LoadFrom(config);
         DataContext = _vm;

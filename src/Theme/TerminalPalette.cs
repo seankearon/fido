@@ -33,6 +33,58 @@ public static class TerminalPalette
     public const double MinimumContrast = 4.5;
 
     /// <summary>
+    /// The plain console ground and ink for <paramref name="variant"/> — what the console wears when it is
+    /// <em>not</em> wearing Fido's palette.
+    ///
+    /// It is still the terminal's own black-and-white; it is simply the right way up for the theme. A
+    /// terminal emulator ships one scheme, built for a dark desktop, and a fixed black box in a cream
+    /// window doesn't read as "plain", it reads as broken. So dark keeps the stock pair exactly, and light
+    /// inverts it — which is what every terminal's own light profile does.
+    /// </summary>
+    public static (string Background, string Foreground) Plain(ThemeVariant variant) =>
+        variant == ThemeVariant.Dark ? ("#000000", "#FFFFFF") : ("#FFFFFF", "#000000");
+
+    /// <summary>
+    /// Restores the emulator's own colours onto <paramref name="target"/>, then turns the ground and ink
+    /// the right way up for <paramref name="variant"/>.
+    ///
+    /// <paramref name="stock"/> is the emulator's pristine palette, snapshotted before Fido ever wrote to
+    /// the live object — restoring from it is what makes the Settings switch reversible. Without it,
+    /// turning Fido's palette back off would leave Fido's sixteen ANSI colours sitting in the theme, since
+    /// everything here mutates one shared instance.
+    ///
+    /// The sixteen therefore end up exactly as the emulator ships them; only the ground, the ink and the
+    /// caret are Fido's doing. <see cref="MinimumContrast"/> is what keeps those sixteen legible once the
+    /// ground is pale, since every one of them was chosen against black.
+    ///
+    /// In place, for the same reason as <see cref="Apply"/>.
+    /// </summary>
+    public static void ApplyPlain(ThemeOptions target, ThemeVariant variant, ThemeOptions stock)
+    {
+        CopyTo(stock, target);
+
+        var (background, foreground) = Plain(variant);
+        target.Background = background;
+        target.Foreground = foreground;
+
+        // The caret is drawn in Cursor on a CursorAccent ground. Left at the emulator's values it is white
+        // on white the moment the ground turns pale — a caret you cannot find on a light theme.
+        target.Cursor = foreground;
+        target.CursorAccent = background;
+    }
+
+    /// <summary>
+    /// A detached copy of <paramref name="source"/>, for keeping the emulator's own palette safe before
+    /// anything is written over it. See <see cref="ApplyPlain"/> for why that copy has to exist.
+    /// </summary>
+    public static ThemeOptions Snapshot(ThemeOptions source)
+    {
+        var copy = new ThemeOptions();
+        CopyTo(source, copy);
+        return copy;
+    }
+
+    /// <summary>
     /// Copies the palette for <paramref name="variant"/> onto <paramref name="target"/>, field by field.
     ///
     /// In place, deliberately. The terminal control holds its own reference to the <see cref="ThemeOptions"/>
@@ -40,34 +92,35 @@ public static class TerminalPalette
     /// the old one, and the renderer draws nothing at all. The same is true one level up for
     /// <c>TerminalOptions</c> — which is why <c>ConsolePane</c> never assigns either wholesale.
     /// </summary>
-    public static void Apply(ThemeOptions target, ThemeVariant variant)
+    public static void Apply(ThemeOptions target, ThemeVariant variant) => CopyTo(For(variant), target);
+
+    /// <summary>Copies every palette entry from <paramref name="source"/> onto <paramref name="target"/>.</summary>
+    private static void CopyTo(ThemeOptions source, ThemeOptions target)
     {
-        var p = For(variant);
+        target.Background = source.Background;
+        target.Foreground = source.Foreground;
+        target.Cursor = source.Cursor;
+        target.CursorAccent = source.CursorAccent;
+        target.Selection = source.Selection;
+        target.SelectionInactive = source.SelectionInactive;
 
-        target.Background = p.Background;
-        target.Foreground = p.Foreground;
-        target.Cursor = p.Cursor;
-        target.CursorAccent = p.CursorAccent;
-        target.Selection = p.Selection;
-        target.SelectionInactive = p.SelectionInactive;
+        target.Black = source.Black;
+        target.Red = source.Red;
+        target.Green = source.Green;
+        target.Yellow = source.Yellow;
+        target.Blue = source.Blue;
+        target.Magenta = source.Magenta;
+        target.Cyan = source.Cyan;
+        target.White = source.White;
 
-        target.Black = p.Black;
-        target.Red = p.Red;
-        target.Green = p.Green;
-        target.Yellow = p.Yellow;
-        target.Blue = p.Blue;
-        target.Magenta = p.Magenta;
-        target.Cyan = p.Cyan;
-        target.White = p.White;
-
-        target.BrightBlack = p.BrightBlack;
-        target.BrightRed = p.BrightRed;
-        target.BrightGreen = p.BrightGreen;
-        target.BrightYellow = p.BrightYellow;
-        target.BrightBlue = p.BrightBlue;
-        target.BrightMagenta = p.BrightMagenta;
-        target.BrightCyan = p.BrightCyan;
-        target.BrightWhite = p.BrightWhite;
+        target.BrightBlack = source.BrightBlack;
+        target.BrightRed = source.BrightRed;
+        target.BrightGreen = source.BrightGreen;
+        target.BrightYellow = source.BrightYellow;
+        target.BrightBlue = source.BrightBlue;
+        target.BrightMagenta = source.BrightMagenta;
+        target.BrightCyan = source.BrightCyan;
+        target.BrightWhite = source.BrightWhite;
     }
 
     /// <summary>

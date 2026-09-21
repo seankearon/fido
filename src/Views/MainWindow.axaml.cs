@@ -1236,6 +1236,16 @@ public partial class MainWindow : Window
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
     }
 
+    /// <summary>
+    /// The header's sun/moon: light ↔ dark for the screen in front of you, and nothing else.
+    ///
+    /// Nothing is saved, on purpose — the config's <see cref="AppConfig.Theme"/> is the default and stays
+    /// the default, so this run's flip dies with the window and Settings still shows (and still means)
+    /// whatever it showed before. The whole screen follows the variant off <c>DynamicResource</c>, the
+    /// Console tab included: it watches the application's variant and repaints with it.
+    /// </summary>
+    private void OnThemeToggleClick(object? sender, RoutedEventArgs e) => App.ToggleTheme();
+
     private async void OnAllSettingsClick(object? sender, RoutedEventArgs e) => await ShowSettingsAsync();
 
     /// <summary>
@@ -1252,7 +1262,8 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
-        // Takes effect from the next shell: the one running kept the colours it started with.
+        // Repaints a shell that is already running — the pane reads its colours through a live options
+        // object, so there is nothing to wait for.
         ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
     }
 
