@@ -16,8 +16,9 @@ description: Every capability in one table.
 | Delete worktree | Inline two-step confirm; removes the worktree + **local** branch, with an **opt-in to also delete the remote branch** (unticked by default, disabled while an open PR — via `gh` — blocks it, linking to the PR); retries transient failures; long-path aware with a Recycle-Bin-bypassing force-delete for **`filename too long`** |
 | Delete reporting | Each target reported separately — **already gone counts as done**, not as failure; anything genuinely left behind gets an inline **Retry** strip that re-runs just that step |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
-| Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
-| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a drop-down under the **Console** button. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
+| Folder targets | **Console** (`term`) opens **your** terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
+| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a run menu on the **Console** button *and* on the **Console tab**. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
+| Console tab | Fido's own terminal beside the **Flight log**, at the selected location: a real shell over a real pseudo-terminal — colour, prompts, **Ctrl+C**, and a live prompt still there when a script fails. Its **Run** menu leads with **shell here**, then the branch's run files; a run never closes Fido. **Ctrl+Click** follows an `http`/`https` link in the output, and the flight log names what opened |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |

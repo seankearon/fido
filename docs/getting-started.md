@@ -32,7 +32,9 @@ Given a branch, Fido:
    explorer / a custom editor.
 
 Everything happens on one screen, everything is keyboard-friendly, and a live log
-narrates each step.
+narrates each step. That log shares the foot of the window with a second tab — a
+**[console](guide/console.md)** of Fido's own, a real shell at whichever location you have
+selected, for the times you want to *run* something on the branch rather than open it.
 
 ---
 

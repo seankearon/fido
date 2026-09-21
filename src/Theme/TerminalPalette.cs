@@ -42,7 +42,7 @@ public static class TerminalPalette
     /// </summary>
     public static void Apply(ThemeOptions target, ThemeVariant variant)
     {
-        var p = variant == ThemeVariant.Dark ? Dark() : Light();
+        var p = For(variant);
 
         target.Background = p.Background;
         target.Foreground = p.Foreground;
@@ -69,6 +69,14 @@ public static class TerminalPalette
         target.BrightCyan = p.BrightCyan;
         target.BrightWhite = p.BrightWhite;
     }
+
+    /// <summary>
+    /// Fido's colours for <paramref name="variant"/>, as a fresh set. Callers that need a single entry —
+    /// <c>ConsolePane</c> wants the ground and the ink as brushes, which is what the emulator seeds itself
+    /// from — read it from here rather than keeping a second copy of the hex that could drift.
+    /// </summary>
+    public static ThemeOptions For(ThemeVariant variant) =>
+        variant == ThemeVariant.Dark ? Dark() : Light();
 
     /// <summary>Warm cream background, ink-dark text. Colours are darkened for contrast, not lightened.</summary>
     private static ThemeOptions Light() => new()

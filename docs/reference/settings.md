@@ -22,13 +22,24 @@ Reach these via ⚙ → **All settings…**.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention. Setting one also collapses
   the **worktree folders line** under the branch box to a single row, answered from the branch name alone
   with no scan needed (see **[The branch's worktree folders](../guide/discovery.md#the-branchs-worktree-folders)**).
-- **Theme** — **System**, **Light**, or **Dark**.
+- **Theme** — **System**, **Light**, or **Dark**, plus **Colour the Console tab to match**
+  *(default off)*. Off, [the Console tab](../guide/console.md#its-colours) keeps the terminal
+  emulator's own plain scheme; on, its ground and its sixteen ANSI colours come from Fido's palette and
+  follow the theme. A shell already running keeps the colours it started with.
 - **Window title** — **Show the repo and branch once discovery resolves them** *(default on)*. On, a
-  resolved branch renames the window to `<repo> · <branch>` (see **The window title** above); untick it
+  resolved branch renames the window to `<repo> · <branch>` (see
+  **[The window title](../guide/interface.md#the-window-title)**); untick it
   and the title stays `Fido`.
-- **Before running** — **Fast-forward the target onto `origin` first** *(default on)*. On, picking a
-  command from the Console run menu updates the target before the console opens (see **Up to date before
-  it runs** above); untick it to run against the tree exactly as it stands.
+- **Before running** — two switches for what a **Console run menu** pick does:
+    - **Fast-forward the target onto `origin` first** *(default on)*. On, picking a command from either
+      run menu updates the target before the console opens (see
+      **[Up to date before it runs](../guide/in-repo-config.md#up-to-date-before-it-runs)**); untick it to
+      run against the tree exactly as it stands. The Console tab's **shell here** never triggers it.
+    - **Run it in Fido's Console tab** *(default off)*. Off, a pick from the **Console button's** run menu
+      goes to the terminal you have configured. On, it runs in
+      **[Fido's own Console tab](../guide/console.md)** instead — a real shell over a real pseudo-terminal,
+      beside the flight log. It governs that button's menu only: the Console **button itself** always opens
+      your terminal, and the Console **tab's** own Run menu always runs in the pane.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
   the on-screen buttons), or **Never** (turns auto-close off).
@@ -46,13 +57,15 @@ Reach these via ⚙ → **All settings…**.
 - **Search depth:** 4.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 - **Window title:** shows `<repo> · <branch>` once discovery resolves.
-- **Before running:** fast-forwards the target onto `origin` when you pick a run command.
+- **Console tab colours:** the terminal's own scheme; Fido's palette is opt-in.
+- **Before running:** fast-forwards the target onto `origin` when you pick a run command; a pick from
+  the Console button's run menu goes to **your** terminal, not Fido's Console tab.
 
 ## In-repo config (committed to the branch)
 
 A repo can also configure Fido for itself, in **`.fido/cfg.yaml`** on the branch — *prefer main clone*,
 *run files* and *aspire start*. It's read from the branch every time a scan lands and needs no user
-setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-config-fidocfgyaml)** above for the file's shape.
+setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-config-fidocfgyaml)** for the file's shape.
 
 ## Where settings live
 

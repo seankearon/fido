@@ -112,6 +112,7 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
+        ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
 
         // Typing in the branch box debounces into a scan; Enter (below) fires one immediately.
         _scanDebounce = new DispatcherTimer { Interval = ScanDebounce };
@@ -629,18 +630,20 @@ public partial class MainWindow : Window
 
             // Run it here rather than hand it off, when that's what the user has asked for. Only ever for
             // a run-menu pick at the Console tool: opening a folder to look at it is a launch, and belongs
-            // in their terminal. The hand-off closure is the escape hatch — same command, same folder,
-            // their terminal — so choosing this is never a one-way door.
+            // in their terminal. The Console tool button is the way out — same command, same folder, their
+            // terminal — so choosing this is never a one-way door.
             if (fromRunMenu && editor.Kind == EditorKind.Console && (inConsolePane || _config.RunInFido))
             {
                 _vm.AppendLog(consoleCommand is null
                     ? $"▸ Opening a shell in {folder} (Console tab)"
                     : $"▸ Running '{consoleCommand}' in {folder} (Console tab)");
                 _vm.AppendLog("Fido? GO!");
-                // Show the pane before running: a command driven from the flight log tab would otherwise
-                // produce output nobody is looking at.
-                _vm.IsConsoleTab = true;
+                // Start the run, then reveal the tab — both in this turn, so the pane is on screen well
+                // before any output arrives. The other order costs a shell: revealing the tab is what
+                // asks EnsureStarted for one, and this call would kill that newborn shell a line later,
+                // which the terminal reports in the scrollback the run is about to write to.
                 ConsoleView.Run(folder, consoleCommand);
+                _vm.IsConsoleTab = true;
                 return;
             }
 
@@ -1187,6 +1190,8 @@ public partial class MainWindow : Window
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
+        // Takes effect from the next shell: the one running kept the colours it started with.
+        ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
     }
 
     // --- Keyboard -------------------------------------------------------------------------

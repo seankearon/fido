@@ -63,6 +63,16 @@ hide:
 
     [:octicons-arrow-right-24: Command line](guide/command-line.md)
 
+-   :material-console-line:{ .lg .middle } **Runs the branch's scripts here**
+
+    ---
+
+    A **Console** tab beside the flight log: a real shell at the selected location, over a
+    real pseudo-terminal. Pick a script from the branch's own config and watch it run —
+    colour, ++ctrl+c++, and the output still there when it fails.
+
+    [:octicons-arrow-right-24: The Console tab](guide/console.md)
+
 -   :material-folder-search:{ .lg .middle } **Points out the leftovers**
 
     ---
