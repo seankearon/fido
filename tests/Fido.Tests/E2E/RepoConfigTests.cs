@@ -65,7 +65,7 @@ public class RepoConfigTests
     }
 
     [Test]
-    public async Task Run_files_and_aspire_start_become_the_console_buttons_menu()
+    public async Task The_commands_list_becomes_the_console_buttons_menu()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -74,12 +74,11 @@ public class RepoConfigTests
         var worktree = world.AddWorktree(clone, "feature/runs");
 
         File.WriteAllText(Path.Combine(worktree, "build.ps1"), "");
-        File.WriteAllText(Path.Combine(worktree, "notes.md"), "");   // not a script: never offered
         TestRepoWorld.WriteFidoConfig(worktree,
             """
-            run files:
-              - '*'
-            aspire start: true
+            commands:
+              - build.ps1
+              - aspire start
             """);
 
         var launcher = new FakeEditorLauncher();
@@ -91,14 +90,14 @@ public class RepoConfigTests
             await window.Discover("feature/runs");
             Screenshots.Save(window, "repo-config-console-runs");
 
-            // The wildcard found the one root script, and `aspire start` rides at the end.
+            // Both commands are offered, in the order the file listed them.
             var console = ConsoleTool(window);
             await Assert.That(console.HasRuns).IsTrue();
             await Assert.That(string.Join('|', console.Runs.Select(r => r.Label)))
                 .IsEqualTo("build.ps1|aspire start");
             await Assert.That(window.LogText()).Contains("2 console run option(s)");
 
-            // Only the Console tool grows a menu — the editors have nothing to do with run files.
+            // Only the Console tool grows a menu — the editors have nothing to do with the commands list.
             foreach (var other in window.Vm().GridTools.Where(t => t.Name != "Console"))
                 await Assert.That(other.HasRuns).IsFalse();
             await Assert.That(window.Vm().HasHeroRuns).IsFalse();   // Rider is the hero here
@@ -123,7 +122,7 @@ public class RepoConfigTests
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/menu");
-        TestRepoWorld.WriteFidoConfig(worktree, "run files: [build.ps1]\naspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [build.ps1, aspire start]\n");
 
         var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
@@ -159,14 +158,14 @@ public class RepoConfigTests
     }
 
     [Test]
-    public async Task Aspire_start_alone_is_offered_without_any_run_files()
+    public async Task A_single_command_is_offered_on_its_own()
     {
         using var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/aspire");
-        TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
@@ -193,7 +192,7 @@ public class RepoConfigTests
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/hero");
-        TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         var launcher = new FakeEditorLauncher();
         var services = world.BuildServices([root], launcher, new FakeDialogService());
@@ -236,7 +235,7 @@ public class RepoConfigTests
         var clone = world.Clone(origin, root, "Foo");
         var configured = world.AddWorktree(clone, "feature/with-cfg");
         world.AddWorktree(clone, "feature/without-cfg");
-        TestRepoWorld.WriteFidoConfig(configured, "run files: [build.ps1]\n");
+        TestRepoWorld.WriteFidoConfig(configured, "commands: [build.ps1]\n");
 
         var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
 
@@ -271,7 +270,7 @@ public class RepoConfigTests
         // The worktree was made before the repo had any Fido settings; they landed on the branch after,
         // and all this machine has done since is fetch. Nothing is on disk here to read.
         world.PushBranch(worktree, "feature/stale");
-        world.CommitFidoConfigToOrigin(origin, "feature/stale", "run files: [build.ps1]\naspire start: true\n");
+        world.CommitFidoConfigToOrigin(origin, "feature/stale", "commands: [build.ps1, aspire start]\n");
         TestRepoWorld.Fetch(clone);
 
         var launcher = new FakeEditorLauncher();
@@ -359,10 +358,10 @@ public class RepoConfigTests
             await Assert.That(ConsoleTool(window).HasRuns).IsFalse();
 
             // Clicking again opens the file as it is — a second click must never re-seed it.
-            await File.WriteAllTextAsync(path, "aspire start: true\n");
+            await File.WriteAllTextAsync(path, "commands: [aspire start]\n");
             window.ClickButton("RepoConfigButton");
             UiTestExtensions.Pump();
-            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("aspire start: true\n");
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("commands: [aspire start]\n");
             await Assert.That(window.LogText()).Contains("already exists");
         });
     }
@@ -412,8 +411,7 @@ public class RepoConfigTests
         // The branch exists in the clone but is checked out nowhere: Fido offers to place it, and reads
         // the config straight off the branch to do so.
         world.CreateBranch(clone, "feature/unplaced");
-        File.WriteAllText(Path.Combine(clone, "build.sh"), "");
-        TestRepoWorld.CommitFidoConfig(clone, "prefer main clone: true\nrun files: ['*']\n");
+        TestRepoWorld.CommitFidoConfig(clone, "prefer main clone: true\ncommands: [build.sh]\n");
         TestRepoWorld.Git(clone, "switch", "main");
 
         var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
@@ -427,7 +425,7 @@ public class RepoConfigTests
             await Assert.That(vm.Targets.Count).IsEqualTo(2);
             await Assert.That(vm.SelectedTarget!.IsSwitchClone).IsTrue();
 
-            // The run file came out of the branch, not off a disk that hasn't been written yet.
+            // The command came out of the branch, not off a disk that hasn't been written yet.
             await Assert.That(string.Join('|', ConsoleTool(window).Runs.Select(r => r.Label)))
                 .IsEqualTo("build.sh");
         });

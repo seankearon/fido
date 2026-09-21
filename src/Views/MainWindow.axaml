@@ -16,8 +16,8 @@
         Background="{DynamicResource FidoWindowBg}">
 
     <Window.Resources>
-        <!-- One row of the Console button's run menu: a run file the branch's .fido/cfg.yaml nominated,
-             or `aspire start`. Shared by the hero and the grid copies of that menu. -->
+        <!-- One row of the Console button's run menu: a command the branch's .fido/cfg.yaml nominated.
+             Shared by the hero and the grid copies of that menu. -->
         <DataTemplate x:Key="ConsoleRunTemplate" x:DataType="vm:ConsoleRunOption">
             <Button Classes="runitem" Click="OnConsoleRunClick" Content="{Binding Label}"
                     ToolTip.Tip="{Binding Command}" HorizontalAlignment="Stretch"

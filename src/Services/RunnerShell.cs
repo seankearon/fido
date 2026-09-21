@@ -20,7 +20,7 @@ public sealed record RunnerShellSpec(string Executable, string[] Args);
 /// and what it runs before handing over.
 ///
 /// The command conventions are shared with the launch path on purpose — a <c>.ps1</c> goes to <c>pwsh</c>, a
-/// root <c>.sh</c> is invoked as <c>./name</c> — so a run file behaves the same whichever console it lands in.
+/// root <c>.sh</c> is invoked as <c>./name</c> — so a command behaves the same whichever console it lands in.
 /// </summary>
 public static class RunnerShell
 {
@@ -41,7 +41,7 @@ public static class RunnerShell
     /// Windows: PowerShell 7 when it's installed, else the in-box Windows PowerShell. <c>-NoExit</c> is what
     /// keeps the prompt after the command finishes; <c>-Command</c> (not <c>-File</c>) because the menu's
     /// entries are command lines, not necessarily script paths — <c>aspire start</c> is a native command and
-    /// a run file may carry arguments.
+    /// a script may carry arguments.
     /// </summary>
     private static RunnerShellSpec Windows(string? command, Func<string, string?> onPath)
     {
@@ -52,7 +52,7 @@ public static class RunnerShell
     }
 
     /// <summary>
-    /// The command line PowerShell is handed, with a run file in the tree root made explicitly relative.
+    /// The command line PowerShell is handed, with a script in the tree root made explicitly relative.
     ///
     /// PowerShell does not look in the current directory for anything it is asked to run — the deliberate
     /// defence against a <c>ls.ps1</c> dropped in a folder shadowing the real command. So a bare
@@ -62,7 +62,7 @@ public static class RunnerShell
     /// <c>-File</c>, which does resolve relative to the working directory — but <c>-File</c> can only run
     /// a script, and this menu also carries native commands.)
     ///
-    /// Only a bare name is touched, and only one Fido recognises as a run file: a path already says where
+    /// Only a bare name is touched, and only one Fido recognises as a script: a path already says where
     /// it is, and <c>aspire start</c> must not be turned into a relative path that doesn't exist. The call
     /// operator leads, because a quoted path on its own is just a string expression to PowerShell.
     /// </summary>
@@ -101,7 +101,7 @@ public static class RunnerShell
 
         if (command is null) return new RunnerShellSpec(shell, ["-i"]);
 
-        // The same run-file conventions the launch path uses, so a .ps1 or ./script.sh behaves identically
+        // The same script conventions the launch path uses, so a .ps1 or ./script.sh behaves identically
         // whether it runs here or in the user's own terminal.
         var line = EditorLauncher.UnixCommand(command);
         return new RunnerShellSpec(shell, ["-c", $"{line}; exec {EditorLauncher.ShellQuote(shell)} -i"]);

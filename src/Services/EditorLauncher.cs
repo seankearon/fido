@@ -47,8 +47,8 @@ public sealed class EditorLauncher : IEditorLauncher
     /// Resolves how to invoke <paramref name="executable"/> for <paramref name="targetPath"/>: editors take the
     /// target as an argument, while <see cref="EditorKind.Console"/> / <see cref="EditorKind.FileExplorer"/>
     /// open the folder via the platform's terminal / file-manager conventions. A
-    /// <paramref name="consoleCommand"/> (a run file or <c>aspire start</c> from the branch's
-    /// <c>.fido/cfg.yaml</c>) makes the terminal <em>run</em> that command at the folder instead of just
+    /// <paramref name="consoleCommand"/> (one of the commands the branch's <c>.fido/cfg.yaml</c> listed)
+    /// makes the terminal <em>run</em> that command at the folder instead of just
     /// opening there; it means nothing to the other kinds and is ignored by them. Pure (no process is
     /// started) so the per-platform command construction can be unit-tested.
     /// </summary>

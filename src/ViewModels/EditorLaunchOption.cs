@@ -14,9 +14,9 @@ public sealed record EditorLaunchOption(int Index, string Name, string Gesture, 
     public string ButtonLabel => string.IsNullOrEmpty(Gesture) ? Name : $"{Name}  ·  {Gesture}";
 
     /// <summary>
-    /// Commands offered in a drop-down beside this tool's button — the run files and <c>aspire start</c>
-    /// the scanned branch's <c>.fido/cfg.yaml</c> asked for. Only ever populated for the Console tool
-    /// (see <see cref="MainWindowViewModel.SetConsoleRuns"/>); empty everywhere else, which hides the caret.
+    /// Commands offered in a drop-down beside this tool's button — the ones the scanned branch's
+    /// <c>.fido/cfg.yaml</c> listed. Only ever populated for the Console tool (see
+    /// <see cref="MainWindowViewModel.SetConsoleRuns"/>); empty everywhere else, which hides the caret.
     /// </summary>
     public IReadOnlyList<ConsoleRunOption> Runs { get; init; } = [];
 

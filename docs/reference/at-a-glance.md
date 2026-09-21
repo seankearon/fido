@@ -17,7 +17,7 @@ description: Every capability in one table.
 | Delete reporting | Each target reported separately — **already gone counts as done**, not as failure; anything genuinely left behind gets an inline **Retry** strip that re-runs just that step |
 | Tools | Rider / WebStorm / VS Code / Visual Studio / Zed / Custom — hero default + Ctrl+1…9, or by CLI id |
 | Folder targets | **Console** (`term`) opens a terminal, **File Explorer** (`files`) the OS file manager — Windows / macOS / Linux |
-| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, **run files** (`*` = every root script) and **aspire start** — the latter two as a drop-down under the **Console** button. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
+| In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone**, and **commands** — an ordered list of command lines offered as a drop-down under the **Console** button. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |

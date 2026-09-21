@@ -508,9 +508,9 @@
         <Setter Property="Opacity" Value="0.55" />
     </Style>
 
-    <!-- The caret that sits beside the Console button, opening its run menu (the run files and
-         `aspire start` the scanned branch's .fido/cfg.yaml offered). Same skin as a tool button, cut
-         down to the width of the chevron. -->
+    <!-- The caret that sits beside the Console button, opening its run menu (the commands the scanned
+         branch's .fido/cfg.yaml offered). Same skin as a tool button, cut down to the width of the
+         chevron. -->
     <Style Selector="Button.runcaret">
         <Setter Property="Background" Value="{DynamicResource FidoChipBg}" />
         <Setter Property="BorderBrush" Value="{DynamicResource FidoCardBorder}" />

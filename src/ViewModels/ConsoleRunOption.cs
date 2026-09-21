@@ -1,13 +1,13 @@
 namespace Fido.ViewModels;
 
 /// <summary>
-/// One entry in the Console button's run menu, offered by the branch's own <c>.fido/cfg.yaml</c>: a
-/// script the repo nominated, or <c>aspire start</c>. Picking it opens the Console tool at the selected
-/// target and runs <see cref="Command"/> there. <see cref="ToolIndex"/> — a position in
-/// <see cref="Models.AppConfig.Editors"/> — says which configured Console tool to run it through, so the
-/// menu works the same whether Console is the hero button or one of the grid buttons.
+/// One entry in the Console button's run menu: a command line the branch's own <c>.fido/cfg.yaml</c>
+/// nominated. Picking it opens the Console tool at the selected target and runs <see cref="Command"/>
+/// there. <see cref="ToolIndex"/> — a position in <see cref="Models.AppConfig.Editors"/> — says which
+/// configured Console tool to run it through, so the menu works the same whether Console is the hero
+/// button or one of the grid buttons.
 /// </summary>
-/// <param name="Label">Menu caption: the script's file name, or the command itself.</param>
+/// <param name="Label">Menu caption: the command line itself, as the config wrote it.</param>
 /// <param name="Command">The command line handed to the terminal, run at the target folder.</param>
 public sealed record ConsoleRunOption(string Label, string Command)
 {
@@ -15,19 +15,16 @@ public sealed record ConsoleRunOption(string Label, string Command)
     public int ToolIndex { get; init; } = -1;
 
     /// <summary>
-    /// A run file the repo config nominated: its name is the caption, and the command quotes it when it
-    /// contains spaces so the terminal still sees a single argument.
+    /// A command the repo config nominated. It travels to the shell exactly as written — the config
+    /// holds command lines, not file names, so any quoting a path needs is the author's to write — and
+    /// doubles as its own caption, since the menu row is then what actually runs.
     /// </summary>
-    public static ConsoleRunOption ForRunFile(string name) =>
-        new(name, name.Contains(' ') ? $"\"{name}\"" : name);
-
-    /// <summary>The <c>Aspire start</c> option: launch the repo's .NET Aspire app host.</summary>
-    public static ConsoleRunOption AspireStart { get; } = new("aspire start", "aspire start");
+    public static ConsoleRunOption ForCommand(string command) => new(command, command);
 
     /// <summary>
     /// True for <see cref="ShellHere"/>, which has no command to run. Kept as a flag rather than inferred
     /// from an empty <see cref="Command"/> so the two cases can't be confused by a config that somehow
-    /// nominates a blank run file.
+    /// nominates a blank command.
     /// </summary>
     public bool IsShell { get; init; }
 
