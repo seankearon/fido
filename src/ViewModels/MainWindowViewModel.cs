@@ -365,9 +365,9 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Replaces the run commands offered under the Console tool — the run files and <c>aspire start</c>
-    /// the scanned branch's <c>.fido/cfg.yaml</c> asked for. They belong to the scan, so a new one
-    /// clears them; a later <see cref="SetEditors"/> (a settings change mid-scan) keeps them.
+    /// Replaces the run commands offered under the Console tool — the ones the scanned branch's
+    /// <c>.fido/cfg.yaml</c> listed. They belong to the scan, so a new one clears them; a later
+    /// <see cref="SetEditors"/> (a settings change mid-scan) keeps them.
     /// </summary>
     public void SetConsoleRuns(IReadOnlyList<ConsoleRunOption> runs)
     {

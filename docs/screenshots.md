@@ -82,7 +82,7 @@ opens *your* terminal at the folder; see [The Console tab](guide/console.md) for
 ![The Console tab running the branch's build script](assets/screenshots/console-tab-dark.png#only-dark)
 
 The **Run** menu at the right of the tab rule leads with a plain **shell here**, then lists what
-the branch's `.fido/cfg.yaml` nominated — its run files and `aspire start` — with
+the branch's `.fido/cfg.yaml` nominated — its commands — with
 **Edit `.fido/cfg.yaml`…** at the foot. Every pick runs in the pane below it.
 
 ![The Console tab's Run menu](assets/screenshots/console-run-menu-light.png#only-light)

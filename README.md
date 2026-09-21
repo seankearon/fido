@@ -35,14 +35,16 @@ scan just found, before the checkout options go up:
 
 ```yaml
 prefer main clone: true   # default to opening the clone's own tree, not a worktree
-run files: ['*']          # every script in the root, offered on the Console run menus
-aspire start: true        # …plus `aspire start`
+commands:                 # offered on the Console run menus, in this order
+  - build.ps1
+  - aspire start
 ```
 
 `prefer main clone` picks **which checkout Fido offers by default** after scanning — it directs the
 choice, never the scan, so every location is still found and listed and each stays one click away. The
-run files and `aspire start` become a run menu — beside the **Console** button, and on the **Console
-tab** — running at the selected location. Fido only ever *offers* them; nothing runs on its own.
+`commands` is an ordered list of command lines — whatever you'd type in a terminal there — and becomes a
+run menu beside the **Console** button, and on the **Console tab**, running at the selected location.
+Fido only ever *offers* them; nothing runs on its own.
 
 It reads the file **off the branch, not just out of your folder**: your uncommitted edit first, then the
 copy on `origin` whenever it differs from the one here, then the one this machine has. So a worktree made

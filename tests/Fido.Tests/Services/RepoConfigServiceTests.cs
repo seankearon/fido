@@ -7,8 +7,7 @@ namespace Fido.Tests.Services;
 
 /// <summary>
 /// Reading a repo's own <c>.fido/cfg.yaml</c> against real git repositories: from the working tree when
-/// the branch is checked out there, and straight off the branch (<c>git show</c>) when it isn't — plus
-/// the <c>*</c> run-file wildcard, which globs the tree on disk or lists the branch's root as needed.
+/// the branch is checked out there, and straight off the branch (<c>git show</c>) when it isn't.
 /// <para>
 /// The order the three copies are taken in — the local edit, then <c>origin</c>'s when it differs, then
 /// this machine's — is pinned below against real clones that are genuinely behind their upstream, because
@@ -19,10 +18,6 @@ namespace Fido.Tests.Services;
 public class RepoConfigServiceTests
 {
     private static RepoConfigService Reader() => new(new GitService());
-
-    /// <summary>A read of <paramref name="yaml"/> as if it had come from the copy this machine has.</summary>
-    private static RepoConfigRead Local(string yaml) =>
-        new(RepoConfigService.Parse(yaml), RepoConfigSource.Local);
 
     private static DiscoveredTarget Checkout(string path, string mainPath, TargetKind kind = TargetKind.Worktree) =>
         new(path, kind, Path.GetFileName(mainPath), mainPath, [], null);
@@ -41,14 +36,14 @@ public class RepoConfigServiceTests
         var worktree = world.AddWorktree(clone, "feature/cfg");
 
         // Not committed: the tree on the branch is the live truth, so an edit in flight counts.
-        TestRepoWorld.WriteFidoConfig(worktree, "prefer main clone: true\naspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "prefer main clone: true\ncommands: [aspire start]\n");
 
         var read = await Reader().ReadAsync(Checkout(worktree, clone), "feature/cfg");
 
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.LocalEdit);
         await Assert.That(read.Config.PreferMainClone).IsTrue();
-        await Assert.That(read.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read.Config.Commands)).IsEqualTo("aspire start");
     }
 
     [Test]
@@ -93,7 +88,7 @@ public class RepoConfigServiceTests
         var clone = world.Clone(origin, root, "Foo");
 
         world.CreateBranch(clone, "feature/remote");
-        TestRepoWorld.CommitFidoConfig(clone, "aspire start: true\n");
+        TestRepoWorld.CommitFidoConfig(clone, "commands: [aspire start]\n");
         world.PushBranch(clone, "feature/remote");
         TestRepoWorld.Git(clone, "switch", "main");
         TestRepoWorld.Git(clone, "branch", "-D", "feature/remote");   // only origin/feature/remote is left
@@ -102,7 +97,7 @@ public class RepoConfigServiceTests
 
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.Origin);
-        await Assert.That(read.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read.Config.Commands)).IsEqualTo("aspire start");
     }
 
     [Test]
@@ -115,7 +110,7 @@ public class RepoConfigServiceTests
 
         // Two different configs: one committed on the branch, one sitting in the main tree on `main`.
         world.CreateBranch(clone, "feature/switch");
-        TestRepoWorld.CommitFidoConfig(clone, "aspire start: true\n");
+        TestRepoWorld.CommitFidoConfig(clone, "commands: [aspire start]\n");
         TestRepoWorld.Git(clone, "switch", "main");
         TestRepoWorld.WriteFidoConfig(clone, "prefer main clone: true\n");
 
@@ -126,51 +121,8 @@ public class RepoConfigServiceTests
         // The card offers to switch the tree onto the branch, so it's the branch's file that counts —
         // the one on disk belongs to whatever the tree happens to be on now.
         await Assert.That(read).IsNotNull();
-        await Assert.That(read!.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read!.Config.Commands)).IsEqualTo("aspire start");
         await Assert.That(read.Config.PreferMainClone).IsFalse();
-    }
-
-    [Test]
-    public async Task The_wildcard_offers_every_script_in_a_checked_out_root()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/scripts");
-
-        File.WriteAllText(Path.Combine(worktree, "test.sh"), "#!/bin/sh\n");
-        File.WriteAllText(Path.Combine(worktree, "build.ps1"), "");
-        File.WriteAllText(Path.Combine(worktree, "notes.md"), "");              // not a script
-        Directory.CreateDirectory(Path.Combine(worktree, "scripts"));
-        File.WriteAllText(Path.Combine(worktree, "scripts", "deep.ps1"), "");   // not in the root
-
-        var target = Checkout(worktree, clone);
-        var runs = await Reader().ResolveRunFilesAsync(Local("run files: '*'"), target, "feature/scripts");
-
-        await Assert.That(string.Join('|', runs)).IsEqualTo("build.ps1|test.sh");
-    }
-
-    [Test]
-    public async Task The_wildcard_offers_the_branch_root_when_nothing_is_on_disk_yet()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-
-        world.CreateBranch(clone, "feature/unplaced");
-        File.WriteAllText(Path.Combine(clone, "build.cmd"), "");
-        File.WriteAllText(Path.Combine(clone, "readme.txt"), "");
-        TestRepoWorld.CommitFidoConfig(clone, "run files: '*'\n");   // commits the scripts alongside
-        TestRepoWorld.Git(clone, "switch", "main");
-
-        var target = Placement(clone);
-        var read = await Reader().ReadAsync(target, "feature/unplaced");
-        var runs = await Reader().ResolveRunFilesAsync(read!, target, "feature/unplaced");
-
-        // Read out of the branch with ls-tree: the scripts it carries, and only the scripts.
-        await Assert.That(string.Join('|', runs)).IsEqualTo("build.cmd");
     }
 
     [Test]
@@ -195,7 +147,7 @@ public class RepoConfigServiceTests
         var text = await File.ReadAllTextAsync(file.Path);
         await Assert.That(RepoConfigService.Parse(text).IsEmpty).IsTrue();
 
-        // The tree's own scripts are named, so the run-file list can be filled in without going looking.
+        // The tree's own scripts are named, so the commands list can be filled in without going looking.
         await Assert.That(text).Contains("build.ps1");
         await Assert.That(text).DoesNotContain("notes.md");
 
@@ -212,33 +164,13 @@ public class RepoConfigServiceTests
         var root = world.SearchRoot("root");
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/keep");
-        var existing = TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        var existing = TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         var file = await Reader().CreateAsync(worktree);
 
         await Assert.That(file.Created).IsFalse();
         await Assert.That(file.Path).IsEqualTo(existing);
-        await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("aspire start: true\n");
-    }
-
-    [Test]
-    public async Task Named_run_files_keep_their_order_and_are_not_offered_twice()
-    {
-        using var world = new TestRepoWorld();
-        var origin = world.CreateOrigin("Foo", "Foo");
-        var root = world.SearchRoot("root");
-        var clone = world.Clone(origin, root, "Foo");
-        var worktree = world.AddWorktree(clone, "feature/named");
-
-        File.WriteAllText(Path.Combine(worktree, "build.ps1"), "");
-        File.WriteAllText(Path.Combine(worktree, "test.ps1"), "");
-
-        // test.ps1 is named first, so it leads — and the wildcard doesn't offer it again.
-        var runs = await Reader().ResolveRunFilesAsync(
-            Local("run files: [test.ps1, '*', missing.ps1]"), Checkout(worktree, clone), "feature/named");
-
-        // A named file is offered as configured, whether or not it's in the tree today.
-        await Assert.That(string.Join('|', runs)).IsEqualTo("test.ps1|build.ps1|missing.ps1");
+        await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("commands: [aspire start]\n");
     }
 
     // --- Which copy wins: the local edit, then origin's, then this machine's ------------------
@@ -249,7 +181,7 @@ public class RepoConfigServiceTests
     /// feature look intermittent: the file exists on the branch, just not in this folder yet.
     /// </summary>
     private static (TestRepoWorld World, string Clone, string Worktree) StaleCheckout(
-        string branch, string yaml, params string[] alsoOnOrigin)
+        string branch, string yaml)
     {
         var world = new TestRepoWorld();
         var origin = world.CreateOrigin("Foo", "Foo");
@@ -257,9 +189,9 @@ public class RepoConfigServiceTests
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, branch);
 
-        world.PushBranch(worktree, branch);                                  // origin has the branch as it stands
-        world.CommitFidoConfigToOrigin(origin, branch, yaml, alsoOnOrigin);  // …then it grows the config
-        TestRepoWorld.Fetch(clone);                                          // refs catch up; the folder doesn't
+        world.PushBranch(worktree, branch);                       // origin has the branch as it stands
+        world.CommitFidoConfigToOrigin(origin, branch, yaml);     // …then it grows the config
+        TestRepoWorld.Fetch(clone);                               // refs catch up; the folder doesn't
 
         return (world, clone, worktree);
     }
@@ -267,7 +199,7 @@ public class RepoConfigServiceTests
     [Test]
     public async Task A_checkout_too_old_for_the_file_reads_it_off_origin()
     {
-        var (world, clone, worktree) = StaleCheckout("feature/stale", "prefer main clone: true\naspire start: true\n");
+        var (world, clone, worktree) = StaleCheckout("feature/stale", "prefer main clone: true\ncommands: [aspire start]\n");
         using var _ = world;
 
         // Nothing on disk to read — the folder predates the config — so the branch's own copy answers.
@@ -279,13 +211,13 @@ public class RepoConfigServiceTests
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.Origin);
         await Assert.That(read.IsFromOrigin).IsTrue();
         await Assert.That(read.Config.PreferMainClone).IsTrue();
-        await Assert.That(read.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read.Config.Commands)).IsEqualTo("aspire start");
     }
 
     [Test]
     public async Task An_edit_in_flight_beats_the_copy_on_origin()
     {
-        var (world, clone, worktree) = StaleCheckout("feature/editing", "aspire start: true\n");
+        var (world, clone, worktree) = StaleCheckout("feature/editing", "commands: [aspire start]\n");
         using var _ = world;
 
         // The file you're writing right now is the most deliberate statement there is — even against a
@@ -297,13 +229,13 @@ public class RepoConfigServiceTests
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.LocalEdit);
         await Assert.That(read.Config.PreferMainClone).IsTrue();
-        await Assert.That(read.Config.AspireStart).IsFalse();
+        await Assert.That(read.Config.Commands.Count).IsEqualTo(0);
     }
 
     [Test]
     public async Task A_starter_file_that_asks_for_nothing_cannot_mask_the_branchs_settings()
     {
-        var (world, clone, worktree) = StaleCheckout("feature/seeded", "aspire start: true\n");
+        var (world, clone, worktree) = StaleCheckout("feature/seeded", "commands: [aspire start]\n");
         using var _ = world;
 
         // The create/edit button's output: present, uncommitted, and asking for nothing. "No config here"
@@ -314,7 +246,7 @@ public class RepoConfigServiceTests
 
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.Origin);
-        await Assert.That(read.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read.Config.Commands)).IsEqualTo("aspire start");
     }
 
     [Test]
@@ -326,7 +258,7 @@ public class RepoConfigServiceTests
         var clone = world.Clone(origin, root, "Foo");
         var worktree = world.AddWorktree(clone, "feature/level");
 
-        TestRepoWorld.CommitFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.CommitFidoConfig(worktree, "commands: [aspire start]\n");
         world.PushBranch(worktree, "feature/level");
 
         var read = await Reader().ReadAsync(Checkout(worktree, clone), "feature/level");
@@ -336,7 +268,7 @@ public class RepoConfigServiceTests
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.Local);
         await Assert.That(read.IsFromOrigin).IsFalse();
-        await Assert.That(read.Config.AspireStart).IsTrue();
+        await Assert.That(string.Join('|', read.Config.Commands)).IsEqualTo("aspire start");
     }
 
     [Test]
@@ -360,22 +292,5 @@ public class RepoConfigServiceTests
         await Assert.That(read).IsNotNull();
         await Assert.That(read!.Source).IsEqualTo(RepoConfigSource.Origin);
         await Assert.That(read.Config.PreferMainClone).IsTrue();
-    }
-
-    [Test]
-    public async Task The_wildcard_lists_the_tree_the_settings_came_from()
-    {
-        var (world, clone, worktree) = StaleCheckout("feature/scripts", "run files: ['*']\n", "deploy.ps1");
-        using var _ = world;
-
-        File.WriteAllText(Path.Combine(worktree, "stale.ps1"), "");   // only ever existed here
-
-        var target = Checkout(worktree, clone);
-        var read = await Reader().ReadAsync(target, "feature/scripts");
-        var runs = await Reader().ResolveRunFilesAsync(read!, target, "feature/scripts");
-
-        // Settings off origin are expanded against origin's root: pairing them with this folder's older
-        // listing would offer scripts from one commit under settings from another.
-        await Assert.That(string.Join('|', runs)).IsEqualTo("deploy.ps1");
     }
 }

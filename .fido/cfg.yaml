@@ -8,11 +8,8 @@
 # tree rather than a worktree. Every location it finds is still listed, one click away.
 prefer main clone: false
 
-# Scripts offered under the Console button, in the order given; '*' stands for every
-# script in the repository root.  e.g.  run files: [build.ps1, '*']
+# Commands offered under the Console button, in the order given — each one run in a
+# terminal at the selected location.  e.g.  commands: [build.ps1, aspire start]
 # Scripts in this tree right now: release.ps1
-run files:
+commands:
   - run-fido.ps1
-
-# Offer `aspire start` under the Console button too.
-aspire start: false

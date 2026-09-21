@@ -14,8 +14,8 @@ public interface IEditorLauncher
 
     /// <summary>
     /// Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.
-    /// <paramref name="consoleCommand"/> — a run file or <c>aspire start</c> offered by the branch's
-    /// <c>.fido/cfg.yaml</c> — makes a Console target run that command at the folder rather than just
+    /// <paramref name="consoleCommand"/> — one of the commands the branch's <c>.fido/cfg.yaml</c>
+    /// listed — makes a Console target run that command at the folder rather than just
     /// opening there; every other kind of target ignores it.
     /// </summary>
     void Launch(Editor editor, string executable, string targetPath, string? consoleCommand = null);

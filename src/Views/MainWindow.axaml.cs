@@ -266,7 +266,7 @@ public partial class MainWindow : Window
             // A branch that carries none is said out loud too — "looked, found nothing" and "never looked"
             // are not the same thing to anyone wondering where their run menu went.
             if (repoConfig is { Read: { } read, Target: { } readFrom })
-                await ApplyRepoConfigAsync(read, readFrom, branch, cts.Token);
+                ApplyRepoConfig(read, readFrom, branch);
             else if (!repoConfig.Reported && targets.Count > 0)
                 _vm.AppendLog($"▸ No {RepoConfigService.RepoRelativePath} on '{branch}' — nothing here, " +
                               $"and nothing on {RepoConfigService.OriginRef(branch)} as last fetched.");
@@ -365,26 +365,12 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Acts on the branch's config once the cards are up: narrates what it asked for, and fills the
-    /// Console button's run menu with its run files (a <c>*</c> expanded against the branch) plus
-    /// <c>aspire start</c> when it asked for one. Nothing here runs a command — the menu only offers them.
+    /// Console button's run menu with the commands it listed, in the order it listed them. Nothing here
+    /// runs a command — the menu only offers them.
     /// </summary>
-    private async Task ApplyRepoConfigAsync(RepoConfigRead read, DiscoveredTarget target, string branch,
-        CancellationToken ct)
+    private void ApplyRepoConfig(RepoConfigRead read, DiscoveredTarget target, string branch)
     {
-        var runs = new List<ConsoleRunOption>();
-        try
-        {
-            foreach (var file in await _repoConfigs.ResolveRunFilesAsync(read, target, branch, ct))
-                runs.Add(ConsoleRunOption.ForRunFile(file));
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
-            _vm.AppendLog($"[!] Couldn't list the run files on '{branch}': {ex.Message}");
-        }
-        if (read.Config.AspireStart) runs.Add(ConsoleRunOption.AspireStart);
-
-        if (ct.IsCancellationRequested) return;
+        var runs = read.Config.Commands.Select(ConsoleRunOption.ForCommand).ToList();
         _vm.SetConsoleRuns(runs);
 
         var asked = new List<string>();
@@ -424,7 +410,7 @@ public partial class MainWindow : Window
             if (await _repoConfigs.ReadAsync(placed, branch) is { } read)
             {
                 _scanFoundRepoConfig = true;
-                await ApplyRepoConfigAsync(read, placed, branch, CancellationToken.None);
+                ApplyRepoConfig(read, placed, branch);
             }
         }
         catch (Exception ex)
@@ -521,10 +507,10 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// A pick from the Console button's run menu: open the console on the selected target and run the
-    /// chosen command (a run file, or <c>aspire start</c>) there. The option names its own tool, so this
-    /// serves the menu whether Console is the hero button or one of the grid buttons. Internal for tests,
-    /// which pick from the menu through here rather than through a flyout that only exists once it's open.
+    /// A pick from the Console button's run menu: open the console on the selected target and run that
+    /// command there. The option names its own tool, so this serves the menu whether Console is the hero
+    /// button or one of the grid buttons. Internal for tests, which pick from the menu through here
+    /// rather than through a flyout that only exists once it's open.
     /// </summary>
     internal async Task RunConsoleOptionAsync(ConsoleRunOption run)
     {

@@ -26,13 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      nowhere.
 
   A copy that **asks for nothing counts as no file at all**, so it never shadows the one below it: the
-  starter file the create button writes can't mask the settings the branch really carries. A `*` in
-  `run files` now expands against **whichever tree the settings came from**, so a config read off `origin`
-  is never paired with a stale file listing. Reads stay on **what this machine already has** — the working
-  tree and the tracking refs as last fetched — because a scan runs on a keystroke and must never go to the
-  network; fetch and press **Enter** to pick up something pushed since. Placing a branch re-reads the tree
-  it just created, which is how a branch this clone had **never fetched** turns up with its config in one
-  go rather than needing a second scan.
+  starter file the create button writes can't mask the settings the branch really carries. Reads stay on
+  **what this machine already has** — the working tree and the tracking refs as last fetched — because a
+  scan runs on a keystroke and must never go to the network; fetch and press **Enter** to pick up
+  something pushed since. Placing a branch re-reads the tree it just created, which is how a branch this
+  clone had **never fetched** turns up with its config in one go rather than needing a second scan.
 
 - **A branch with no in-repo config now says so.** `No .fido/cfg.yaml on 'feature/x' — nothing here, and
   nothing on origin/feature/x as last fetched` — because "looked, found nothing" and "never looked" are
@@ -62,10 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   **The shell is the one you'd expect.** Windows: PowerShell 7 when it's installed, else the in-box
   Windows PowerShell, with `-NoExit` keeping the prompt. macOS and Linux: your login shell from `SHELL`,
-  started interactive so your rc file, prompt and aliases are the ones you know. The run-file conventions
-  are shared with the launch path — a `.ps1` to PowerShell, a root `.sh` as `./name` — so a run file
+  started interactive so your rc file, prompt and aliases are the ones you know. The command conventions
+  are shared with the launch path — a `.ps1` to PowerShell, a root `.sh` as `./name` — so a command
   behaves the same whichever console it lands in. One Windows wrinkle is handled here and nowhere else:
-  PowerShell won't look in the current directory for something it is asked to run, so a run file in the
+  PowerShell won't look in the current directory for something it is asked to run, so a script in the
   tree root is made explicitly relative (`& ./build.ps1`) instead of coming back *"not recognized as the
   name of a cmdlet…"* while you stand in the very folder that holds it.
 
@@ -145,11 +143,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **`prefer main clone`** decides **which checkout Fido offers by default** once it has scanned — the
   clone's own working tree rather than a worktree (or, for a branch checked out nowhere, the *switch the
   main tree* offer); it directs the choice, never the scan, so every location on the branch is still
-  found and listed, each one click away. **`run files`** lists script names that become entries in a new
-  **drop-down beside the Console button**, with **`*`** standing for *every script in the repo root*
-  (`.ps1`, `.cmd`, `.bat`, `.sh`); and **`aspire start`** adds that command to the same menu for an
-  Aspire app host. Picking an entry opens the console at the **selected** location
-  and runs the command there — a `.ps1` via PowerShell, a root `.sh` as `./name`, anything else via the
+  found and listed, each one click away. **`commands`** is an ordered list of command lines — whatever
+  you'd type in a terminal at that location (`build.ps1`, `aspire start`, `npm run dev`) — and each one
+  becomes an entry in a new **drop-down beside the Console button**, taken as written rather than
+  resolved as a file name. Picking an entry opens the console at the **selected** location and runs the
+  command there — a `.ps1` via PowerShell, a root `.sh` as `./name`, anything else via the
   platform's shell — leaving the window open so you can read the output. On Windows, a console that *is* a
   shell is used exactly as configured, while one that merely **hosts** a shell (Windows Terminal, or a
   third-party emulator) gets the best on the machine: **`pwsh` first**, then Windows PowerShell. A host
@@ -167,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beside the copy-path icon (and the run menu a matching **Edit `.fido/cfg.yaml`…** row) that creates the
   file in the selected location and opens it in your default tool. What it writes is a **form, not a
   switch**: every setting present at its default, with the tree's own root scripts named in a comment so
-  the run-file list can be filled in without going looking — so until you edit it, the next scan still
+  the commands list can be filled in without going looking — so until you edit it, the next scan still
   reads *no in-repo config*. An existing file is only ever **opened, never overwritten**, and Fido does
   **not** stage or commit it: what lands in the repo's history stays your call, as with every other git
   action here. The button is absent for a placement offer — there's no working tree on disk to write

@@ -48,10 +48,10 @@ and **save** buttons, or the console's **Run** menu.
 ![The Console tab's Run menu](../assets/screenshots/console-run-menu-light.png#only-light)
 ![The Console tab's Run menu](../assets/screenshots/console-run-menu-dark.png#only-dark)
 
-It always leads with **shell here** — a plain interactive shell, nothing run — and then lists
-whatever the branch's [`.fido/cfg.yaml`](in-repo-config.md) nominated: its **run files**, and
-**`aspire start`** if it asked for one. **Edit `.fido/cfg.yaml`…** sits at the foot, for when
-you're already in there wanting another entry.
+It always leads with **shell here** — a plain interactive shell, nothing run — and then lists the
+**commands** the branch's [`.fido/cfg.yaml`](in-repo-config.md) nominated, in the order it listed
+them. **Edit `.fido/cfg.yaml`…** sits at the foot, for when you're already in there wanting another
+entry.
 
 - **Every pick runs here**, in the pane below the menu. This menu exists to drive that pane; the
   **Run it in Fido's Console tab** setting governs the Console *tool button's* menu, and has no say
@@ -75,10 +75,10 @@ which one:
   started **interactive** so your rc file, prompt and aliases are the ones you know. The command
   runs, then the shell `exec`s itself interactively.
 
-The run-file conventions are **shared with the launch path** — a `.ps1` goes to PowerShell, a root
-`.sh` is invoked as `./name` — so a run file behaves the same whichever console it lands in. One
+The command conventions are **shared with the launch path** — a `.ps1` goes to PowerShell, a root
+`.sh` is invoked as `./name` — so a command behaves the same whichever console it lands in. One
 wrinkle is Windows-only: PowerShell **does not look in the current directory** for something it's
-asked to run, so a run file in the tree root is made explicitly relative (`& ./build.ps1`).
+asked to run, so a script in the tree root is made explicitly relative (`& ./build.ps1`).
 Otherwise `build.ps1` comes back *"not recognized as the name of a cmdlet…"* while you stand in the
 very folder holding it.
 

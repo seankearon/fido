@@ -9,16 +9,15 @@ description: Configure Fido per repository with .fido/cfg.yaml.
 
 A repository can carry its own Fido settings, committed to the branch in a **`.fido`** folder at the
 root. When a scan lands, Fido reads **`.fido/cfg.yaml`** *from the branch it just found* — **before** the
-checkout options are offered — so a solution can say how it prefers to be opened and which of its scripts
-are worth a button:
+checkout options are offered — so a solution can say how it prefers to be opened and which commands are
+worth a button:
 
 ```yaml
 # .fido/cfg.yaml
 prefer main clone: true       # default to opening the clone's own tree, not a worktree
-run files:                    # scripts the Console run menus offer
+commands:                     # command lines the Console run menus offer
   - build.ps1
-  - '*'                       # …plus every script in the repo root
-aspire start: true            # …and `aspire start`, for an Aspire app host
+  - aspire start
 ```
 
 - **`prefer main clone`** *(true/false)* — **which checkout Fido offers by default** once the scan has
@@ -28,17 +27,17 @@ aspire start: true            # …and `aspire start`, for an Aspire app host
   listed exactly as before, and each is one click away — this only decides which one the open actions
   start on. If the results hold no main tree at all, the flight log says so and the first card keeps
   the default.
-- **`run files`** *(list of script names)* — each name becomes an entry in **both run menus** — the
-  **Console button's** drop-down and the **[Console tab's](console.md)** — in the order given. A **`*`**
-  entry stands for *every script in the tree root* — `.ps1`, `.cmd`, `.bat`, `.sh` — expanded in place
-  and sorted by name; a name listed explicitly keeps its position and is never offered twice. A named
-  script is offered whether or not it's in the tree today (it may be generated), so a typo shows up as
-  a shell error rather than a missing button.
-- **`aspire start`** *(true/false)* — adds **`aspire start`** to the same menus, at the end.
+- **`commands`** *(ordered list of command lines)* — each entry becomes an entry in **both run menus** —
+  the **Console button's** drop-down and the **[Console tab's](console.md)** — in the order given. An
+  entry is a **command line, not a file name**: whatever you'd type in a terminal at that location —
+  `build.ps1`, `aspire start`, `npm run dev`, `dotnet run --project src` — handed to the shell as
+  written, so any quoting a path needs is yours to write. A command is offered whether or not anything
+  by that name is in the tree today (a script may be generated), so a typo shows up as a shell error
+  rather than a missing button.
 
 **Keys are matched loosely** — case, spaces, dashes and underscores are all ignored, so
 `preferMainClone`, `prefer-main-clone` and `Prefer main clone` are the same key. Comments, quotes and
-inline lists (`run files: [build.ps1, test.ps1]`) are understood; a setting Fido doesn't recognise is
+inline lists (`commands: [build.ps1, aspire start]`) are understood; a setting Fido doesn't recognise is
 skipped rather than rejected, and a missing or unreadable file simply means "no in-repo config" — a scan
 never fails because of one.
 
@@ -56,10 +55,8 @@ once, and the copies needn't agree, so Fido takes them in a fixed order and says
    that's checked out nowhere.
 
 A copy that **asks for nothing is treated as no file at all**, so it never shadows the one below it: a
-starter file you created and haven't edited yet can't mask the settings the branch really carries. A `*`
-in `run files` is expanded against **whichever tree the settings came from** — `origin/<branch>`'s root
-for a config read off `origin` — so settings from one commit are never paired with a file listing from
-another. A script the folder hasn't got yet is no obstacle: a run fast-forwards the tree first.
+starter file you created and haven't edited yet can't mask the settings the branch really carries. A
+command whose script that folder hasn't got yet is no obstacle: a run fast-forwards the tree first.
 
 Everything is read from **what this machine already has**: the working tree, and the tracking refs *as
 last fetched*. A scan runs on a keystroke, so it never goes to the network — a config pushed since your
@@ -80,7 +77,7 @@ deliberately does *not* do:
 - **It never overwrites.** A repo that already has the file gets it **opened**, untouched — create and
   edit are the same button.
 - **It changes nothing by itself.** The file it writes has every setting present at its **default**,
-  with the tree's own root scripts named in a comment so the run-file list can be filled in without
+  with the tree's own root scripts named in a comment so the commands list can be filled in without
   going looking. Until you edit it, the next scan reads it as *no in-repo config*.
 - **It doesn't stage or commit.** What lands in the repo's history stays your call, as with every other
   git action in Fido. Edit it, commit it, then press **Enter** to rescan and pick the settings up.
@@ -88,9 +85,9 @@ deliberately does *not* do:
 The button is **absent for a placement offer** — there's no working tree on disk to write into until you
 open it.
 
-**Two menus offer them.** The run files and `aspire start` appear in both, and a pick does the same
-thing in each — runs the command at the **selected** location, a `.ps1` through PowerShell, a root `.sh`
-as `./name`, anything else through the platform's shell. What differs is *where*:
+**Two menus offer them.** The commands appear in both, and a pick does the same thing in each — runs
+the command at the **selected** location, a `.ps1` through PowerShell, a root `.sh` as `./name`,
+anything else through the platform's shell. What differs is *where*:
 
 - **Beside the Console button** — a small **caret** next to it (or next to the hero button, when Console
   *is* your default tool). The command goes to the terminal you have configured, and the window stays

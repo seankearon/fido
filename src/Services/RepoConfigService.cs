@@ -42,10 +42,8 @@ public sealed class RepoConfigService
     /// <summary>The file's repo-relative path. git's <c>&lt;ref&gt;:&lt;path&gt;</c> syntax always uses forward slashes.</summary>
     public const string RepoRelativePath = FolderName + "/" + FileName;
 
-    /// <summary>The <c>Run files</c> wildcard: offer every script sitting in the tree root.</summary>
-    public const string RunFilesWildcard = "*";
-
-    /// <summary>What counts as "a script" when <see cref="RunFilesWildcard"/> is expanded.</summary>
+    /// <summary>What counts as "a script": what the starter file names in its comment, and what
+    /// <see cref="RunnerShell"/> makes explicitly relative for PowerShell.</summary>
     private static readonly string[] ScriptExtensions = [".ps1", ".cmd", ".bat", ".sh"];
 
     private readonly GitService _git;
@@ -97,75 +95,15 @@ public sealed class RepoConfigService
             ? null
             : await _git.ShowFileAsync(target.MainPath, branch, RepoRelativePath, ct);
 
-    /// <summary>
-    /// The run files to offer for <paramref name="read"/> at <paramref name="target"/>: the configured names
-    /// in the order given, with a <see cref="RunFilesWildcard"/> entry expanded in place to every script at
-    /// the root of the tree those settings came from (see <see cref="RootScriptsAsync"/>). Names are
-    /// de-duplicated case-insensitively, so a name listed explicitly <em>and</em> caught by the wildcard is
-    /// offered once, keeping its explicit position.
-    /// </summary>
-    public async Task<IReadOnlyList<string>> ResolveRunFilesAsync(
-        RepoConfigRead read, DiscoveredTarget target, string branch, CancellationToken ct = default)
-    {
-        var resolved = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        IReadOnlyList<string>? rootScripts = null;
-
-        foreach (var entry in read.Config.RunFiles)
-        {
-            if (entry != RunFilesWildcard)
-            {
-                if (seen.Add(entry)) resolved.Add(entry);
-                continue;
-            }
-
-            rootScripts ??= await RootScriptsAsync(read.Source, target, branch, ct);
-            foreach (var script in rootScripts)
-                if (seen.Add(script)) resolved.Add(script);
-        }
-        return resolved;
-    }
-
-    /// <summary>
-    /// The scripts the wildcard stands for: the root of whichever tree the settings themselves came from,
-    /// sorted by name so the Console menu is stable from one scan to the next.
-    /// <para>
-    /// Settings read off <c>origin</c> are expanded against <c>origin/&lt;branch&gt;</c> (<c>git ls-tree</c>),
-    /// not against the folder here: the two disagreed, which is why origin's copy was taken, and offering
-    /// that config alongside a stale file listing would pair settings from one commit with scripts from
-    /// another. A script the checkout hasn't got yet is no obstacle — a run fast-forwards the tree first, and
-    /// a named script has always been offered whether or not it's in the tree today. Otherwise it's the
-    /// working tree on disk for a checkout, and the branch's own root for a placement offer.
-    /// </para>
-    /// </summary>
-    private async Task<IReadOnlyList<string>> RootScriptsAsync(
-        RepoConfigSource source, DiscoveredTarget target, string branch, CancellationToken ct)
-    {
-        if (source is RepoConfigSource.Origin)
-            return Sorted(await _git.ListRootFilesAsync(target.MainPath, OriginRef(branch), ct));
-
-        if (target.Kind is TargetKind.Worktree or TargetKind.MainClone)
-            return await Task.Run(() => RootScripts(target.Path), ct);
-
-        var names = await _git.ListRootFilesAsync(target.MainPath, BranchRef(target, branch), ct);
-        return Sorted(names);
-    }
-
-    /// <summary>The scripts sitting in <paramref name="folder"/> itself, sorted by name.</summary>
-    private static IReadOnlyList<string> RootScripts(string folder) => Sorted(EnumerateRootFiles(folder));
-
-    private static IReadOnlyList<string> Sorted(IEnumerable<string> names) =>
-        [.. names.Where(IsScript).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
-
-    /// <summary>The ref carrying the branch for a placement offer: the local branch, or <c>origin</c>'s
-    /// when this clone only knows the branch from the remote.</summary>
-    internal static string BranchRef(DiscoveredTarget target, string branch) =>
-        target.BranchOnOriginOnly ? OriginRef(branch) : branch;
+    /// <summary>The scripts sitting in <paramref name="folder"/> itself, sorted by name — the starter
+    /// file's hint at what the commands list might want to run.</summary>
+    private static IReadOnlyList<string> RootScripts(string folder) =>
+        [.. EnumerateRootFiles(folder).Where(IsScript).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>The branch's tracking ref — what this clone last fetched from <c>origin</c>.</summary>
     public static string OriginRef(string branch) => "origin/" + branch;
 
-    /// <summary>Whether <paramref name="name"/> is one of the run-file kinds Fido recognises. Internal so
+    /// <summary>Whether <paramref name="name"/> is one of the script kinds Fido recognises. Internal so
     /// the console shares this one list rather than keeping a second that can drift from it.</summary>
     internal static bool IsScript(string name) =>
         ScriptExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
@@ -204,7 +142,7 @@ public sealed class RepoConfigService
     /// The starter file. Every setting is present at its default, so creating it changes nothing about
     /// the scan that's on screen — it's a form to fill in, not a switch being thrown — and
     /// <paramref name="detectedScripts"/> (the tree's root scripts, if any) are named in a comment so
-    /// the run-file list can be filled in without going looking.
+    /// the commands list can be filled in without going looking.
     /// </summary>
     public static string Template(IReadOnlyList<string> detectedScripts)
     {
@@ -223,12 +161,9 @@ public sealed class RepoConfigService
                 # tree rather than a worktree. Every location it finds is still listed, one click away.
                 prefer main clone: false
 
-                # Scripts offered under the Console button, in the order given; '*' stands for every
-                # script in the repository root.  e.g.  run files: [build.ps1, '*']
-                {found}run files: []
-
-                # Offer `aspire start` under the Console button too.
-                aspire start: false
+                # Commands offered under the Console button, in the order given — each one run in a
+                # terminal at the selected location.  e.g.  commands: [build.ps1, aspire start]
+                {found}commands: []
 
                 """.ReplaceLineEndings();
     }
@@ -308,12 +243,11 @@ public sealed class RepoConfigService
         return new RepoConfig
         {
             PreferMainClone = Truthy(scalars, "prefermainclone"),
-            AspireStart = Truthy(scalars, "aspirestart"),
-            RunFiles = RunFiles("runfiles"),
+            Commands = Listed("commands"),
         };
 
-        // A run-file list can arrive as a sequence, or as a lone scalar (`run files: "*"`).
-        List<string> RunFiles(string name) =>
+        // A command list can arrive as a sequence, or as a lone scalar (`commands: aspire start`).
+        List<string> Listed(string name) =>
             sequences.TryGetValue(name, out var items) ? items
             : scalars.TryGetValue(name, out var single) ? [single]
             : [];

@@ -63,8 +63,8 @@ Reach these via ⚙ → **All settings…**.
 
 ## In-repo config (committed to the branch)
 
-A repo can also configure Fido for itself, in **`.fido/cfg.yaml`** on the branch — *prefer main clone*,
-*run files* and *aspire start*. It's read from the branch every time a scan lands and needs no user
+A repo can also configure Fido for itself, in **`.fido/cfg.yaml`** on the branch — *prefer main clone*
+and *commands*. It's read from the branch every time a scan lands and needs no user
 setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-config-fidocfgyaml)** for the file's shape.
 
 ## Where settings live

@@ -190,19 +190,18 @@ public sealed class TestRepoWorld : IDisposable
     }
 
     /// <summary>
-    /// Commits a <c>.fido/cfg.yaml</c> — plus any extra files named in <paramref name="alsoAdd"/> — onto
-    /// <paramref name="branch"/> on <paramref name="origin"/> from a throwaway clone (then discards it).
-    /// Mirrors the repo's Fido settings landing on the branch <em>after</em> your own checkout was made:
-    /// the worktree here is genuinely too old to have the file, and only a fetch brings the tracking ref
-    /// level. The publisher lives outside the search roots and is deleted, so it's never scanned.
+    /// Commits a <c>.fido/cfg.yaml</c> onto <paramref name="branch"/> on <paramref name="origin"/> from a
+    /// throwaway clone (then discards it). Mirrors the repo's Fido settings landing on the branch
+    /// <em>after</em> your own checkout was made: the worktree here is genuinely too old to have the file,
+    /// and only a fetch brings the tracking ref level. The publisher lives outside the search roots and is
+    /// deleted, so it's never scanned.
     /// </summary>
-    public void CommitFidoConfigToOrigin(string origin, string branch, string yaml, params string[] alsoAdd)
+    public void CommitFidoConfigToOrigin(string origin, string branch, string yaml)
     {
         var pub = Path.Combine(Root, "publishers", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.GetDirectoryName(pub)!);
         Git(Root, "clone", "--branch", branch, origin, pub);
-        foreach (var name in alsoAdd) File.WriteAllText(Path.Combine(pub, name), "");
-        CommitFidoConfig(pub, yaml);   // adds everything above alongside the config
+        CommitFidoConfig(pub, yaml);
         Git(pub, "push", "origin", branch);
         ForceDelete(pub);
     }

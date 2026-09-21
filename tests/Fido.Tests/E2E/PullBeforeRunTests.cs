@@ -30,7 +30,7 @@ public class PullBeforeRunTests
         world.PushBranch(clone, "feature/run");
         TestRepoWorld.Git(clone, "switch", "main");   // free the branch for a worktree
         var worktree = world.AddWorktreeExisting(clone, "feature/run");
-        TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         // A teammate pushes while this worktree sits there.
         var landed = world.CommitToOrigin(origin, "feature/run");
@@ -63,7 +63,7 @@ public class PullBeforeRunTests
         // can't be trusted for: `worktree add` checks out the local ref, stale and all.
         world.CreateBranch(clone, "feature/stale");
         world.PushBranch(clone, "feature/stale");
-        TestRepoWorld.CommitFidoConfig(clone, "aspire start: true\n");
+        TestRepoWorld.CommitFidoConfig(clone, "commands: [aspire start]\n");
         world.PushBranch(clone, "feature/stale");
         TestRepoWorld.Git(clone, "switch", "main");
         var landed = world.CommitToOrigin(origin, "feature/stale");
@@ -96,7 +96,7 @@ public class PullBeforeRunTests
         world.PushBranch(clone, "feature/diverged");
         TestRepoWorld.Git(clone, "switch", "main");   // free the branch for a worktree
         var worktree = world.AddWorktreeExisting(clone, "feature/diverged");
-        TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         world.CommitFile(worktree, "mine.txt");                   // local commit …
         world.CommitToOrigin(origin, "feature/diverged");         // … and a different one on origin
@@ -157,7 +157,7 @@ public class PullBeforeRunTests
         world.PushBranch(clone, "feature/off");
         TestRepoWorld.Git(clone, "switch", "main");   // free the branch for a worktree
         var worktree = world.AddWorktreeExisting(clone, "feature/off");
-        TestRepoWorld.WriteFidoConfig(worktree, "aspire start: true\n");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [aspire start]\n");
 
         var landed = world.CommitToOrigin(origin, "feature/off");
 

@@ -209,9 +209,9 @@ public class GalleryScreenshotTests
     /// showing something real rather than an empty branch's defaults.
     ///
     /// The scripts are written for the platform the gallery is generated on (a <c>.ps1</c> on Windows,
-    /// a <c>.sh</c> elsewhere), because the console actually runs one: <c>run files: ['*']</c> offers
-    /// every script in the tree root, and a <c>build.ps1</c> handed to a Linux box would only ever
-    /// produce "pwsh: not found" in the screenshot.
+    /// a <c>.sh</c> elsewhere), because the console actually runs one — so the <c>commands</c> list names
+    /// that platform's pair too: a <c>build.ps1</c> handed to a Linux box would only ever produce
+    /// "pwsh: not found" in the screenshot.
     ///
     /// The build script pauses and then prints a second block. That is for the capture, not for realism:
     /// the terminal emulator writes a line of its own about the process it just launched, and the pause
@@ -220,13 +220,13 @@ public class GalleryScreenshotTests
     /// </summary>
     private static void SeedRepoConfig(string repo)
     {
+        var scripts = OperatingSystem.IsWindows() ? "build.ps1, test.ps1" : "build.sh, test.sh";
         Directory.CreateDirectory(Path.Combine(repo, ".fido"));
         File.WriteAllText(Path.Combine(repo, ".fido", "cfg.yaml"),
-            """
+            $"""
             # What this branch offers Fido.
             prefer main clone: false
-            run files: ['*']      # every script in the root, under the Console button
-            aspire start: true    # …plus the Aspire app host
+            commands: [{scripts}, aspire start]   # on the Console run menus, in this order
 
             """);
 
@@ -274,7 +274,7 @@ public class GalleryScreenshotTests
         }
     }
 
-    /// <summary>Writes a run file, executable on Unix so the console can invoke it as <c>./name</c>.</summary>
+    /// <summary>Writes a script, executable on Unix so the console can invoke it as <c>./name</c>.</summary>
     private static void WriteScript(string repo, string name, string body)
     {
         var path = Path.Combine(repo, name);
