@@ -38,6 +38,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fido has a console of its own.** The panel at the foot of the main screen now carries two tabs.
+  **Flight log** is the narration it always was; **Console** is a real shell at the selected location,
+  running inside Fido. Its **Run** menu — at the right of the tab rule, where the log keeps its copy and
+  save buttons — leads with a plain **shell here** and then lists whatever the branch's `.fido/cfg.yaml`
+  nominated, with **Edit `.fido/cfg.yaml`…** at the foot.
+
+  **A pseudo-terminal, not a pipe**, because the output is the entire point of running something here.
+  Everything that checks `isatty` — which is most build tooling — keeps its colour and progress
+  rendering; anything that prompts has somewhere to type; **Ctrl+C** reaches the program. And the shell
+  stays interactive when the command finishes, so a **script that fails leaves its output on screen with
+  a live prompt underneath** rather than taking it away with the exit code.
+
+  Nothing starts until you open the tab — the tab is what asks for a shell, so having it there costs
+  nothing. A pick replaces what's running with a fresh shell rather than typing into the live one (the
+  folder may have changed with the selection, and a shell mid-command would swallow it), switching to
+  the Console tab first if you started from the flight log. Switching tabs doesn't kill it: the pane is
+  kept loaded, and its scrollback is the record of what just ran. A run in the tab never triggers
+  **close after opening**, however that is set — nothing was handed over, and the output is right here.
+  Closing Fido stops the shell rather than orphaning it.
+
+  **The shell is the one you'd expect.** Windows: PowerShell 7 when it's installed, else the in-box
+  Windows PowerShell, with `-NoExit` keeping the prompt. macOS and Linux: your login shell from `SHELL`,
+  started interactive so your rc file, prompt and aliases are the ones you know. The command conventions
+  are shared with the launch path — a `.ps1` to PowerShell, a root `.sh` as `./name` — so a command
+  behaves the same whichever console it lands in. One Windows wrinkle is handled here and nowhere else:
+  PowerShell won't look in the current directory for something it is asked to run, so a script in the
+  tree root is made explicitly relative (`& ./build.ps1`) instead of coming back *"not recognized as the
+  name of a cmdlet…"* while you stand in the very folder that holds it.
+
+  **Its colours are the terminal's own**, which is what a console is expected to look like, and
+  **Settings → Theme → Colour the Console tab to match** swaps them for Fido's palette — the flight
+  log's own greens and ambers, following the theme, with a contrast floor for the 256-colour output no
+  palette can speak for. Either way the colours are taken when a shell starts, so one already running
+  keeps the ones it came up with.
+
+- **Links in the Console tab open in your browser.** A URL the console prints — a dev server's
+  `http://localhost:5173`, the pull-request link `git push` answers with, a CI build's report — is now a
+  link you can follow. Hovering one underlines it and turns the pointer into a hand; **Ctrl+Click**
+  opens it in your default browser, the gesture every other terminal uses. A plain click still selects
+  text, so nothing you could do before has changed meaning.
+
+  Two kinds of link count: text that **reads** as a URL (`http://…`, `https://…`, with any trailing
+  `.` or `)` left out of it), and one a program **declares** with an OSC 8 escape — where the text on
+  screen says "view the report" and the URL rides along in the escape sequence. Both wrap across lines
+  without breaking.
+
+  **Only `http` and `https` go anywhere**, and the flight log names what went: `▸ Opening
+  https://… in your browser`. That matters most for the declared kind, which needn't show its target at
+  all — the log is where you get to read what your click actually opened. Anything else is refused out
+  loud (`⚠ Not opening file:///… — the console only follows http and https links.`), because "open" on
+  Windows means handing the string to the shell, and a scheme other than the web's can be a registered
+  program rather than a page. A refusal that said nothing would just read as a click that missed.
+
+- **A setting for where a run-menu pick lands.** **Settings → Before running → Run it in Fido's Console
+  tab** *(off by default)* decides what the **Console button's** run menu does: hand the command to the
+  terminal you have configured, as it always has, or run it in the Console tab. It governs that menu
+  only — the Console button itself still opens your terminal, and the Console tab's own Run menu always
+  runs in the pane, since driving that pane is what it is for.
+
 - **The branch box now lists the worktree folders that branch already has on disk.** Type a branch and
   the folders holding a worktree for it appear underneath — one row each, with a button to **copy** the
   path and a button to **open it in File Explorer / Finder**. Where to look is the *same rule Fido

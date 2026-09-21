@@ -17,6 +17,7 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _showTargetInWindowTitle = true;
     private bool _pullBeforeRun = true;
     private bool _runInFido;
+    private bool _consoleUsesFidoPalette;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
     private string _closeAfterOpenDelayText = AppConfig.DefaultCloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
 
@@ -114,12 +115,21 @@ public sealed class SettingsViewModel : ObservableObject
         set => SetField(ref _pullBeforeRun, value);
     }
 
-    /// <summary>Whether the Console run menu runs its pick in Fido's own window rather than handing it
-    /// to the configured terminal. Ticking it also adds a "shell here" entry to that menu.</summary>
+    /// <summary>Whether a pick from the Console <em>tool button's</em> run menu runs in Fido's own Console
+    /// tab rather than being handed to the configured terminal. The Console tab's own Run menu always runs
+    /// in the pane, whichever way this is set.</summary>
     public bool RunInFido
     {
         get => _runInFido;
         set => SetField(ref _runInFido, value);
+    }
+
+    /// <summary>Whether the Console tab's terminal wears Fido's palette rather than the emulator's own
+    /// scheme. Off by default; a shell already running keeps the colours it started with.</summary>
+    public bool ConsoleUsesFidoPalette
+    {
+        get => _consoleUsesFidoPalette;
+        set => SetField(ref _consoleUsesFidoPalette, value);
     }
 
     public CloseAfterOpen CloseAfterOpen
@@ -190,6 +200,7 @@ public sealed class SettingsViewModel : ObservableObject
         ShowTargetInWindowTitle = config.ShowTargetInWindowTitle;
         PullBeforeRun = config.PullBeforeRun;
         RunInFido = config.RunInFido;
+        ConsoleUsesFidoPalette = config.ConsoleUsesFidoPalette;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -211,6 +222,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.ShowTargetInWindowTitle = ShowTargetInWindowTitle;
         config.PullBeforeRun = PullBeforeRun;
         config.RunInFido = RunInFido;
+        config.ConsoleUsesFidoPalette = ConsoleUsesFidoPalette;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer

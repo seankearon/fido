@@ -7,17 +7,19 @@ description: A visual tour of Fido, in whichever theme you are reading in.
 
 A visual tour of **Fido**. Each shot follows the theme you are reading in — switch the
 palette in the header and the screenshots switch with you. See
-[The console](guide/interface.md) for the full behaviour reference.
+[The main screen](guide/interface.md) and [The Console tab](guide/console.md) for the full
+behaviour reference.
 
 ---
 
 ## Home screen
 
-The mission-control console — one window, one screen. Type a **branch name** and Fido scans your
+Mission control — one window, one screen. Type a **branch name** and Fido scans your
 search roots for every working tree currently on it; the results render **inline** as selectable
 cards. The **open actions** below stay locked until discovery finds the branch, then the big amber
 button launches your **default tool** (the rest sit in the grid, ++ctrl+1++ … ++ctrl+9++). The
-**Flight log** reports each step as Fido "goes around the horn".
+panel at the foot carries two tabs: the **Flight log**, reporting each step as Fido "goes around
+the horn", and the **Console**.
 
 ![Fido home screen](assets/screenshots/home-screen-light.png#only-light)
 ![Fido home screen](assets/screenshots/home-screen-dark.png#only-dark)
@@ -69,11 +71,39 @@ with warnings when the worktree has uncommitted changes or commits that exist on
 
 ---
 
+## The Console tab
+
+The second tab under the open actions is **Fido's own terminal**, at the selected location — a real
+shell over a real pseudo-terminal, so colour, prompts and ++ctrl+c++ all work and a failed script
+leaves its output on screen with a live prompt underneath. It is not the **Console tool**, which
+opens *your* terminal at the folder; see [The Console tab](guide/console.md) for the difference.
+
+![The Console tab running the branch's build script](assets/screenshots/console-tab-light.png#only-light)
+![The Console tab running the branch's build script](assets/screenshots/console-tab-dark.png#only-dark)
+
+The **Run** menu at the right of the tab rule leads with a plain **shell here**, then lists what
+the branch's `.fido/cfg.yaml` nominated — its commands — with
+**Edit `.fido/cfg.yaml`…** at the foot. Every pick runs in the pane below it.
+
+![The Console tab's Run menu](assets/screenshots/console-run-menu-light.png#only-light)
+![The Console tab's Run menu](assets/screenshots/console-run-menu-dark.png#only-dark)
+
+The console keeps the terminal's own colours by default. Tick **Settings → Theme → Colour the
+Console tab to match** and it takes Fido's palette instead — the flight log's own greens and ambers,
+following the theme.
+
+![The Console tab in Fido's own palette](assets/screenshots/console-palette-light.png#only-light)
+![The Console tab in Fido's own palette](assets/screenshots/console-palette-dark.png#only-dark)
+
+---
+
 ## Settings
 
 The ⚙ gear popover picks the **default tool** (or **No default** for the equal-weight grid);
 **All settings…** opens the full dialog to configure **search roots**, your **editors** (each with
-a CLI slug, with the default marked **●**), the **worktree root**, **theme**, and the
+a CLI slug, with the default marked **●**), the **worktree root**, **theme**, what the **window
+title** reads, what happens **before running** a command — fast-forward the target, and whether a
+run-menu pick lands in [Fido's Console tab](guide/console.md) or your own terminal — and the
 **close-after-opening** behaviour and delay.
 
 ![Fido settings dialog](assets/screenshots/settings-dialog-light.png#only-light)

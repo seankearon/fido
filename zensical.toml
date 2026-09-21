@@ -19,7 +19,8 @@ nav = [
     { "Deleting a worktree" = "guide/worktrees.md" },
     { "Editors and tools" = "guide/tools.md" },
     { "In-repo config" = "guide/in-repo-config.md" },
-    { "The console" = "guide/interface.md" },
+    { "The main screen" = "guide/interface.md" },
+    { "The Console tab" = "guide/console.md" },
     { "Command line" = "guide/command-line.md" },
   ] },
   { "Reference" = [

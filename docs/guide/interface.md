@@ -1,14 +1,17 @@
 ---
 icon: lucide/layout
-description: The mission-control screen, window title, version badge and keyboard shortcuts.
+description: The flight log, window title, version badge and keyboard shortcuts.
 ---
 
-# The console
+# The main screen
 
-## Mission-control console
+## The flight log
 
-The in-app **flight log** narrates each scan and launch like a flight-control "go around
-the horn" poll:
+The panel at the foot of the screen has **two tabs**, sharing the same strip of window. This page
+is about the first of them; the second — **Console**, Fido's own terminal at the selected
+location — has [its own page](console.md).
+
+The **flight log** narrates each scan and launch like a flight-control "go around the horn" poll:
 
 ```
 🚀 Going around the horn…
@@ -35,9 +38,12 @@ delete that went wrong.
 The panel **grows with the window**: drag Fido's bottom edge down and every spare pixel
 goes to the log rather than to a gap above it — the upper section keeps as much room as
 its content needs, and the log takes the rest. Shrink the window again and the log falls
-back to its compact box while the upper section scrolls.
+back to its compact box while the upper section scrolls. The **Console** tab gets the same
+room, since the two tabs share the panel.
 
-Two buttons on the **Flight log** rule take the narration with you:
+The right-hand end of the tab rule belongs to whichever tab is showing — the log's two buttons
+below, or the console's **Run** menu — so the two can never crowd each other. The log's buttons
+take the narration with you:
 
 - **Copy** puts the whole log — every line, not just the visible ones — on the clipboard
   as plain text.

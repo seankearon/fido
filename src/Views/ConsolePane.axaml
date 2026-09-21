@@ -18,6 +18,7 @@
                               FontFamily="{DynamicResource FidoMono}"
                               FontSize="12.5"
                               AutoScrollToBottom="True"
-                              ProcessExited="OnProcessExited" />
+                              ProcessExited="OnProcessExited"
+                              UrlClicked="OnUrlClicked" />
     </Grid>
 </UserControl>

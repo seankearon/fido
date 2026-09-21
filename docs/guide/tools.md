@@ -48,6 +48,13 @@ Beyond editors, Fido can open the resolved **folder** directly — handy when yo
 branch or to browse its files. Two built-in targets, present out of the box and working on **Windows,
 macOS, and Linux**:
 
+!!! info "Console the tool, Console the tab"
+
+    The **Console tool** below is a *launch*: it opens the terminal **you** have configured, at the
+    folder, and Fido steps out of the way. Fido also has a console of its own — the
+    **[Console tab](console.md)** beside the flight log, a shell running *inside* Fido, for when the
+    output is the point. Different things, same word; the tab's page spells out which is which.
+
 - **Console** *(folder-only, slug `term`)* — opens a terminal **at the folder**. Auto-detection picks the
   OS default: **Windows** — Windows Terminal (`wt`), else PowerShell (`pwsh`/`powershell`), else `cmd`;
   **macOS** — the **Terminal** app (via `open -a`); **Linux** — the first of `x-terminal-emulator`,
@@ -65,3 +72,8 @@ Both behave like any other tool — a grid button, a **Ctrl+N** shortcut, and a 
 `fido feature/new-ui term` opens a terminal on that branch and `fido feature/new-ui files` opens its folder.
 They always hand over the **folder**, ignoring the solution chips.
 
+The Console tool is also the one tool that can carry a **run menu**: when the branch's
+[`.fido/cfg.yaml`](in-repo-config.md) nominates scripts, a caret appears beside the button and a pick runs
+that command at the selected location. Where it runs is yours to choose — your terminal, or Fido's
+[Console tab](console.md) — via **Settings → Before running → Run it in Fido's Console tab**. The button
+itself always opens your terminal, whichever way that is set.

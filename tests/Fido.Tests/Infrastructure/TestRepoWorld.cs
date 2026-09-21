@@ -235,8 +235,10 @@ public sealed class TestRepoWorld : IDisposable
         int closeAfterOpenDelaySeconds = 0,
         bool pullBeforeRun = true,
         bool runInFido = false,
+        bool consoleUsesFidoPalette = false,
         GitService? git = null,
-        GitHubCli? gitHub = null)
+        GitHubCli? gitHub = null,
+        FakeBrowser? browser = null)
     {
         var config = new AppConfig
         {
@@ -248,6 +250,7 @@ public sealed class TestRepoWorld : IDisposable
             CloseAfterOpenDelaySeconds = closeAfterOpenDelaySeconds,
             PullBeforeRun = pullBeforeRun,
             RunInFido = runInFido,
+            ConsoleUsesFidoPalette = consoleUsesFidoPalette,
         };
 
         var configDir = Path.Combine(Root, "config", Guid.NewGuid().ToString("N"));
@@ -262,6 +265,9 @@ public sealed class TestRepoWorld : IDisposable
             Dialogs = dialogs,
             Git = git ?? new GitService(),
             GitHub = gitHub ?? FakeGitHub.None,
+            // Never the real one, even when a test doesn't care: a link opened from here would open on
+            // the machine running the suite.
+            OpenUrl = (browser ?? new FakeBrowser()).Open,
         };
     }
 

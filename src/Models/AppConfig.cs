@@ -89,14 +89,28 @@ public sealed class AppConfig
     public bool PullBeforeRun { get; set; } = true;
 
     /// <summary>
-    /// Whether a pick from the Console button's run menu runs in Fido's own window rather than being handed
-    /// to the configured terminal. Off by default: Fido is a launcher, and the terminal the user has set up —
-    /// with their prompt, profile and keybindings — is the better place to be. On, the script runs over a
-    /// pseudo-terminal Fido owns, which is worth having when the output is the point and you want it beside
-    /// the flight log rather than in a window that closes. The in-app console offers a one-click hand-off to
-    /// the real terminal, so this is a default, never a lock-in.
+    /// Whether a pick from the Console <em>tool button's</em> run menu runs in Fido's own Console tab rather
+    /// than being handed to the configured terminal. Off by default: Fido is a launcher, and the terminal the
+    /// user has set up — with their prompt, profile and keybindings — is the better place to be. On, the
+    /// script runs over a pseudo-terminal Fido owns, which is worth having when the output is the point and
+    /// you want it beside the flight log rather than in a window that closes.
+    ///
+    /// It says nothing about the <em>Console tab's own</em> Run menu, which exists to drive the pane beneath
+    /// it and so always runs there. The tool button is the launch; this decides where that launch lands.
     /// </summary>
     public bool RunInFido { get; set; }
+
+    /// <summary>
+    /// Whether the Console tab's terminal is painted in Fido's own palette — the brushes the flight log
+    /// draws with — instead of the scheme the terminal emulator ships with.
+    ///
+    /// Off by default, because plain is legible: the stock scheme is high-contrast by construction, and a
+    /// console is a place people expect to look like a console. On, the ground and the sixteen ANSI colours
+    /// come from <c>TerminalPalette</c> and follow the app's theme, which reads as one window rather than a
+    /// terminal dropped into one. Either way the colours are taken when a shell starts, so a shell already
+    /// running keeps the ones it has.
+    /// </summary>
+    public bool ConsoleUsesFidoPalette { get; set; }
 
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;

@@ -459,7 +459,7 @@
                                                           ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                             <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource FidoTextMuted}"
-                                                       Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
+                                                       Text="Runs in a console at the selected location. The commands come from this branch's .fido/cfg.yaml." />
                                             <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                     Click="OnRepoConfigClick" />
@@ -509,7 +509,7 @@
                                                                       ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                                         <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                                                    Foreground="{DynamicResource FidoTextMuted}"
-                                                                   Text="Runs in a console at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
+                                                                   Text="Runs in a console at the selected location. The commands come from this branch's .fido/cfg.yaml." />
                                                         <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                                 Click="OnRepoConfigClick" />
@@ -653,7 +653,7 @@
                                               ItemTemplate="{StaticResource ConsoleRunTemplate}" />
                                 <TextBlock FontSize="11.5" TextWrapping="Wrap"
                                            Foreground="{DynamicResource FidoTextMuted}"
-                                           Text="Runs at the selected location. The scripts come from this branch's .fido/cfg.yaml." />
+                                           Text="Runs at the selected location. The commands come from this branch's .fido/cfg.yaml." />
                                 <Button Classes="secondary" Content="Edit .fido/cfg.yaml…"
                                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Click="OnRepoConfigClick" />
@@ -684,7 +684,8 @@
                     </ScrollViewer>
                     <!-- Kept loaded rather than swapped out, so a running shell survives a trip to the
                          flight log and back: its scrollback is the record of what just ran. -->
-                    <views:ConsolePane x:Name="ConsoleView" IsVisible="{Binding IsConsoleTab}" />
+                    <views:ConsolePane x:Name="ConsoleView" IsVisible="{Binding IsConsoleTab}"
+                                       UrlClicked="OnConsoleUrlClicked" />
                 </Grid>
             </Border>
         </Grid>

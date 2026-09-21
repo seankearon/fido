@@ -1,9 +1,12 @@
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Fido.Models;
 using Fido.Services;
+using Fido.Theme;
 using Fido.ViewModels;
 using Fido.Tests.Infrastructure;
 using Fido.Views;
@@ -186,12 +189,192 @@ public class ConsoleTabTests
         });
     }
 
+    // --- Links on screen ---------------------------------------------------------------------
+    //
+    // Ctrl+Click on a link in the terminal opens it in the default browser. The terminal finds the link
+    // and reports the click (it underlines one under the pointer and shows the hand cursor); what
+    // follows is Fido's, and that part is what these check. The window's handler is driven directly:
+    // the pane forwards the terminal's event to it, and that hop is a XAML event attribute the build
+    // already refuses to compile if the handler goes missing or changes shape.
+
+    [Test]
+    public async Task A_link_clicked_in_the_console_goes_to_the_browser_and_is_named_in_the_flight_log()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser();
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.OpenTerminalLink("https://example.com/build/42");
+
+            await Assert.That(browser.LastOpened).IsEqualTo("https://example.com/build/42");
+
+            // Named, not just opened: a wrapped URL is hard to read back off the screen, and an OSC 8
+            // hyperlink needn't show its target at all, so the log is where the user finds out where
+            // their click went.
+            await Assert.That(window.LogText()).Contains("▸ Opening https://example.com/build/42 in your browser");
+        });
+    }
+
+    [Test]
+    public async Task A_link_that_isnt_the_web_is_refused_out_loud_and_never_reaches_the_opener()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser();
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            // The scrollback belongs to whatever the shell just ran, and on Windows "open" would hand
+            // this to the shell — which for a scheme other than http(s) can run a program rather than
+            // show a page.
+            window.OpenTerminalLink("file:///etc/passwd");
+
+            await Assert.That(browser.Opened.Count).IsEqualTo(0);
+
+            // Out loud, because a silent refusal reads as a click that missed.
+            await Assert.That(window.LogText()).Contains("⚠ Not opening file:///etc/passwd");
+        });
+    }
+
+    [Test]
+    public async Task A_browser_that_never_opens_is_reported_rather_than_assumed()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var browser = new FakeBrowser(succeeds: false);
+        var services = world.BuildServices(
+            [root], new FakeEditorLauncher(), new FakeDialogService(), browser: browser);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            window.OpenTerminalLink("https://example.com/build/42");
+
+            await Assert.That(window.LogText()).Contains("⚠ Couldn't open https://example.com/build/42");
+        });
+    }
+
     /// <summary>
-    /// Captures the Console tab for review. Deliberately asserts almost nothing: under
-    /// Avalonia.Headless the embedded terminal paints nothing at all, even though the shell runs and the
-    /// control reports a correct grid against real bounds. The same control in a top-level window paints
-    /// fine, so this is specific to the embedded pane and/or the headless renderer. Until that is
-    /// understood, this exists to produce the screenshot — it is not evidence the pane works.
+    /// With the setting on, the console is wearing Fido's colours before the shell starts.
+    ///
+    /// The brushes are what this pins, because they are what the emulator seeds itself from: leave them
+    /// at their defaults and it ignores the palette in <c>Options.Theme</c> entirely — stock ground,
+    /// stock colours — however carefully that object was filled in. They are also set on the control
+    /// itself, so this holds whether or not the headless harness gave the pane a template.
+    ///
+    /// Ordering is the other half, and it is why <c>ApplyPalette</c> runs before <c>LaunchProcess</c>:
+    /// the emulator takes its colours at launch and keeps that copy, so a palette applied afterwards
+    /// paints nothing. What the palette itself says is pinned by
+    /// <see cref="The_palette_is_Fidos_own_in_both_themes"/>.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task The_console_takes_Fidos_palette_before_the_shell_starts()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService(),
+            consoleUsesFidoPalette: true);
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            var terminal = window.FindControl<ConsolePane>("ConsoleView")!
+                .FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+
+            // Fido's light ground and ink — not xterm's black.
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsEqualTo(Color.Parse("#F5F1E8"));
+            await Assert.That((terminal.Foreground as ISolidColorBrush)?.Color).IsEqualTo(Color.Parse("#211E17"));
+
+            // And the emulator's own options, when the harness built them (see the capture test below).
+            if (terminal.Options?.Theme is { } theme)
+            {
+                await Assert.That(theme.Background).IsEqualTo("#F5F1E8");
+                await Assert.That(theme.Green).IsEqualTo("#3E7C55");
+                await Assert.That(terminal.Options.MinimumContrastRatio).IsEqualTo(TerminalPalette.MinimumContrast);
+            }
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// And with the setting off — the default — Fido keeps its hands off the colours entirely, so the
+    /// console comes up in the scheme the emulator ships with. Asserted on the brushes again, because
+    /// setting those is what makes any of it take.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task By_default_the_console_keeps_the_terminals_own_colours()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            App.ApplyTheme(AppTheme.Light);
+            UiTestExtensions.Pump();
+
+            await window.Discover("main");
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            var pane = window.FindControl<ConsolePane>("ConsoleView")!;
+            var terminal = pane.FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+
+            await Assert.That(pane.UseFidoPalette).IsFalse();
+            await Assert.That((terminal.Background as ISolidColorBrush)?.Color).IsNotEqualTo(Color.Parse("#F5F1E8"));
+            await Assert.That(terminal.Options?.Theme?.Background).IsNotEqualTo("#F5F1E8");
+
+            App.ApplyTheme(AppTheme.System);
+        });
+    }
+
+    /// <summary>
+    /// The palette itself: Fido's brushes, per theme, rather than xterm's. Asserted on a bare
+    /// <c>ThemeOptions</c>, so it holds wherever the control does or doesn't get built.
+    /// </summary>
+    [Test]
+    public async Task The_palette_is_Fidos_own_in_both_themes()
+    {
+        var light = new XTerm.Options.ThemeOptions();
+        TerminalPalette.Apply(light, ThemeVariant.Light);
+
+        await Assert.That(light.Background).IsEqualTo("#F5F1E8");   // FidoLogBg
+        await Assert.That(light.Foreground).IsEqualTo("#211E17");   // FidoTextPrimary
+        await Assert.That(light.Green).IsEqualTo("#3E7C55");        // FidoLogOk — the flight log's own ✓
+        // On a pale ground "bright" means more contrast, so the Bright* entries are darker, not lighter.
+        await Assert.That(light.BrightGreen).IsEqualTo("#2E6341");
+
+        var dark = new XTerm.Options.ThemeOptions();
+        TerminalPalette.Apply(dark, ThemeVariant.Dark);
+
+        await Assert.That(dark.Background).IsEqualTo("#1C1812");
+        await Assert.That(dark.Foreground).IsEqualTo("#F0EBDF");
+        await Assert.That(dark.Green).IsEqualTo("#5FA97C");
+        await Assert.That(dark.BrightGreen).IsEqualTo("#83C79C");
+    }
+
+    /// <summary>
+    /// Captures the Console tab for the docs gallery and for review.
+    ///
+    /// It asserts little on purpose. The embedded terminal only paints in the <em>first</em> window a
+    /// headless process shows: in a window opened after another has come and gone the control never
+    /// resolves its own control theme (no template, no visual children), so the pane comes out blank
+    /// however long the shell is given. Run this test on its own — <c>--treenode-filter
+    /// "/*/*/ConsoleTabTests/Capture_the_console_tab_for_review"</c>, which is how the gallery generator
+    /// captures it — and the same code paints a real shell. Nothing about the app is conditional on that;
+    /// it is a headless-harness artefact, and the palette above is where the colours are actually pinned.
     /// </summary>
     [Test]
     [Timeout(120_000)]

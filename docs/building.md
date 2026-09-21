@@ -172,6 +172,52 @@ needs right-click → Open. Moving to a Developer ID certificate and notarizatio
 separate, Mac-only piece of work — see `macos-packaging-handoff.md`, which also records a
 Parcel icon-conversion problem worth re-checking.
 
+## Documentation
+
+The site you are reading is built with **[Zensical](https://zensical.org/)** from the
+`docs/` folder, configured by `zensical.toml` at the repo root:
+
+```powershell
+uv tool install zensical      # or: pip install zensical
+zensical serve                # preview on http://localhost:8000
+zensical build --strict       # what the release and the PR check run
+```
+
+**`release.ps1` builds and publishes it.** The *Verify Docs* stage builds the site with
+`--strict` before anything is signed or tagged, so a broken link stops the release, and
+*Publish Docs* force-pushes the result to the `gh-pages` branch that Pages serves.
+[`.github/workflows/docs.yml`](https://github.com/seankearon/fido/blob/main/.github/workflows/docs.yml)
+only validates the build on pull requests; it does not publish. So the published site always
+describes the **released** version, not `main`.
+
+Set `ZENSICAL` to the executable's full path if you keep it in a virtual environment, or pass
+`-NoDocs` to release without touching the documentation.
+
+### The screenshot gallery
+
+Every screenshot under `docs/assets/screenshots/` is **generated, not taken by hand**.
+`GalleryScreenshotTests` drives the real window headlessly against a throwaway demo world under
+`%TEMP%\fido-demo` — two clones, a worktree, a branch checked out nowhere, and a committed
+`.fido/cfg.yaml` with a build script in it — and writes the dark/light pair for every state, plus
+the README hero.
+
+```powershell
+$env:FIDO_GALLERY = '1'
+$env:FIDO_SCREENSHOT_DIR = "$PWD\docs\assets\screenshots"
+dotnet run --project tests/Fido.Tests -- --treenode-filter "/*/*/GalleryScreenshotTests/*"
+```
+
+**Run it alone**, as above, rather than as part of a full suite run. No other test's frames should
+land in the gallery folder — and the **Console tab** only paints in the *first* window a headless
+process shows, so sharing a process with the rest of the suite yields an empty console pane. The
+console shots are a real shell running the demo repo's own build script, which is why the output in
+them is real.
+
+What the machine has shows up in the result: the UI wants **JetBrains Mono** (falling back to
+Cascadia Code, then Consolas, then whatever monospace is installed), the console runs the platform's
+own script — a `.ps1` on Windows, a `.sh` elsewhere — and the paths on the cards are the real temp
+folder, so a gallery generated on Windows shows Windows paths.
+
 ## Notes
 
 - Settings persist to `%APPDATA%\Fido\config.json` (a legacy `atlantic-opener` folder is

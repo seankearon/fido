@@ -15,7 +15,7 @@ worth a button:
 ```yaml
 # .fido/cfg.yaml
 prefer main clone: true       # default to opening the clone's own tree, not a worktree
-commands:                     # command lines the Console button offers to run
+commands:                     # command lines the Console run menus offer
   - build.ps1
   - aspire start
 ```
@@ -27,12 +27,13 @@ commands:                     # command lines the Console button offers to run
   listed exactly as before, and each is one click away — this only decides which one the open actions
   start on. If the results hold no main tree at all, the flight log says so and the first card keeps
   the default.
-- **`commands`** *(ordered list of command lines)* — each entry becomes an entry in the **Console
-  button's drop-down**, in the order given. An entry is a **command line, not a file name**: whatever
-  you'd type in a terminal at that location — `build.ps1`, `aspire start`, `npm run dev`,
-  `dotnet run --project src` — handed to the shell as written, so any quoting a path needs is yours to
-  write. A command is offered whether or not anything by that name is in the tree today (a script may be
-  generated), so a typo shows up as a shell error rather than a missing button.
+- **`commands`** *(ordered list of command lines)* — each entry becomes an entry in **both run menus** —
+  the **Console button's** drop-down and the **[Console tab's](console.md)** — in the order given. An
+  entry is a **command line, not a file name**: whatever you'd type in a terminal at that location —
+  `build.ps1`, `aspire start`, `npm run dev`, `dotnet run --project src` — handed to the shell as
+  written, so any quoting a path needs is yours to write. A command is offered whether or not anything
+  by that name is in the tree today (a script may be generated), so a typo shows up as a shell error
+  rather than a missing button.
 
 **Keys are matched loosely** — case, spaces, dashes and underscores are all ignored, so
 `preferMainClone`, `prefer-main-clone` and `Prefer main clone` are the same key. Comments, quotes and
@@ -69,7 +70,7 @@ never fetched, config and all, arrives without a second scan.
 
 **Creating it.** The **OPEN** strip carries a small **document button** beside the copy-path icon:
 it creates `.fido/cfg.yaml` in the selected location and opens it in your default tool, so a repo can
-be set up without leaving Fido. (The same action sits at the foot of the Console run menu, as
+be set up without leaving Fido. (The same action sits at the foot of the Console tab's Run menu, as
 **Edit `.fido/cfg.yaml`…**, for when you're already in there wanting another entry.) Three things it
 deliberately does *not* do:
 
@@ -84,15 +85,23 @@ deliberately does *not* do:
 The button is **absent for a placement offer** — there's no working tree on disk to write into until you
 open it.
 
-**The Console drop-down.** The commands appear under a small **caret beside the Console button** (or
-beside the hero button, when Console *is* your default tool). Picking one opens the console at the
-**selected** location and runs the command there — a `.ps1` through PowerShell, a root
-`.sh` as `./name`, anything else through the platform's shell — leaving the window open afterwards so you
-can read the output. On Windows a Windows Terminal console hosts the shell in a tab; elsewhere the shell
-runs on its own. **Nothing runs on its own:** Fido only ever *offers* these commands, and a placement
+**Two menus offer them.** The commands appear in both, and a pick does the same thing in each — runs
+the command at the **selected** location, a `.ps1` through PowerShell, a root `.sh` as `./name`,
+anything else through the platform's shell. What differs is *where*:
+
+- **Beside the Console button** — a small **caret** next to it (or next to the hero button, when Console
+  *is* your default tool). The command goes to the terminal you have configured, and the window stays
+  open afterwards so you can read the output. On Windows a Windows Terminal console hosts the shell in a
+  tab; elsewhere the shell runs on its own. Tick **Settings → Before running → Run it in Fido's Console
+  tab** and this menu's picks land in the tab instead.
+- **The [Console tab's](console.md) own Run menu**, at the right of the tab rule. It leads with a plain
+  **shell here** and always runs in the pane below it — that's what the tab is for.
+
+**Nothing runs on its own:** Fido only ever *offers* these commands, and a placement
 offer still creates the worktree (or switches the tree) first, exactly as opening it would.
 
-**Which shell runs it (Windows).** A console that *is* a shell — `cmd`, `powershell`, `pwsh` — is used
+**Which shell runs it (Windows).** This is about the console *you* have configured; Fido's own
+[Console tab](console.md) hosts the shell itself and picks `pwsh` first there too. A console that *is* a shell — `cmd`, `powershell`, `pwsh` — is used
 exactly as you configured it; you picked it on purpose. Windows Terminal and third-party emulators are
 different: they only **host** a shell and say nothing about which, so Fido picks the best on the machine —
 **`pwsh` first**, then Windows PowerShell. That matters more than it sounds: PATH entries and aliases your
@@ -128,5 +137,6 @@ current by construction, and the card can't tell you which you have.
   says so, and the console still opens.
 
 Only a **run command** triggers it: opening a folder to look at it doesn't move the tree under you or cost
-you a round trip. Turn it off entirely with **Settings → Before running**.
+you a round trip, and the Console tab's **shell here** skips it too — opening a shell to look around isn't
+running the thing. Turn it off entirely with **Settings → Before running**.
 
