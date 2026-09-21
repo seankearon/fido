@@ -13,6 +13,13 @@ solution or folder in your editor. Set a **default tool** for the big Open butto
 local branch — and, optionally, its remote branch too (unless an open PR says otherwise) — from the
 same screen, with an inline confirm.
 
+When a scan finds the branch, Fido also asks **GitHub** — through the **GitHub CLI (`gh`)** — whether
+that branch has a **pull request open**, and puts a link to it right above the results: `PR #42 · Add the
+widget`, one click to the browser. It asks again **every time it checks** — each scan, and again when you
+arm a delete — so what you see is what GitHub says now, not what it said when you typed the name. The
+check runs behind the results and never holds them up, and when `gh` can't answer at all the flight log
+says so rather than implying the branch has no PR.
+
 It also lists the **worktree folders that branch already has on disk**, right under the branch box — one
 button from your clipboard and one from your **File Explorer / Finder**. A folder counts even when no
 repo has the branch, so a leftover from last month is pointed out the moment you type the name; when

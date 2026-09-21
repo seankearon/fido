@@ -139,6 +139,7 @@ public sealed class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowDeleteRow));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDeleteDisabledNote));
+            OnPropertyChanged(nameof(ShowPullRequestLink));
             OnPropertyChanged(nameof(WindowTitle));
         }
     }
@@ -529,15 +530,39 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>The remote-branch checkbox is enabled only when there's a remote branch and no open PR.</summary>
     public bool CanDeleteRemoteBranch => _remoteBranchExists && _openPullRequest is null;
 
-    /// <summary>True when an open pull request blocks the remote-branch delete — the strip surfaces/links it.</summary>
+    /// <summary>
+    /// True when the scanned branch has an open pull request, as of the last time Fido asked GitHub. It
+    /// drives two things at once: the link row under the discovery results, and — in the delete confirm
+    /// strip — the block on deleting the branch from <c>origin</c>.
+    /// </summary>
     public bool HasOpenPullRequest => _openPullRequest is not null;
 
-    /// <summary>The blocking PR's caption, e.g. <c>PR #42 · Add the widget</c>; empty when none.</summary>
+    /// <summary>The PR's caption, e.g. <c>PR #42 · Add the widget</c>; empty when none.</summary>
     public string OpenPullRequestLabel =>
         _openPullRequest is null ? "" : $"PR #{_openPullRequest.Number} · {_openPullRequest.Title}";
 
-    /// <summary>The blocking PR's web URL, opened from the strip; empty when none.</summary>
+    /// <summary>The PR's web URL, opened from the link row and from the confirm strip; empty when none.</summary>
     public string OpenPullRequestUrl => _openPullRequest?.Url ?? "";
+
+    /// <summary>The PR link row belongs to a landed scan: it shows once a branch has been found somewhere
+    /// and GitHub has named a pull request open on it.</summary>
+    public bool ShowPullRequestLink => IsFound && HasOpenPullRequest;
+
+    /// <summary>
+    /// Records what GitHub said about the branch this time round — a PR, or <c>null</c> for "none open,
+    /// or nobody could tell us". Every check routes through here (the scan's own lookup, and the one the
+    /// delete plan makes), so the link row and the remote-delete gate always agree and always show the
+    /// latest answer rather than a remembered one.
+    /// </summary>
+    public void SetOpenPullRequest(PullRequestInfo? pullRequest)
+    {
+        _openPullRequest = pullRequest;
+        OnPropertyChanged(nameof(HasOpenPullRequest));
+        OnPropertyChanged(nameof(OpenPullRequestLabel));
+        OnPropertyChanged(nameof(OpenPullRequestUrl));
+        OnPropertyChanged(nameof(ShowPullRequestLink));
+        OnPropertyChanged(nameof(CanDeleteRemoteBranch));
+    }
 
     /// <summary>The remote-branch option's caption, naming the ref that would be deleted.</summary>
     public string RemoteBranchOptionText => $"Also delete the remote branch origin/{_deleteConfirmBranch}";
@@ -548,16 +573,16 @@ public sealed class MainWindowViewModel : ObservableObject
         DeleteConfirmPath = plan.WorktreePath;
         DeleteConfirmBranch = plan.Branch;
 
-        // Remote-branch opt-in + PR gate. Default the checkbox OFF (opt-in); it's disabled outright when a
-        // PR blocks it. RemoteBranchExists is set last so its change notifications see the final PR state.
-        _openPullRequest = plan.OpenPullRequest;
+        // Remote-branch opt-in + PR gate. The plan asked GitHub afresh, so what it carries refreshes the link
+        // row above as well as the gate here — but it only asks when there's a branch on origin to delete, so
+        // with no remote branch it never asked, and that silence mustn't be mistaken for an answer that
+        // clears what the scan found. Default the checkbox OFF (opt-in); it's disabled outright when a PR
+        // blocks it, and RemoteBranchExists is set last so its notifications land on the settled PR state.
+        if (plan.RemoteBranchExists)
+            SetOpenPullRequest(plan.OpenPullRequest);
         DeleteRemoteBranch = false;
         RemoteBranchExists = plan.RemoteBranchExists;
         OnPropertyChanged(nameof(RemoteBranchOptionText));
-        OnPropertyChanged(nameof(HasOpenPullRequest));
-        OnPropertyChanged(nameof(OpenPullRequestLabel));
-        OnPropertyChanged(nameof(OpenPullRequestUrl));
-        OnPropertyChanged(nameof(CanDeleteRemoteBranch));
         OnPropertyChanged(nameof(ShowRemoteBranchOption));
 
         var warnings = new List<string>();
@@ -633,8 +658,9 @@ public sealed class MainWindowViewModel : ObservableObject
         ScannedBranch = branch;
         OnPropertyChanged(nameof(NotFoundBody));
         ScanningBody = $"Scanning working trees for '{branch}'…";
-        ClearDeleteRetry();   // a leftover from the last branch's delete has nothing to say about this scan
-        SetConsoleRuns([]);   // the console's run menu came from the last branch's .fido config
+        ClearDeleteRetry();        // a leftover from the last branch's delete has nothing to say about this scan
+        SetConsoleRuns([]);        // the console's run menu came from the last branch's .fido config
+        SetOpenPullRequest(null);  // and the last branch's pull request is not this branch's — ask again
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));
@@ -689,7 +715,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public void ResetToIdle()
     {
         ScannedBranch = "";
-        SetConsoleRuns([]);   // no branch, so no in-repo config and no run menu
+        SetConsoleRuns([]);        // no branch, so no in-repo config and no run menu
+        SetOpenPullRequest(null);  // …and no branch to have a pull request open on it
         Targets.Clear();
         SelectedTarget = null;
         OnPropertyChanged(nameof(HasMultipleTargets));

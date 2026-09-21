@@ -45,6 +45,11 @@ public partial class MainWindow : Window
     /// <summary>Cancels the in-flight discovery scan when a newer one supersedes it.</summary>
     private CancellationTokenSource? _scanCts;
 
+    /// <summary>Cancels the in-flight pull-request lookup when a newer scan supersedes it. Separate from
+    /// <see cref="_scanCts"/> because the lookup outlives the scan that started it: the results are on
+    /// screen while GitHub is still being asked.</summary>
+    private CancellationTokenSource? _pullRequestCts;
+
     /// <summary>The per-run default tool: config's unless a CLI --tool overrode it for this run.</summary>
     private int _runDefaultToolIndex;
 
@@ -86,6 +91,13 @@ public partial class MainWindow : Window
     /// unknown-tool report) and a superseding scan clears the log, so racing it is a coin toss.
     /// </summary>
     internal Task StartupScan { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// The pull-request lookup the last completed scan kicked off. It runs behind the landed results — the
+    /// branch's locations are on screen and openable while GitHub is still being asked — so tests await this
+    /// rather than racing the link row into existence.
+    /// </summary>
+    internal Task PullRequestCheck { get; private set; } = Task.CompletedTask;
 
     public MainWindow() : this(FidoServices.CreateDefault())
     {
@@ -210,6 +222,7 @@ public partial class MainWindow : Window
         }
 
         _scanCts?.Cancel();
+        _pullRequestCts?.Cancel();   // the last branch's GitHub lookup has nothing to say about this one
         CancelPendingClose();   // a fresh scan supersedes any auto-close countdown still running
         var cts = new CancellationTokenSource();
         _scanCts = cts;
@@ -291,6 +304,11 @@ public partial class MainWindow : Window
             // needs disambiguating — presenting the choice is the whole point of the redesign.
             if (autoTool is not null && targets.Count == 1)
                 await OpenWithAsync(autoTool, fromCommandLine: true);
+
+            // Last, and deliberately not awaited: the branch's locations are already on screen and
+            // openable, and asking GitHub is the one step that leaves the machine. The link row appears
+            // when the answer lands — or never, if the branch has no pull request open on it.
+            StartPullRequestCheck(targets, branch);
         }
         catch (OperationCanceledException)
         {
@@ -319,6 +337,64 @@ public partial class MainWindow : Window
     /// <summary>True for either placement offer (new worktree / switch the main tree).</summary>
     private static bool IsPlacementKind(DiscoveredTarget t) =>
         t.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone;
+
+    // --- Open pull request --------------------------------------------------------------
+
+    /// <summary>
+    /// Asks GitHub whether the scanned branch has an open pull request, from the first clone the scan
+    /// reached, and hands the answer to the view model — which is what raises (or drops) the link row.
+    /// <para>Started but not awaited by the scan: gh is a network call with its own timeout, and the
+    /// results it would hold up are already on screen. The lookup is superseded like a scan — a newer
+    /// branch cancels it — and its answer is discarded if the branch moved on while it was in flight, so
+    /// the row can never name the previous branch's pull request. Tests await
+    /// <see cref="PullRequestCheck"/>.</para>
+    /// </summary>
+    private void StartPullRequestCheck(IReadOnlyList<DiscoveredTarget> targets, string branch)
+    {
+        // gh needs a repo to run in; with nothing found there's no clone to ask from, and nothing to ask about.
+        var mainPath = targets.Select(t => t.MainPath).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
+        if (mainPath is null)
+        {
+            PullRequestCheck = Task.CompletedTask;   // nothing asked, so nothing for a caller to wait on
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _pullRequestCts = cts;
+        PullRequestCheck = CheckAsync();
+
+        async Task CheckAsync()
+        {
+            try
+            {
+                var lookup = await _opener.FindOpenPullRequestAsync(mainPath, branch, cts.Token);
+
+                // A newer scan owns the screen now — its own lookup will have the say.
+                if (cts.IsCancellationRequested || !string.Equals(_vm.ScannedBranch, branch, StringComparison.Ordinal))
+                    return;
+
+                // Only a definite answer moves the row: "nobody could ask" leaves what's there, which after
+                // a fresh scan is nothing at all.
+                if (lookup.Status is not PullRequestLookupStatus.Unknown)
+                    _vm.SetOpenPullRequest(lookup.PullRequest);
+            }
+            catch (OperationCanceledException)
+            {
+                // superseded by a newer scan — that flow owns the row now
+            }
+            catch (Exception ex)
+            {
+                // The lookup contractually never throws; anything that gets here is a bug, not a missing PR,
+                // and the flight log is where Fido says so rather than taking the window down with it.
+                _vm.AppendLog($"⚠ Couldn't check for an open pull request: {ex.Message}");
+            }
+            finally
+            {
+                if (ReferenceEquals(_pullRequestCts, cts)) _pullRequestCts = null;
+                cts.Dispose();
+            }
+        }
+    }
 
     // --- In-repo config (.fido/cfg.yaml) ------------------------------------------------
 
@@ -1489,6 +1565,7 @@ public partial class MainWindow : Window
     {
         CancelPendingClose();
         _scanCts?.Cancel();
+        _pullRequestCts?.Cancel();
         _scanDebounce.Stop();
         // The console holds a live child process. Fido is on its way out, and an orphaned shell with no
         // terminal attached to it would linger.

@@ -70,13 +70,16 @@ public static class UiTestExtensions
 
     /// <summary>
     /// Types the branch/solution-filter into the real boxes and runs discovery to completion,
-    /// bypassing the debounce timer (tests shouldn't wait 600ms per scan).
+    /// bypassing the debounce timer (tests shouldn't wait 600ms per scan). The GitHub pull-request
+    /// lookup the scan starts behind its results is awaited too, so a test sees the settled screen
+    /// rather than racing the link row into existence.
     /// </summary>
     public static async Task Discover(this MainWindow window, string branch, string solutionFilter = "")
     {
         window.SetText("BranchBox", branch);
         window.SetText("SolutionBox", solutionFilter);
         await window.RunDiscoveryAsync();
+        await window.PullRequestCheck;
         Dispatcher.UIThread.RunJobs();
     }
 

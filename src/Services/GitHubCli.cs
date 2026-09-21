@@ -8,8 +8,10 @@ namespace Fido.Services;
 /// Thin wrapper over the GitHub CLI (<c>gh</c>) for the one query Fido needs: is there an open pull
 /// request for a branch? Mirrors <see cref="GitService"/>'s injectable-runner seam so tests can script
 /// gh's output without a real gh install. Every failure mode — gh not installed, the repo isn't a GitHub
-/// remote, the user isn't authenticated, malformed output — degrades to <c>null</c> (no PR known), never
-/// an exception: the check is advisory, gating only whether the remote-branch delete is offered.
+/// remote, the user isn't authenticated, malformed output — degrades to "no PR known", never an exception:
+/// the check is advisory, gating only whether the remote-branch delete is offered.
+/// <para><see cref="LookUpOpenPullRequestAsync"/> keeps those failures distinct from a genuine "no open
+/// pull request", so the flight log can report which of the two happened rather than guessing.</para>
 /// </summary>
 public sealed class GitHubCli
 {
@@ -40,12 +42,22 @@ public sealed class GitHubCli
 
     /// <summary>
     /// The first <em>open</em> pull request whose head branch is <paramref name="branch"/>, or <c>null</c>
-    /// when there is none (or gh can't answer). Runs
-    /// <c>gh pr list --head &lt;branch&gt; --state open --json number,url,title --limit 1</c> in
-    /// <paramref name="dir"/> (the clone's main tree, so gh resolves the repo from its <c>origin</c> remote).
-    /// Never throws.
+    /// when there is none (or gh can't answer) — the plain answer, for callers that only need to know
+    /// whether a PR stands in the way. See <see cref="LookUpOpenPullRequestAsync"/> when the two flavours
+    /// of <c>null</c> need telling apart. Never throws.
     /// </summary>
     public async Task<PullRequestInfo?> FindOpenPullRequestAsync(string dir, string branch, CancellationToken ct = default)
+        => (await LookUpOpenPullRequestAsync(dir, branch, ct)).PullRequest;
+
+    /// <summary>
+    /// Asks gh whether <paramref name="branch"/> has an open pull request, and reports <em>what could be
+    /// established</em> as well as the answer: a PR, a definite "none", or "nobody could say". Runs
+    /// <c>gh pr list --head &lt;branch&gt; --state open --json number,url,title --limit 1</c> in
+    /// <paramref name="dir"/> (the clone's main tree, so gh resolves the repo from its <c>origin</c> remote).
+    /// Every failure mode lands on <see cref="PullRequestLookupStatus.Unknown"/> rather than a false "none",
+    /// so the UI can say which of the two it is. Never throws.
+    /// </summary>
+    public async Task<PullRequestLookup> LookUpOpenPullRequestAsync(string dir, string branch, CancellationToken ct = default)
     {
         ProcessResult r;
         try
@@ -56,16 +68,18 @@ public sealed class GitHubCli
         }
         catch
         {
-            // gh unavailable, cancelled, or timed out — treated as "no PR known".
-            return null;
+            // gh unavailable, cancelled, or timed out — nothing was established.
+            return PullRequestLookup.Unknown;
         }
 
-        if (!r.Success || string.IsNullOrWhiteSpace(r.StdOut)) return null;
+        // A non-zero exit (no gh, not a GitHub remote, not authenticated) or an empty body is gh failing to
+        // answer, not gh answering "none".
+        if (!r.Success || string.IsNullOrWhiteSpace(r.StdOut)) return PullRequestLookup.Unknown;
 
         try
         {
             using var doc = JsonDocument.Parse(r.StdOut);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return PullRequestLookup.Unknown;
             foreach (var el in doc.RootElement.EnumerateArray())
             {
                 if (el.ValueKind != JsonValueKind.Object) continue;
@@ -78,14 +92,16 @@ public sealed class GitHubCli
                     ? urlEl.GetString() ?? "" : "";
                 var title = el.TryGetProperty("title", out var titleEl) && titleEl.ValueKind == JsonValueKind.String
                     ? titleEl.GetString() ?? "" : "";
-                return new PullRequestInfo(number, url, title);
+                return PullRequestLookup.Found(new PullRequestInfo(number, url, title));
             }
-            return null;
+
+            // gh answered with a well-formed, empty list: this branch genuinely has no open PR.
+            return PullRequestLookup.None;
         }
         catch
         {
-            // Contractually never throws — any unexpected parse failure means "no PR known".
-            return null;
+            // Contractually never throws — any unexpected parse failure means nothing was established.
+            return PullRequestLookup.Unknown;
         }
     }
 }

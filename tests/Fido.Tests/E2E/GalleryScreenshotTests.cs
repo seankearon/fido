@@ -86,6 +86,11 @@ public class GalleryScreenshotTests
             Launcher = new FakeEditorLauncher(),
             Dialogs = new FakeDialogService(),
             OpenUrl = new FakeBrowser().Open,
+            // Scripted, like every other outside world here: the demo's origin is a folder on disk, so a
+            // real gh would only ever fail — and the gallery would show the branch's pull-request row as
+            // an apology instead of as the feature it is.
+            GitHub = FakeGitHub.WithOpenPr(128, "https://github.com/acme/platform/pull/128",
+                "Checkout flow: address review"),
         };
 
         await Harness.WithWindow(services, async window =>
