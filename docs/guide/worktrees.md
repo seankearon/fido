@@ -30,11 +30,15 @@ up a branch you're finished with:
   default**, so the remote is never touched unless you ask. **An open pull request
   blocks it:** when the **GitHub CLI (`gh`)** reports a PR open for the branch, the
   checkbox is **disabled** and the strip names the PR (`PR #42 · <title>`) with an
-  **Open pull request ↗** link — close or merge it on GitHub first. PR detection
-  degrades gracefully: if `gh` isn't installed, isn't authenticated, or the remote
-  isn't GitHub, the option is simply offered without a PR note. The git steps run from
-  the clone's **main working tree**, so the worktree is dropped cleanly; a dirty
-  worktree is force-removed after the warning.
+  **Open pull request ↗** link — close or merge it on GitHub first. **Arming the confirm
+  asks GitHub again**, rather than trusting what the scan found: a PR merged since you
+  typed the branch stops blocking the delete, and one opened since starts blocking it —
+  and either way the [PR row](discovery.md#the-branchs-pull-request) above the cards is
+  brought up to date with the same answer. PR detection degrades gracefully: if `gh`
+  isn't installed, isn't authenticated, or the remote isn't GitHub, the option is simply
+  offered without a PR note (and the flight log says the check couldn't be made, rather
+  than claiming there's no PR). The git steps run from the clone's **main working tree**,
+  so the worktree is dropped cleanly; a dirty worktree is force-removed after the warning.
 - Each git step is **retried on transient failures** so a fleeting hiccup doesn't
   leave a half-tidied branch: a worktree file still held open by an editor or
   antivirus scan (common on Windows), or a git ref/index `.lock` left by a racing git

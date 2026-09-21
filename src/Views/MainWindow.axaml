@@ -275,6 +275,29 @@
                                        FontSize="12.5" Foreground="{DynamicResource FidoHelperText}" TextWrapping="Wrap" />
                         </Border>
 
+                        <!-- The branch's open pull request, as GitHub answered on this scan. It's a property
+                             of the branch rather than of any one checkout, so it sits above the cards; the
+                             same answer gates the remote-branch delete further down. No row at all when
+                             there's no open PR — or when gh couldn't be asked. -->
+                        <Border IsVisible="{Binding ShowPullRequestLink}" Background="{DynamicResource FidoHelperBg}"
+                                CornerRadius="9" Padding="12,8">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <!-- git pull-request glyph: a branch merging back into its base -->
+                                <Path Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"
+                                      Margin="0,0,9,0"
+                                      Stroke="{DynamicResource FidoHelperText}" StrokeThickness="1.8"
+                                      StrokeLineCap="Round" StrokeJoin="Round"
+                                      Data="M6,7 V17 M6,4 a3,3 0 1 1 -0.01,0 M18,10 a3,3 0 1 1 -0.01,0 M18,13 V17 a3,3 0 0 1 -3,3 H9 M12,17 L9,20 L12,23" />
+                                <TextBlock Grid.Column="1" Text="{Binding OpenPullRequestLabel}" FontSize="12.5"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding OpenPullRequestUrl}"
+                                           Foreground="{DynamicResource FidoHelperText}" />
+                                <Button Grid.Column="2" x:Name="BranchPrButton" Classes="prlink"
+                                        Click="OnOpenPullRequestClick" Content="Open pull request ↗"
+                                        ToolTip.Tip="{Binding OpenPullRequestUrl}" />
+                            </Grid>
+                        </Border>
+
                         <ListBox Classes="targets" ItemsSource="{Binding Targets}"
                                  SelectionMode="Single,AlwaysSelected"
                                  SelectedItem="{Binding SelectedTarget, Mode=TwoWay}">

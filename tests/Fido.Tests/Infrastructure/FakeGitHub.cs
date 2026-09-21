@@ -4,8 +4,9 @@ namespace Fido.Tests.Infrastructure;
 
 /// <summary>
 /// Scripts the <c>gh</c> CLI for tests without a real gh install — via the injectable runner on
-/// <see cref="GitHubCli"/>. <see cref="None"/> mimics "no open PR"; <see cref="Unavailable"/> mimics gh
-/// missing; <see cref="WithOpenPr"/> returns one open PR for any branch queried.
+/// <see cref="GitHubCli"/>. <see cref="None"/> mimics gh <em>answering</em> "no open PR";
+/// <see cref="Unavailable"/> mimics gh missing, which is "nobody could say" rather than "none";
+/// <see cref="WithOpenPr"/> returns one open PR for any branch queried.
 /// </summary>
 internal static class FakeGitHub
 {

@@ -64,6 +64,44 @@ screen.
 The line is purely informational: it never creates anything. Putting a branch **on disk** is still the
 **new worktree** card's job, reached by opening it.
 
+## The branch's pull request
+
+When a scan **finds the branch**, Fido also asks **GitHub** — through the **GitHub CLI (`gh`)** — whether
+that branch has a **pull request open**. If it does, a row appears above the result cards, naming the PR
+and linking to it:
+
+```text
+Discovery ──────────────────────────────────── ✓ 1 location
+ ⑂ PR #42 · Add the widget            Open pull request ↗
+```
+
+**Open pull request ↗** hands the URL to your browser; the flight log names it too, so the link survives
+the row scrolling out of view. The PR belongs to the **branch**, not to any one checkout, which is why the
+row sits **above** the cards rather than on one of them — every location shown is on the same branch and
+shares the same pull request.
+
+**Nothing is remembered between checks.** The question is asked again on **every scan that finds the
+branch**, and again when you **arm a delete** ([Worktrees](worktrees.md#deleting-a-worktree)) — so a PR
+opened, merged or closed since you last looked shows up as soon as Fido looks again, rather than being
+reported from a cached answer. Type a different branch and the row follows it; clear the box and it goes.
+
+**The check never holds anything up.** The cards are on screen and openable while GitHub is still being
+asked — the row appears when the answer lands — and the query has its own timeout, so an unreachable
+network can't freeze the screen.
+
+**All three outcomes are said out loud**, because they are not the same thing:
+
+| What the flight log says | What it means |
+| --- | --- |
+| `▸ Pull request #42 is open for 'feature/x' — <url>` | GitHub named an open PR; the row is up |
+| `▸ No open pull request for 'feature/x' on GitHub.` | GitHub answered — the branch has none |
+| `▸ Couldn't ask GitHub about pull requests for 'feature/x' — …` | `gh` isn't installed, isn't signed in, or the repo isn't on GitHub |
+
+That last case is **not** reported as "no pull request": with nobody to ask, Fido says so and shows no
+row, rather than implying the branch is clear. Everything else on the screen works exactly as it does
+with `gh` installed — the check is advisory, and the only thing it gates is the
+**remote-branch delete**.
+
 ## Cross-clone visibility
 
 Git enforces "one worktree per branch" only **within a single clone**. If you have two

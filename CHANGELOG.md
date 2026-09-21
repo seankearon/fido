@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fido tells you when the branch has a pull request open — and links to it.** Every scan that finds the
+  branch now asks **GitHub**, through the **GitHub CLI (`gh`)**, whether that branch has an open PR. One
+  that does gets a row above the result cards naming it — `PR #42 · Add the widget` — with an **Open pull
+  request ↗** button that hands the URL to your browser. The flight log names it too, so the link is still
+  there once the row has scrolled by. The pull request belongs to the **branch**, not to any one checkout,
+  which is why the row sits above the cards rather than on one of them.
+
+  **The answer is never cached — it is re-checked every time Fido checks.** Each scan asks again, and so
+  does **arming a delete**, which already had to ask in order to decide whether an open PR blocks deleting
+  the branch from `origin`. So a PR **merged** since you typed the branch stops blocking the delete and the
+  row clears; one **opened** since starts blocking it and the row appears — both from the check happening
+  in front of you, not from a remembered answer. Typing a different branch moves the row with it; clearing
+  the box takes it away.
+
+  **It never holds the screen up.** The lookup runs *behind* the landed results: the branch's locations are
+  on screen and openable while GitHub is still being asked, and the query keeps its own timeout, so an
+  unreachable network costs you nothing but the row.
+
+- **"No pull request" and "couldn't ask" are now different answers.** A `gh` that isn't installed, isn't
+  signed in, or is pointed at a remote that isn't GitHub used to be indistinguishable from a branch with no
+  PR — both simply produced nothing. The flight log now says which: `▸ No open pull request for
+  'feature/x' on GitHub.` when GitHub answered, and `▸ Couldn't ask GitHub about pull requests for
+  'feature/x' — the GitHub CLI (gh) isn't installed, isn't signed in, or this repo isn't on GitHub.` when
+  nobody could. Neither shows a row — but only one of them is a statement about your branch. The check
+  stays advisory throughout: with no `gh` on the machine, everything on the screen works exactly as before.
+
 ### Fixed
 
 - **A checkout that's behind no longer loses the branch's `.fido/cfg.yaml`.** The in-repo config was read

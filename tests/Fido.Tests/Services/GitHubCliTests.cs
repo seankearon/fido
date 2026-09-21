@@ -1,3 +1,4 @@
+using Fido.Models;
 using Fido.Services;
 
 namespace Fido.Tests.Services;
@@ -63,6 +64,42 @@ public class GitHubCliTests
             "[{\"number\":42.5,\"url\":\"u\",\"title\":\"t\"}]", "")));
 
         await Assert.That(await gh.FindOpenPullRequestAsync("/repo", "feature/x")).IsNull();
+    }
+
+    [Test]
+    public async Task Tells_a_definite_no_pull_request_apart_from_a_gh_that_could_not_answer()
+    {
+        // gh answering with an empty list is a genuine "none"…
+        var answered = new GitHubCli((_, _, _) => Task.FromResult(new ProcessResult(0, "[]", "")));
+        var none = await answered.LookUpOpenPullRequestAsync("/repo", "feature/x");
+        await Assert.That(none.Status).IsEqualTo(PullRequestLookupStatus.None);
+        await Assert.That(none.PullRequest).IsNull();
+
+        // …while every way of failing to answer is "nobody could say", never a false "none".
+        foreach (var cant in new[]
+                 {
+                     new GitHubCli((_, _, _) => Task.FromResult(new ProcessResult(127, "", "gh: command not found"))),
+                     new GitHubCli((_, _, _) => Task.FromResult(new ProcessResult(0, "not json at all", ""))),
+                     new GitHubCli((_, _, _) => Task.FromResult(new ProcessResult(0, "", ""))),
+                     new GitHubCli((_, _, _) => throw new InvalidOperationException("boom")),
+                 })
+        {
+            var lookup = await cant.LookUpOpenPullRequestAsync("/repo", "feature/x");
+            await Assert.That(lookup.Status).IsEqualTo(PullRequestLookupStatus.Unknown);
+            await Assert.That(lookup.PullRequest).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task Reports_an_open_pull_request_as_found()
+    {
+        var gh = new GitHubCli((_, _, _) => Task.FromResult(new ProcessResult(0,
+            "[{\"number\":42,\"title\":\"Add the widget\",\"url\":\"https://github.com/acme/app/pull/42\"}]", "")));
+
+        var lookup = await gh.LookUpOpenPullRequestAsync("/repo", "feature/x");
+
+        await Assert.That(lookup.Status).IsEqualTo(PullRequestLookupStatus.Open);
+        await Assert.That(lookup.PullRequest!.Number).IsEqualTo(42);
     }
 
     [Test]

@@ -581,6 +581,35 @@ public sealed class OpenerService
         return new WorktreeUpdate(WorktreeUpdateStatus.Failed, upstream, pull.Message);
     }
 
+    // --- Pull requests ------------------------------------------------------------------
+
+    /// <summary>
+    /// Asks GitHub whether <paramref name="branch"/> has an open pull request, from
+    /// <paramref name="mainPath"/> (a clone's main working tree, so <c>gh</c> resolves the repo from its
+    /// <c>origin</c> remote). The answer is never cached — every caller asks again, so what the screen
+    /// shows is what GitHub said this time round rather than what it said when the branch was typed.
+    /// <para>Narrated in one in-place flight-log line: the question while gh is being asked, then the
+    /// answer over the top of it. All three outcomes are said out loud, because "GitHub says there is no
+    /// open PR" and "gh couldn't be asked" are not the same thing to anyone deciding whether to delete a
+    /// branch.</para>
+    /// </summary>
+    public async Task<PullRequestLookup> FindOpenPullRequestAsync(
+        string mainPath, string branch, CancellationToken ct = default)
+    {
+        _liveLog($"Asking GitHub about open pull requests for '{branch}'…");
+        var lookup = await _gitHub.LookUpOpenPullRequestAsync(mainPath, branch, ct);
+
+        _liveLog(lookup switch
+        {
+            { PullRequest: { } pr } => $"▸ Pull request #{pr.Number} is open for '{branch}' — {pr.Url}",
+            { Status: PullRequestLookupStatus.None } => $"▸ No open pull request for '{branch}' on GitHub.",
+            _ => $"▸ Couldn't ask GitHub about pull requests for '{branch}' — "
+                 + "the GitHub CLI (gh) isn't installed, isn't signed in, or this repo isn't on GitHub.",
+        });
+
+        return lookup;
+    }
+
     // --- Worktree deletion --------------------------------------------------------------
 
     /// <summary>
@@ -613,7 +642,9 @@ public sealed class OpenerService
         var changes = await _git.GetStatusAsync(full, ct);
         var orphaned = await _git.CountOrphanedCommitsAsync(mainPath, branch, ct);
         // Only worth asking gh when there's a remote branch to delete; an open PR blocks that deletion.
-        var openPr = remoteExists ? await _gitHub.FindOpenPullRequestAsync(mainPath, branch, ct) : null;
+        // Asked fresh here rather than reusing whatever the scan found — the confirm strip must speak for
+        // the state of the PR now, not for the state it had when the branch was typed.
+        var openPr = remoteExists ? (await FindOpenPullRequestAsync(mainPath, branch, ct)).PullRequest : null;
         return new WorktreeDeletion(mainPath, full, branch, remoteExists, changes, orphaned, openPr);
     }
 
