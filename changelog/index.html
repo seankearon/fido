@@ -1,0 +1,1840 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Every release of Fido, newest first.">
+      
+      
+        <meta name="author" content="Sean Kearon">
+      
+      
+        <link rel="canonical" href="https://seankearon.github.io/fido/changelog/">
+      
+      
+        <link rel="prev" href="../building/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.ico">
+      <meta name="generator" content="zensical-0.0.63">
+    
+    
+      
+        <title>Changelog - Fido</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.10763589.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.812a03bb.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Fido" class="md-header__button md-logo" aria-label="Fido" data-md-component="logo">
+      
+  <img src="../assets/fido-icon.svg" alt="Fido">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fido
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun-moon" viewBox="0 0 24 24"><path d="M12 2v2M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/seankearon/fido" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    seankearon/fido
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Fido" class="md-nav__button md-logo" aria-label="Fido" data-md-component="logo">
+      
+  <img src="../assets/fido-icon.svg" alt="Fido">
+
+    </a>
+    Fido
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/seankearon/fido" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    seankearon/fido
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-rocket" viewBox="0 0 24 24"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Getting started
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Guide
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Guide
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/discovery/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Discovery
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/opening/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Opening a target
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/worktrees/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-trash-2" viewBox="0 0 24 24"><path d="M10 11v6M14 11v6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Deleting a worktree
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/tools/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-app-window" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M10 4v4M2 8h20M6 4v4"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Editors and tools
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/in-repo-config/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-cog" viewBox="0 0 24 24"><path d="M15 8a1 1 0 0 1-1-1V2a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8zM20 8v12a2 2 0 0 1-2 2h-4.182M3.305 19.53l.923-.382M4 10.592V4a2 2 0 0 1 2-2h8M4.228 16.852l-.924-.383M5.852 15.228l-.383-.923M5.852 20.772l-.383.924M8.148 15.228l.383-.923M8.53 21.696l-.382-.924M9.773 16.852l.922-.383M9.773 19.148l.922.383"/><circle cx="7" cy="18" r="3"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  In-repo config
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/interface/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-layout" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  The main screen
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/console/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-square-terminal" viewBox="0 0 24 24"><path d="m7 11 2-2-2-2M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  The Console tab
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/command-line/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-terminal" viewBox="0 0 24 24"><path d="M12 19h8M4 17l6-6-6-6"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Command line
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Settings
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/at-a-glance/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-table" viewBox="0 0 24 24"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  At a glance
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../screenshots/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Screenshots
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-hammer" viewBox="0 0 24 24"><path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9M18 15l4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Building
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        [Unreleased]
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Removed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        [Unreleased]
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Removed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Added
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+    <a href="https://github.com/seankearon/fido/edit/main/docs/changelog.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-pen" viewBox="0 0 24 24"><path d="M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to Fido are documented here.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong><code>prefer main clone</code> now works when a worktree holds the branch.</strong> git won't switch a main tree onto a
+  branch another worktree has checked out, so a branch that lived only in a worktree used to leave the
+  preference unhonoured, with nothing in the flight log but <code>No main clone among the results</code>. Fido now adds
+  a <strong>move to main clone</strong> card after the worktree and selects it, and the flight log says why the main
+  clone couldn't simply be picked. Opening the card <strong>asks first</strong>, inline, like a delete: <em>Move &amp; open…</em>
+  removes the worktree — the branch and its commits stay — then switches the main clone onto the branch
+  and carries on with the open you asked for. A worktree with uncommitted or untracked changes is never
+  removed (Fido doesn't force it), and changes in the main clone ride along with the switch, as the card
+  and the strip warn. Offered only when the branch's config prefers the main clone and no main tree is on
+  the branch already.</p>
+</li>
+<li>
+<p><strong>Fido tells you when the branch has a pull request open — and links to it.</strong> Every scan that finds the
+  branch now asks <strong>GitHub</strong>, through the <strong>GitHub CLI (<code>gh</code>)</strong>, whether that branch has an open PR. One
+  that does gets a row above the result cards naming it — <code>PR #42 · Add the widget</code> — with an <strong>Open pull
+  request ↗</strong> button that hands the URL to your browser. The flight log names it too, so the link is still
+  there once the row has scrolled by. The pull request belongs to the <strong>branch</strong>, not to any one checkout,
+  which is why the row sits above the cards rather than on one of them.</p>
+</li>
+</ul>
+<p><strong>The answer is never cached — it is re-checked every time Fido checks.</strong> Each scan asks again, and so
+  does <strong>arming a delete</strong>, which already had to ask in order to decide whether an open PR blocks deleting
+  the branch from <code>origin</code>. So a PR <strong>merged</strong> since you typed the branch stops blocking the delete and the
+  row clears; one <strong>opened</strong> since starts blocking it and the row appears — both from the check happening
+  in front of you, not from a remembered answer. Typing a different branch moves the row with it; clearing
+  the box takes it away.</p>
+<p><strong>It never holds the screen up.</strong> The lookup runs <em>behind</em> the landed results: the branch's locations are
+  on screen and openable while GitHub is still being asked, and the query keeps its own timeout, so an
+  unreachable network costs you nothing but the row.</p>
+<ul>
+<li>
+<p><strong>"No pull request" and "couldn't ask" are now different answers.</strong> A <code>gh</code> that isn't installed, isn't
+  signed in, or is pointed at a remote that isn't GitHub used to be indistinguishable from a branch with no
+  PR — both simply produced nothing. The flight log now says which: <code>▸ No open pull request for
+  'feature/x' on GitHub.</code> when GitHub answered, and <code>▸ Couldn't ask GitHub about pull requests for
+  'feature/x' — the GitHub CLI (gh) isn't installed, isn't signed in, or this repo isn't on GitHub.</code> when
+  nobody could. Neither shows a row — but only one of them is a statement about your branch. The check
+  stays advisory throughout: with no <code>gh</code> on the machine, everything on the screen works exactly as before.</p>
+</li>
+<li>
+<p><strong>The release build can sign the macOS disk image with a Developer ID and notarize it.</strong> Until now the
+  <code>.dmg</code> was only ad-hoc signed, so a Mac that downloaded it said Apple <em>could not verify "Fido" is free of
+  malware</em>, and since macOS 15 right-click → Open no longer gets past that. Put five <code>MacSigning__*</code> keys
+  in <code>appbuild.env</code> (the Developer ID Application <code>.p12</code> and its password, the Team ID, and the Apple
+  Account and app-specific password that submit to Apple's notary service) and Parcel signs the app with
+  the hardened runtime, notarizes it and staples the ticket to the <code>.dmg</code>, all from the Windows release
+  machine. The Verify stage opens the certificate first and stops the build if Apple wouldn't notarize it:
+  the wrong type (an <em>Apple Development</em> certificate is the usual culprit), no private key, the wrong team
+  or out of date. Without the keys, the <code>.dmg</code> is ad-hoc signed as before, and <code>release.ps1</code> says so in its
+  plan. Setup is in <em>Building Fido → Signing and notarization</em>. <em>Getting started</em> now explains how to open a
+  build that isn't notarized.</p>
+</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>A branch still using <code>run files</code> / <code>aspire start</code> now says so.</strong> <code>commands</code> replaced both, and a branch
+  cut before its repo's <code>.fido/cfg.yaml</code> moved over kept the old keys — which Fido quietly ignored, so the
+  Console run menu came up empty with nothing in the flight log to say why. The flight log now names the
+  retired settings and points at <code>commands:</code>. An old starter file left at its defaults still asks for
+  nothing and is still passed over.</p>
+</li>
+<li>
+<p><strong>A checkout that's behind no longer loses the branch's <code>.fido/cfg.yaml</code>.</strong> The in-repo config was read
+  only out of the folder in front of you (or off the local branch ref), so a worktree made <em>before</em> the
+  config landed on the branch had nothing to find — no run menu, no <code>prefer main clone</code>, and not a word
+  about why. Since a merge or a teammate's push can put the file on a branch long after your worktree was
+  made, whether Fido "picked the config up" came down to how fresh your copy happened to be.</p>
+</li>
+</ul>
+<p>There are now <strong>three copies and a fixed order</strong>, and Fido says which one answered:</p>
+<ol>
+<li><strong>A local edit</strong> — the file in the working tree with changes that aren't committed. What you're
+     writing right now still wins outright.</li>
+<li><strong>The copy on <code>origin</code></strong>, whenever it differs from the one this machine has. The flight log says
+     <code>Read from origin/&lt;branch&gt; — the copy here is missing or out of date</code>, because the tree your commands
+     will run in hasn't caught up with the settings offering them.</li>
+<li><strong>The local copy</strong> — the committed file in the tree, or the branch ref's for a branch checked out
+     nowhere.</li>
+</ol>
+<p>A copy that <strong>asks for nothing counts as no file at all</strong>, so it never shadows the one below it: the
+  starter file the create button writes can't mask the settings the branch really carries. Reads stay on
+  <strong>what this machine already has</strong> — the working tree and the tracking refs as last fetched — because a
+  scan runs on a keystroke and must never go to the network; fetch and press <strong>Enter</strong> to pick up
+  something pushed since. Placing a branch re-reads the tree it just created, which is how a branch this
+  clone had <strong>never fetched</strong> turns up with its config in one go rather than needing a second scan.</p>
+<ul>
+<li><strong>A branch with no in-repo config now says so.</strong> <code>No .fido/cfg.yaml on 'feature/x' — nothing here, and
+  nothing on origin/feature/x as last fetched</code> — because "looked, found nothing" and "never looked" are
+  not the same thing to anyone wondering where their run menu went.</li>
+</ul>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>A theme toggle in the header, left of the gear.</strong> A <strong>sun/moon</strong> button that flips the screen between
+  <strong>light</strong> and <strong>dark</strong> — and flips <strong>this run only</strong>. The <strong>Theme</strong> preference in Settings is untouched,
+  so it is still <strong>System</strong>, <strong>Light</strong> or <strong>Dark</strong> exactly as you left it, and the next launch comes up in
+  it. The button for the sun coming round onto the desk at four o'clock, in other words, rather than for
+  changing your mind — saving in Settings still takes back over.</li>
+</ul>
+<p>The glyph offers the theme a press would <strong>give</strong> you rather than the one you are in: a <strong>moon</strong> on the
+  light theme, a <strong>sun</strong> on the dark one. Under <strong>System</strong> it reads the variant actually on screen, not the
+  preference, so one press is always enough to leave a system-dark desktop — and a <strong>cancelled</strong> Settings
+  dialog puts back what you were looking at rather than quietly reverting the flip.</p>
+<p>The whole screen follows, the <strong>Console tab</strong> included — and it turns over <strong>mid-run</strong>: a shell still
+  running repaints on the spot, scrollback and all, with its live prompt still under it.</p>
+<ul>
+<li><strong>The Console tab follows the theme out of the box.</strong> Its ground used to be a fixed black whatever the
+  rest of Fido was wearing, so a light Fido meant a black box sitting in a cream window — and a theme
+  change didn't touch it. Now the ground goes the right way up with the theme: <strong>black on white</strong> when
+  Fido is light, <strong>white on black</strong> when it is dark.</li>
+</ul>
+<p>The <strong>terminal's own sixteen ANSI colours are still what you get</strong> — that part of
+  <a href="https://seankearon.github.io/fido/reference/settings/"><em>Colour the Console tab to match</em></a> is unchanged
+  and still off by default. The setting picks between the <strong>plain</strong> colours and <strong>Fido's</strong>, which is what
+  it always meant; it was never meant to pick between a console that follows the theme and one that
+  ignores it. The <strong>contrast floor</strong> that already kept 256-colour output readable on cream now does the
+  same job for those sixteen on a white ground — every one of them was chosen against black. Untick the
+  setting again and the emulator's own sixteen come straight back, rather than leaving Fido's last word
+  in place.</p>
+<ul>
+<li><strong>Fido has a console of its own.</strong> The panel at the foot of the main screen now carries two tabs.
+  <strong>Flight log</strong> is the narration it always was; <strong>Console</strong> is a real shell at the selected location,
+  running inside Fido. Its <strong>Run</strong> menu — at the right of the tab rule, where the log keeps its copy and
+  save buttons — leads with a plain <strong>shell here</strong> and then lists whatever the branch's <code>.fido/cfg.yaml</code>
+  nominated, with <strong>Edit <code>.fido/cfg.yaml</code>…</strong> at the foot.</li>
+</ul>
+<p><strong>A pseudo-terminal, not a pipe</strong>, because the output is the entire point of running something here.
+  Everything that checks <code>isatty</code> — which is most build tooling — keeps its colour and progress
+  rendering; anything that prompts has somewhere to type; <strong>Ctrl+C</strong> reaches the program. And the shell
+  stays interactive when the command finishes, so a <strong>script that fails leaves its output on screen with
+  a live prompt underneath</strong> rather than taking it away with the exit code.</p>
+<p>Nothing starts until you open the tab — the tab is what asks for a shell, so having it there costs
+  nothing. A pick replaces what's running with a fresh shell rather than typing into the live one (the
+  folder may have changed with the selection, and a shell mid-command would swallow it), switching to
+  the Console tab first if you started from the flight log. Switching tabs doesn't kill it: the pane is
+  kept loaded, and its scrollback is the record of what just ran. A run in the tab never triggers
+  <strong>close after opening</strong>, however that is set — nothing was handed over, and the output is right here.
+  Closing Fido stops the shell rather than orphaning it.</p>
+<p><strong>The shell is the one you'd expect.</strong> Windows: PowerShell 7 when it's installed, else the in-box
+  Windows PowerShell, with <code>-NoExit</code> keeping the prompt. macOS and Linux: your login shell from <code>SHELL</code>,
+  started interactive so your rc file, prompt and aliases are the ones you know. The command conventions
+  are shared with the launch path — a <code>.ps1</code> to PowerShell, a root <code>.sh</code> as <code>./name</code> — so a command
+  behaves the same whichever console it lands in. One Windows wrinkle is handled here and nowhere else:
+  PowerShell won't look in the current directory for something it is asked to run, so a script in the
+  tree root is made explicitly relative (<code>&amp; ./build.ps1</code>) instead of coming back <em>"not recognized as the
+  name of a cmdlet…"</em> while you stand in the very folder that holds it.</p>
+<p><strong>Its sixteen colours are the terminal's own</strong>, which is what a console is expected to look like, and
+  <strong>Settings → Theme → Colour the Console tab to match</strong> swaps them for Fido's palette — the flight
+  log's own greens and ambers, with a contrast floor for the 256-colour output no palette can speak for.
+  Either way the ground follows the theme, and a change repaints the shell already running.</p>
+<ul>
+<li><strong>Links in the Console tab open in your browser.</strong> A URL the console prints — a dev server's
+  <code>http://localhost:5173</code>, the pull-request link <code>git push</code> answers with, a CI build's report — is now a
+  link you can follow. Hovering one underlines it and turns the pointer into a hand; <strong>Ctrl+Click</strong>
+  opens it in your default browser, the gesture every other terminal uses. A plain click still selects
+  text, so nothing you could do before has changed meaning.</li>
+</ul>
+<p>Two kinds of link count: text that <strong>reads</strong> as a URL (<code>http://…</code>, <code>https://…</code>, with any trailing
+  <code>.</code> or <code>)</code> left out of it), and one a program <strong>declares</strong> with an OSC 8 escape — where the text on
+  screen says "view the report" and the URL rides along in the escape sequence. Both wrap across lines
+  without breaking.</p>
+<p><strong>Only <code>http</code> and <code>https</code> go anywhere</strong>, and the flight log names what went: <code>▸ Opening
+  https://… in your browser</code>. That matters most for the declared kind, which needn't show its target at
+  all — the log is where you get to read what your click actually opened. Anything else is refused out
+  loud (<code>⚠ Not opening file:///… — the console only follows http and https links.</code>), because "open" on
+  Windows means handing the string to the shell, and a scheme other than the web's can be a registered
+  program rather than a page. A refusal that said nothing would just read as a click that missed.</p>
+<ul>
+<li>
+<p><strong>A setting for where a run-menu pick lands.</strong> <strong>Settings → Before running → Run it in Fido's Console
+  tab</strong> <em>(off by default)</em> decides what the <strong>Console button's</strong> run menu does: hand the command to the
+  terminal you have configured, as it always has, or run it in the Console tab. It governs that menu
+  only — the Console button itself still opens your terminal, and the Console tab's own Run menu always
+  runs in the pane, since driving that pane is what it is for.</p>
+</li>
+<li>
+<p><strong>The branch box now lists the worktree folders that branch already has on disk.</strong> Type a branch and
+  the folders holding a worktree for it appear underneath — one row each, with a button to <strong>copy</strong> the
+  path and a button to <strong>open it in File Explorer / Finder</strong>. Where to look is the <em>same rule Fido
+  creates worktrees by</em>, not a second answer to the same question: both go through one <code>WorktreePath</code>
+  helper, so what is shown and what would be created can't drift apart.</p>
+</li>
+</ul>
+<p><strong>A folder counts even when no repo has the branch</strong> — that is the point. A folder sitting at
+  <code>&lt;repo&gt;.worktrees/&lt;branch&gt;</code> while discovery reports "no working tree or clone has it" is a leftover, or
+  a tree since switched to another branch, and it is exactly what you want pointed out when you type the
+  name again. There is no git in this check, just a folder. Equally, when the branch has no folder
+  anywhere the line <strong>says nothing at all</strong>: it reports what is there, never what could be.</p>
+<p><strong>How many rows depends on where your worktrees live.</strong> With a <strong>worktree root</strong> configured every
+  branch lands under that one root whatever repo it belongs to, so there's at most one row, no repo
+  named, answered <strong>as you type</strong> with no scan at all. Without one, a worktree is a sibling of its clone,
+  so each clone that has a folder for the branch gets its own row, labelled with the repo. Those clones
+  come from the discovery scan and are <strong>branch-independent</strong>, so they're kept after the scan that found
+  them and every later branch answers instantly.</p>
+<p>Opening a row whose folder has been deleted since it was drawn falls back to the nearest folder above
+  it, with the flight log naming which, rather than failing at a path still on screen. The line only ever
+  <em>reports</em>: putting a branch on disk is still the <strong>new worktree</strong> card's job.</p>
+<ul>
+<li><strong>A run command now starts from an up-to-date tree.</strong> Picking a script or <code>aspire start</code> from the
+  <strong>Console run menu</strong> fast-forwards the target onto <code>origin</code> before the console opens, so what runs is
+  what the branch actually has. The flight log narrates it (<code>Pulling origin/feature/x…</code>) and the console
+  follows straight after. It happens at the one point where <strong>every</strong> kind of card has become a folder on
+  disk, so a worktree Fido created a second ago takes exactly the same path as one that's been there for
+  weeks — which matters, because a new worktree <em>isn't</em> automatically current: when the branch already
+  exists locally, <code>git worktree add</code> checks out that local ref, however far behind it is.</li>
+</ul>
+<p><strong>It only ever fast-forwards, and it never withholds the console.</strong> A <strong>diverged</strong> branch is refused and
+  reported — reconciling one is your call, not Fido's — and the console opens on the tree as it stands. A
+  branch that <strong>tracks nothing</strong> (local-only, never pushed) and a <strong>detached HEAD</strong> are skipped with a line
+  saying so, not flagged as failures. A <strong>dirty tree</strong> isn't pre-checked: git fast-forwards fine when your
+  edits aren't in the way, and refuses with a better message than Fido could write when they are. And an
+  <strong>unreachable <code>origin</code></strong> costs you nothing but a log line. Only a <em>run command</em> triggers it — opening a
+  folder to look at it doesn't move the tree under you — and the new <strong>Settings → Before running</strong> switch
+  (<strong>on</strong> by default, and on for configs written before it existed) turns it off.</p>
+<ul>
+<li><strong>A repo can now configure Fido for itself, in <code>.fido/cfg.yaml</code> on the branch.</strong> Commit a <strong><code>.fido</code></strong>
+  folder at the root of your repo and Fido reads its <strong><code>cfg.yaml</code></strong> from whichever branch a scan just
+  found — <strong>before</strong> the checkout options go up — so a solution can say how it prefers to be opened:
+  <strong><code>prefer main clone</code></strong> decides <strong>which checkout Fido offers by default</strong> once it has scanned — the
+  clone's own working tree rather than a worktree (or, for a branch checked out nowhere, the <em>switch the
+  main tree</em> offer); it directs the choice, never the scan, so every location on the branch is still
+  found and listed, each one click away. <strong><code>commands</code></strong> is an ordered list of command lines — whatever
+  you'd type in a terminal at that location (<code>build.ps1</code>, <code>aspire start</code>, <code>npm run dev</code>) — and each one
+  becomes an entry in a new <strong>drop-down beside the Console button</strong>, taken as written rather than
+  resolved as a file name. Picking an entry opens the console at the <strong>selected</strong> location and runs the
+  command there — a <code>.ps1</code> via PowerShell, a root <code>.sh</code> as <code>./name</code>, anything else via the
+  platform's shell — leaving the window open so you can read the output. On Windows, a console that <em>is</em> a
+  shell is used exactly as configured, while one that merely <strong>hosts</strong> a shell (Windows Terminal, or a
+  third-party emulator) gets the best on the machine: <strong><code>pwsh</code> first</strong>, then Windows PowerShell. A host
+  console says nothing about which shell it wants, and the difference is not cosmetic — a tool your
+  PowerShell profile puts on <code>PATH</code> is "not recognized" under <code>cmd</code>, and Windows PowerShell's default
+  execution policy refuses <code>.ps1</code> files outright. <code>cmd</code> is never chosen for you, only honoured when you
+  configured it, and a <code>.ps1</code> overrides even that. <strong>Nothing ever runs by itself:</strong>
+  the menu only offers. The file is read from the working tree when the branch is checked out (so an
+  uncommitted edit counts) and straight off the branch — <code>origin/&lt;branch&gt;</code> included — when it isn't, so
+  it applies to a placement offer too. Keys are forgiving about case, spaces, dashes and underscores;
+  comments, quotes and inline lists are understood; and a missing, unreadable or unfamiliar file costs
+  only itself — never the scan.</li>
+</ul>
+<p><strong>Setting a repo up doesn't mean hand-writing YAML:</strong> the <strong>OPEN</strong> strip has a new <strong>document button</strong>
+  beside the copy-path icon (and the run menu a matching <strong>Edit <code>.fido/cfg.yaml</code>…</strong> row) that creates the
+  file in the selected location and opens it in your default tool. What it writes is a <strong>form, not a
+  switch</strong>: every setting present at its default, with the tree's own root scripts named in a comment so
+  the commands list can be filled in without going looking — so until you edit it, the next scan still
+  reads <em>no in-repo config</em>. An existing file is only ever <strong>opened, never overwritten</strong>, and Fido does
+  <strong>not</strong> stage or commit it: what lands in the repo's history stays your call, as with every other git
+  action here. The button is absent for a placement offer — there's no working tree on disk to write
+  into until you open it.</p>
+<ul>
+<li>
+<p><strong>The window title names the work once discovery resolves it.</strong> With a branch resolved, the title bar —
+  and so the taskbar button and <code>Alt</code>+<code>Tab</code> — reads the selected card's repo and the branch on their own:
+  <code>platform · feature/new-ui</code>, with no <code>Fido</code> in front, so a screenful of Fido windows can finally be told
+  apart. The title <strong>follows the selection</strong>, swapping repo names as you pick between the cards of
+  a multi-location result, and falls back to plain <code>Fido</code> whenever nothing is resolved — before the first
+  scan, mid-scan, for a branch found nowhere, or when the branch box is cleared. New <strong>Settings → Window
+  title</strong> switch (<strong>on</strong> by default, and on for configs written before it existed) turns the renaming off
+  for anyone who wants the title to stay put.</p>
+</li>
+<li>
+<p><strong>A worktree delete that goes part-way now says so honestly — and offers a Retry.</strong> The three things a
+  delete removes (the worktree, the local branch, the branch on <code>origin</code>) are attempted and reported
+  <strong>separately</strong>: a step that fails no longer abandons the ones after it, and the flight log's closing line
+  names exactly what went and what didn't. A target that had <strong>already gone</strong> — a branch the server dropped
+  on merge, a folder cleared by hand, a worktree git no longer knows about — is reported as <strong>done</strong> rather
+  than as an error (<em>"✓ Removed worktree &amp; branch <code>feature/x</code> — origin/feature/x was already gone."</em>); a <code>⚠</code>
+  is now spent only on something you asked for that is genuinely <strong>still there</strong>. Previously a
+  <code>git push --delete</code> that came back with <em>"remote ref does not exist"</em> was reported as a failure even
+  though the worktree and local branch had been removed cleanly and the branch was, in fact, gone from
+  <code>origin</code>. Anything that does survive the delete gets an inline <strong>Retry</strong> strip — what's left, git's own
+  words for why, and <strong>Retry</strong> / <strong>Dismiss</strong>. Retrying re-runs <strong>only the outstanding step</strong> (a worktree and
+  branch that already went are not touched again) and the report that follows covers the whole attempt. The
+  strip outlives the card you just deleted; <strong>Esc</strong> or <strong>Dismiss</strong> drops the offer without touching anything
+  on disk, and a fresh scan clears it as stale.</p>
+</li>
+<li>
+<p><strong>The flight log grows with the window, and its text can be copied or saved.</strong> Drag Fido taller and
+  every spare pixel now goes to the <strong>flight log</strong> instead of to a gap above it — the upper section
+  keeps the room its content needs and the log takes the rest; shrink the window and the log falls back
+  to its compact box while the upper section scrolls as before. Two new buttons on the <strong>Flight log</strong>
+  rule lift the narration out: <strong>copy</strong> puts the whole log (every line, not just the visible ones) on
+  the clipboard as plain text, and <strong>save</strong> writes it to a text file you pick, suggesting a dated name
+  like <code>fido-flight-log-20260806-142317.txt</code>. Both are disabled until there's something to hand over,
+  and both confirm themselves in the log.</p>
+</li>
+<li>
+<p><strong>Copy the selected working-tree path to the clipboard.</strong> The OPEN strip now has a small <strong>copy
+  button</strong> beside the path, and the ellipsised card and strip paths carry a <strong>tooltip with the full
+  path</strong> — so a long worktree path (previously truncated and un-selectable) can be read in full and
+  grabbed in one click. The copy is confirmed in the flight log.</p>
+</li>
+<li>
+<p><strong>Optionally delete the remote branch when deleting a worktree.</strong> The inline delete confirm strip
+  now offers an opt-in <strong><em>Also delete the remote branch <code>origin/&lt;branch&gt;</code></em></strong> checkbox — shown only when
+  the branch exists on <code>origin</code>, and <strong>unticked by default</strong> so the remote is never removed unless you
+  ask. <strong>An open pull request blocks it:</strong> when the <strong>GitHub CLI (<code>gh</code>)</strong> reports a PR open for the
+  branch, the checkbox is disabled and the strip names the PR (<code>PR #42 · &lt;title&gt;</code>) with an <strong>Open pull
+  request ↗</strong> link to open it in the browser — close or merge it first. PR detection degrades
+  gracefully: if <code>gh</code> isn't installed, isn't authenticated, or the remote isn't GitHub, the option is
+  simply offered without a PR note. The confirmed delete still removes the worktree and the <strong>local</strong>
+  branch as before; the flight log notes the origin branch when it was deleted.</p>
+</li>
+<li>
+<p><strong>The header now says which Fido you are running.</strong> The version sits beside the <strong>fido</strong> wordmark in
+  small, muted type — <code>v0.9.3</code>, on the wordmark's own baseline — so answering <em>"which build is this?"</em>
+  no longer means going to the installed-programs list or the exe's properties. The number is read from
+  the <strong>running assembly</strong> rather than from a file next to it, so it names what is actually running, and
+  a source-linked build's <code>+&lt;commit&gt;</code> suffix is dropped to keep the badge to a version. An ordinary
+  build (the IDE, CI, <code>dotnet run</code>) now takes that version from <strong><code>ver.txt</code></strong> — the same single source a
+  release stamps from — instead of carrying the SDK's <code>1.0.0</code> placeholder into the header.</p>
+</li>
+</ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>No git command Fido runs can hang the app any more.</strong> Every one is now started with git's own
+  prompting disabled (<code>GIT_TERMINAL_PROMPT=0</code>, no askpass helper, and <code>ssh -o BatchMode=yes</code> unless you've
+  set <code>GIT_SSH_COMMAND</code> yourself), so a repo git can't authenticate to fails in milliseconds with a message
+  in the flight log instead of sitting forever on a prompt that — with the console window hidden and the
+  pipes redirected — had nowhere to appear. (A credential helper that shows its <strong>own</strong> window is left
+  alone: you can see and answer that one, and disabling helpers would break every private-repo fetch.)
+  A <strong>five-minute backstop</strong> catches anything that wedges anyway — set well clear of what a big first fetch
+  can legitimately take, since killing a real transfer part-way is worse than waiting for it — and a
+  cancelled command is now <strong>killed along with everything it spawned</strong> rather than abandoned: discovery
+  re-runs on every keystroke, so a stranded <code>git</code> per keystroke was a real prospect.
+  This applies to the whole of Fido's git usage, not just the new pre-run fast-forward. Nothing it accepts
+  changes — <code>BatchMode</code> makes ssh <em>refuse</em> where it used to ask, never trust something it wouldn't have.</p>
+</li>
+<li>
+<p><strong>The main screen was redesigned around inline discovery</strong> (per the Claude Design handoff in
+  <code>design/design_handoff_fido_redesign</code>) — one window, one screen, no auto-popping dialogs:</p>
+</li>
+<li><strong>Discovery is the core loop.</strong> Typing a branch name (debounced, or Enter to fire immediately)
+    scans every configured working tree and clone for where that branch is checked out. Results render
+    <strong>inline as selectable cards</strong> — each labelled <strong>worktree</strong> or <strong>main clone</strong> (worktrees first, the
+    first auto-selected) with its repo, solution count, and last-updated age. The separate "Open from
+    branch folder" window and the multi-checkout chooser dialog are gone.</li>
+<li><strong>A branch checked out nowhere is offered as inline placement cards.</strong> When no working tree has
+    the branch, discovery consults the scanned clones' refs — a local branch, the cached <code>origin</code>
+    tracking ref, or (as a last resort) one live <code>ls-remote</code> sweep, so a branch a teammate or cloud
+    session pushed after your last fetch is still found. Each clone that has it offers <strong>two cards</strong>:
+    a <strong>new worktree</strong> (leads, auto-selected) showing where the worktree would be created, and a
+    <strong>switch clone</strong> that moves the clone's main tree onto the branch — with the old decision dialog's
+    dirty-tree warning right on the card when uncommitted changes would ride along. <strong>Opening performs
+    the placement first</strong> (fetching and tracking the remote ref when needed) and then launches —
+    the decision-dialog flow, minus the dialog. Placement cards preview the clone's solutions as
+    chips and are never deletable.</li>
+<li><strong>Open actions stay locked until discovery succeeds.</strong> The hero button and tool grid are always on
+    show but enabled only when the branch was <strong>found</strong> — with a one-line reason (idle / scanning /
+    not found) in their place until then. Nothing opens before discovery resolves.</li>
+<li><strong>The default tool is a hero button, not a hard-coded Rider.</strong> Whatever config or the CLI sets
+    drives the full-width amber <strong>Open in &lt;tool&gt;</strong> button; the remaining tools sit in a
+    three-column grid with their <code>Ctrl+1…9</code> accelerators. Choosing <strong>no default</strong> (new ⚙ popover
+    option, or <code>--tool none</code>) renders every tool at equal weight.</li>
+<li><strong>The Solution/Folder toggle is gone; behaviour is inferred per tool.</strong> Rider and Visual Studio
+    open the <strong>chosen solution chip</strong> (<code>*.sln</code>/<code>*.slnx</code>/<code>*.slnf</code> detected per target; the Solution box
+    now <strong>filters</strong> the chips); WebStorm, VS Code, Zed, Console, and File Explorer always open the
+    folder. A <strong>Folder</strong> chip opens the working tree itself (<code>--folder</code> starts the run on it).</li>
+<li><strong>Delete moved to the main screen.</strong> "Delete worktree &amp; branch" sits under the open actions,
+    enabled only when the selected target is a <strong>linked worktree</strong> on a non-default branch. Clicking it
+    swaps the button for an <strong>in-place two-step confirm</strong> that spells out the worktree path and branch
+    — plus uncommitted-change and orphaned-commit warnings — with Cancel/Delete (Esc backs out; Enter
+    never deletes). The confirmed delete removes the worktree and its <strong>local</strong> branch; the branch on
+    <code>origin</code> is never touched. The "filename too long" recovery (permanent, Recycle-Bin-bypassing
+    folder delete) still offers itself when git can't remove the folder.</li>
+<li><strong>The ⚙ gear opens a default-tool popover</strong> (radio list incl. <em>No default (equal weight)</em>, with a
+    note that a <code>--tool</code> launch flag overrides it per run) and an <strong>All settings…</strong> door to the full
+    settings dialog.</li>
+<li><strong>CLI:</strong> <code>fido &lt;branch&gt; [tool]</code>, <code>--branch/-b</code>, <code>--solution/-s</code> (chip filter), and <code>--tool/-t</code>
+    (<code>--editor/-e</code> still accepted) which also takes kind aliases (<code>webstorm</code>, <code>vscode</code>, <code>explorer</code>, …)
+    and <code>none</code>. A CLI-supplied branch <strong>prefills and scans</strong>; naming a tool makes it the run's hero and
+    <strong>auto-opens only when discovery finds exactly one location</strong> — with several, the choice is always
+    presented, never auto-popped. An unknown tool id is reported (with the known ids) and never guessed.</li>
+<li><strong>A warm, cream-and-amber look.</strong> The handoff's palette is now the Light theme verbatim — canvas
+    <code>#FBF9F3</code>, amber <code>#F4A62A</code> accents, worktree/main-clone colour coding, red-outline danger styling —
+    with the Dark theme re-derived in the same warm hues, anchored on the logo tile. The flight log
+    keeps the FIDO aviation voice, now colour-coded per line kind (accent/ok/warn/muted/plain), and the
+    window height hugs its content.</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>An existing worktree outside the search roots is now detected and offered to open.</strong> Discovery
+  used to recognise a branch's checkout only where the folder itself sat under a configured search
+  root, so a worktree kept in a central directory, nested past the scan depth, or created inside the
+  main clone went unseen — and Fido offered to <strong>create</strong> a new worktree instead, which git rejected
+  with <em>"<code>&lt;branch&gt;</code> is already used by worktree at …"</em>. Discovery now asks git itself
+  (<code>git worktree list</code>) for each scanned clone's worktrees, so any checkout of the branch — wherever
+  it lives on disk — is surfaced as an openable <strong>worktree</strong> (or <strong>main clone</strong>) card.</li>
+</ul>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>The chooser, decision, and delete-worktree dialogs</strong> — inline discovery, the target cards, and the
+  in-place delete confirm replace all three. Both decision-dialog placement options live on as the
+  inline <strong>new worktree</strong> / <strong>switch clone</strong> cards (above). The Settings section for <strong>New-branch
+  repos</strong> is gone — placement candidates now come from the clones discovery already scans, so there's
+  no separate list to maintain (a configured list is preserved on disk, unused).</li>
+</ul>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>Delete a worktree, its branch, and the remote branch — from the branch-folder chooser.</strong> When
+  branch-only mode locates a <strong>linked worktree</strong> on a branch, the <strong>"Open from branch folder"</strong> dialog now
+  offers a <strong>Delete worktree &amp; branch</strong> button beside the open choices (and it's reachable even when there's
+  nothing to open — a folder-only editor, or a worktree with no solution file). Clicking it shows a
+  confirmation dialog with a <strong>checkbox for each present target</strong> — the worktree, its local branch, and the
+  branch on <code>origin</code> — <strong>ticked by default</strong>, so you can untick any to keep it (keeping the worktree disables
+  deleting its branch, since a checked-out branch can't be removed). The dialog adds <strong>explicit data-loss
+  warnings</strong> when the worktree has <strong>uncommitted changes</strong> or the branch carries <strong>commits that exist nowhere
+  else</strong> (unpushed and unmerged — <code>git branch -D</code> would orphan them). Once confirmed, Fido carries out exactly
+  the ticked targets — <strong>removing the linked worktree, deleting the local branch, and deleting the branch on
+  <code>origin</code></strong>. The work runs from the clone's main tree (so the worktree is dropped cleanly),
+  a dirty worktree is force-removed after the warning, and a failed remote delete leaves the completed local
+  cleanup in place and reports it. Each git step is <strong>retried on transient failures</strong> — a worktree file still
+  held by an editor or antivirus scan, a racing git ref <code>.lock</code>, or a network blip deleting the branch on
+  <code>origin</code> — a few times with backoff (narrated in the flight log) before it counts; permanent refusals
+  (<code>use --force</code>, <code>remote ref does not exist</code>) still fail fast. Git's worktree commands run with <strong>long-path
+  support</strong> (<code>core.longpaths</code>) so a deep tree that crosses Windows' 260-character <code>MAX_PATH</code> limit (deep
+  <code>node_modules</code>, generated output) can still be created and removed. If git <strong>still</strong> can't delete the folder,
+  Fido <strong>offers to delete it permanently from disk</strong> — a recursive removal that <strong>bypasses the Recycle Bin</strong>
+  (using an extended-length path so it isn't stopped by the same limit) — and then prunes git's now-dangling
+  worktree registration so the branch can be deleted too. The button is offered <strong>only for a linked worktree on a non-default branch</strong>
+  — the clone's main working tree can't be worktree-removed, and <code>main</code>/<code>master</code> are deliberately never
+  offered. Nothing is deleted unless you confirm; Cancel, Enter, and Esc all back out safely, and the
+  destructive button is out of the keyboard tab order so it can't be triggered by a stray keypress.</p>
+</li>
+<li>
+<p><strong>Open the folder in a console or the file explorer.</strong> Two new built-in open targets sit alongside the
+  editors: <strong>Console</strong> (slug <code>term</code>) opens a terminal at the resolved folder, and <strong>File Explorer</strong> (slug
+  <code>files</code>) reveals it in the OS file manager. Both work on <strong>Windows, macOS, and Linux</strong> — Console finds
+  Windows Terminal / PowerShell / <code>cmd</code>, macOS <strong>Terminal</strong>, or a Linux terminal emulator
+  (<code>x-terminal-emulator</code>, <code>gnome-terminal</code>, <code>konsole</code>, <code>xterm</code>, …); File Explorer uses Explorer, Finder
+  (<code>open</code>), or <code>xdg-open</code>. Like every other target they get a <strong>secondary button</strong>, a <strong>Ctrl+1 … Ctrl+9</strong>
+  shortcut, and a <strong>command-line slug</strong> — so <code>fido feature/new-ui term</code> drops you into a terminal on that
+  branch and <code>fido feature/new-ui files</code> opens its folder. Both always hand over the <strong>folder</strong> (never a
+  <code>.sln</code>), and the <strong>terminal program is configurable</strong>: pick the <strong>Console</strong> / <strong>File Explorer</strong> kind for an
+  editor row in Settings and set its path (blank = the OS default) to use a specific terminal or file manager.
+  Existing configs are migrated forward once on load — Console and File Explorer are <strong>appended</strong> to the
+  editor list, preserving your existing order and default.</p>
+</li>
+<li>
+<p><strong>Solution filters (<code>.slnf</code>).</strong> Fido now detects Visual Studio <strong>solution filter</strong> files alongside
+  <code>.sln</code>/<code>.slnx</code>, so a filtered subset of a solution shows up in the "which solution?" chooser and can
+  be handed straight to the editor (Rider, Visual Studio, etc. open <code>.slnf</code> directly). When a filter
+  sits beside a same-named full solution, the full <code>.sln</code>/<code>.slnx</code> still wins as the repository's primary
+  target — the filter is offered as an additional choice, never a replacement.</p>
+</li>
+<li>
+<p><strong>Open in WebStorm.</strong> <a href="https://www.jetbrains.com/webstorm/">JetBrains <strong>WebStorm</strong></a> is now a built-in
+  editor kind (slug <code>ws</code>), auto-detected on <code>PATH</code>, in <code>%LOCALAPPDATA%\Programs\WebStorm</code>, the JetBrains
+  <strong>Toolbox</strong> apps/shim, and <code>Program Files\JetBrains\WebStorm *</code> (macOS <code>/Applications</code>, <code>~/Applications</code>,
+  Toolbox bundles/shim). Because WebStorm only understands a project folder, it's <strong>folder-only</strong>: Fido
+  always hands it the repo folder — ignoring the Solution/Folder toggle and skipping the "which solution?"
+  chooser — rather than a <code>.sln</code>/<code>.slnx</code>. Existing configs are migrated forward once on load: WebStorm is
+  <strong>appended</strong> to the editor list (preserving your existing editor order and default), so it appears after
+  an upgrade without overwriting your settings.</p>
+</li>
+<li>
+<p><strong>Branch search progress.</strong> When a typed branch isn't checked out anywhere, Fido hunts for it across
+  the repos configured for new branches — and now narrates that hunt in the flight log:
+  <code>Searching for local branch in &lt;repo&gt;</code>, then <code>Searching for remote branch in &lt;repo&gt;</code> only when it
+  actually reaches out to origin. The repo names tick through in place on a single line (like the close
+  countdown) rather than scrolling a line per repo.</p>
+</li>
+<li>
+<p><strong>Pick the editor on the command line.</strong> Each editor now carries a short <strong>slug</strong> (built-in defaults
+  <code>rider</code>, <code>vsc</code>, <code>vs</code>, <code>zed</code>; editable per editor in Settings). Pass it as the second bare argument —
+  <code>fido feature/new-ui zed</code> — or explicitly with <code>--editor</code> / <code>-e</code> (<code>fido -b feature/new-ui -e vs</code>) to
+  open with that editor instead of the configured default. An unrecognised slug stops with a <strong>No-go</strong>
+  that names it and lists the known slugs, rather than silently using the default.</p>
+</li>
+<li>
+<p><strong>Multiple editors / IDEs.</strong> Fido can now open into Rider, <strong>VS Code</strong>, <strong>Visual Studio</strong>,
+  <strong>Zed</strong>, or any <strong>custom</strong> editor you point it at. Configure the list in Settings and mark one
+  as the <strong>default</strong> — the Open button (and <strong>Enter</strong>) launch into it. Every other editor gets a
+  numbered keyboard shortcut (<strong>Ctrl+1 … Ctrl+9</strong>) and a secondary button on the main window, so a
+  branch can be opened in whichever editor you want without changing the default. Known editors
+  auto-detect (PATH + common install locations) when their path is left blank; a custom editor uses
+  the path you give it. An older config's single <strong>Rider path</strong> is migrated onto the Rider editor
+  automatically.</p>
+</li>
+<li>
+<p><strong>Close delay</strong> after a successful launch. When Fido is set to close after opening
+  (see <strong>Close after opening</strong>), it now counts down before quitting instead of vanishing
+  instantly. The flight log shows a single line that ticks down in place (<code>Closing in 10…</code> → <code>9…</code>
+  → <code>8…</code>) and a <strong>Keep open</strong> bar appears at the bottom of the window with the live countdown —
+  click it to call off the close. Starting another open also cancels it. The delay is configurable in Settings
+  (default <strong>10 seconds</strong>; <strong>0</strong> closes immediately), and selecting <strong>Never</strong> turns auto-close
+  off entirely.</p>
+</li>
+</ul>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Opening a second tool on a freshly placed branch no longer fails.</strong> Opening a <strong>new worktree</strong>
+  placement card created the worktree and launched into it — but the card still read <em>new worktree</em>,
+  so a second click (open a <strong>Console</strong>, then open <strong>Rider</strong>) tried to <code>git worktree add</code> the same
+  branch again and failed with <em>git worktree add failed</em>, since the branch was now checked out in the
+  worktree the first click made. Placing a branch now <strong>converts the card in place</strong> to the real
+  checkout it became — a created worktree becomes a deletable <strong>worktree</strong>, a switched clone becomes a
+  <strong>main clone</strong> — with its solution chips re-scanned from the tree that now exists. Any further tool
+  clicks open that folder directly, no rescan required.</li>
+</ul>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>MRU suggestions no longer drop down on focus.</strong> The Branch and Solution boxes used to open
+  their recently-used list the moment they were focused — so the window started up looking like it
+  had a list permanently stuck open. The list now appears only when you start typing or summon it
+  with <strong>Ctrl+Space</strong> (when there's history to show). The list also keeps the <strong>10</strong> most recent
+  entries per field (was 12).</li>
+</ul>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>Windows keep the OS system menu, and <code>Alt+Space</code> opens it.</strong> Every window now explicitly uses
+  the operating system's standard window decorations (<code>WindowDecorations="Full"</code>), so the native
+  title bar and its <strong>system menu</strong> — Move, Size, Minimize, Maximize, Close — are always present from
+  the title-bar icon or a title-bar right-click. The <strong><code>Alt+Space</code></strong> keyboard shortcut now opens it
+  too: Avalonia's Win32 backend swallows that gesture instead of forwarding it to Windows, so Fido
+  catches it and drops the menu itself (a no-op on other platforms). Making the decoration setting
+  explicit also means a future custom title bar can't silently take the system menu away again. The
+  leftover styles for an application-drawn title bar's window-control buttons (never wired up) were
+  removed.</p>
+</li>
+<li>
+<p><strong>The chooser dialog is now fully keyboard-driven.</strong> Up/Down arrows move the highlighted
+  row, <strong>Enter</strong> opens it, and <strong>Esc</strong> cancels — previously the arrows didn't move the
+  selection, so picking a clone / checkout / what-to-open meant reaching for the mouse. A
+  shortcut hint runs along the dialog's bottom edge, matching the decision dialog.</p>
+</li>
+<li>
+<p>Pressing <strong>Enter</strong> in the Branch (or Solution) box now opens in a single press.
+  Previously the first Enter only dismissed the MRU suggestion drop-down, so you
+  had to press Enter again to launch. The keystroke now closes the drop-down and
+  acts on the entered branch in one go.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../building/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Building">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Building
+              </div>
+            </div>
+          </a>
+        
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Sean Kearon
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/seankearon/fido" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M216.5 362.5c-66-8-112.5-55.5-112.5-117 0-25 9-52 24-70-6.5-16.5-5.5-51.5 2-66 20-2.5 47 8 63 22.5 19-6 39-9 63.5-9s44.5 3 62.5 8.5c15.5-14 43-24.5 63-22 7 13.5 8 48.5 1.5 65.5 16 19 24.5 44.5 24.5 70.5 0 61.5-46.5 108-113.5 116.5 17 11 28.5 35 28.5 62.5v52c0 15 12.5 23.5 27.5 17.5C441 459.5 512 369 512 257 512 115.5 397 0 255.5 0S0 115.5 0 257c0 111 70.5 203 165.5 237.5 13.5 5 26.5-4 26.5-17.5v-40c-7 3-16 5-24 5-33 0-52.5-18-66.5-51.5-5.5-13.5-11.5-21.5-23-23-6-.5-8-3-8-6 0-6 10-10.5 20-10.5 14.5 0 27 9 40 27.5 10 14.5 20.5 21 33 21s20.5-4.5 32-16c8.5-8.5 15-16 21-21"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["announce.dismiss","content.action.edit","content.code.annotate","content.code.copy","content.code.select","content.footnote.tooltips","content.tabs.link","content.tooltips","navigation.footer","navigation.indexes","navigation.instant","navigation.instant.prefetch","navigation.sections","navigation.top","navigation.tracking","search.highlight","search.suggest","toc.follow"],"redirect":null,"search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.8dcc8e9c.min.js"></script>
+      
+    
+  </body>
+</html>
