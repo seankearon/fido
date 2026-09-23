@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A branch still using `run files` / `aspire start` now says so.** `commands` replaced both, and a branch
+  cut before its repo's `.fido/cfg.yaml` moved over kept the old keys — which Fido quietly ignored, so the
+  Console run menu came up empty with nothing in the flight log to say why. The flight log now names the
+  retired settings and points at `commands:`. An old starter file left at its defaults still asks for
+  nothing and is still passed over.
+
 - **A checkout that's behind no longer loses the branch's `.fido/cfg.yaml`.** The in-repo config was read
   only out of the folder in front of you (or off the local branch ref), so a worktree made *before* the
   config landed on the branch had nothing to find — no run menu, no `prefer main clone`, and not a word

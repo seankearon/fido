@@ -41,6 +41,12 @@ inline lists (`commands: [build.ps1, aspire start]`) are understood; a setting F
 skipped rather than rejected, and a missing or unreadable file simply means "no in-repo config" — a scan
 never fails because of one.
 
+**`run files` and `aspire start` are gone** — `commands` replaced both. A branch cut before its repo made
+the switch still carries them, and Fido no longer reads them, so the flight log says so —
+`[!] .fido/cfg.yaml on 'feature/x' still uses 'run files', which Fido no longer reads` — rather than
+leaving the run menu empty with no reason given. Merge the repo's current file into the branch, or move
+the entries under `commands:` (`aspire start: true` becomes a `- aspire start` entry).
+
 **Where it's read from, and in what order.** A branch can be carrying the file in more than one place at
 once, and the copies needn't agree, so Fido takes them in a fixed order and says which one answered:
 

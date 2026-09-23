@@ -456,6 +456,13 @@ public partial class MainWindow : Window
             ? $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — {string.Join(", ", asked)}."
             : $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — nothing in it applies here.");
 
+        // A branch cut before its repo moved to `commands` still carries the settings it replaced. Fido no
+        // longer reads them, so say which ones, rather than leave the run menu empty with no reason given.
+        if (read.Config.RetiredKeys.Count > 0)
+            _vm.AppendLog($"[!] {RepoConfigService.RepoRelativePath} on '{branch}' still uses " +
+                          $"{string.Join(" and ", read.Config.RetiredKeys.Select(k => $"'{k}'"))}, which Fido " +
+                          "no longer reads — list what to run under 'commands:' instead.");
+
         // Which copy answered is only worth a line when there's a folder it disagrees with: the settings
         // just applied are the branch's, but the tree the open actions will act on hasn't caught up. A
         // placement offer has no such folder — reading a branch off its refs is simply how those work, and
