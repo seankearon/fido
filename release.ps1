@@ -123,7 +123,7 @@ if (-not $DryRun) {
 $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
 # Nested Join-Path rather than a two-segment literal: Windows PowerShell 5.1's Join-Path
 # takes only one child path, and a hard-coded separator would be wrong on one platform.
-$localEnv = Join-Path (Join-Path $userHome '.config') 'klippy.env'
+$localEnv = Join-Path (Join-Path $userHome '.config') 'appbuild.env'
 $signingKeys = @(
     'CodeSigning__TenantId', 'CodeSigning__ClientId', 'CodeSigning__ClientSecret',
     'CodeSigning__Endpoint', 'CodeSigning__AccountName', 'CodeSigning__CertificateProfileName'
