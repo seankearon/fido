@@ -189,6 +189,7 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             if (!SetField(ref _selectedTarget, value)) return;
             CancelDeleteConfirm();   // a different target invalidates a pending confirm
+            CancelMoveConfirm();     // …and a pending move, which was spelled out for the old one
             RebuildSolutionChips();
             OnPropertyChanged(nameof(CanOpen));
             OnPropertyChanged(nameof(CanDelete));
@@ -455,6 +456,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public string DeleteDisabledNote =>
         _selectedTarget?.IsNewWorktree == true
             ? "nothing to delete yet — opening creates this worktree."
+            : _selectedTarget?.IsMoveToMain == true
+            ? "nothing to delete here — opening moves the branch into the main clone, and asks first."
             : _isBranchProtected && _selectedTarget?.IsWorktree == true
                 ? "default branches can't be deleted — main/master stay put."
                 : "only worktrees can be deleted — the main clone stays put.";
@@ -598,6 +601,87 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>Backs out of a pending confirm (Esc, Cancel, or the selection changing).</summary>
     public void CancelDeleteConfirm() => IsConfirmingDelete = false;
 
+    // --- Move-to-main-clone confirm strip -----------------------------------------------
+
+    private bool _isConfirmingMove;
+    private bool _isMoving;
+    private MainCloneMove? _moveConfirm;
+    private string _moveConfirmLabel = "Move";
+
+    /// <summary>True while the in-place strip asks before a "move to main clone" card removes its worktree.</summary>
+    public bool IsConfirmingMove
+    {
+        get => _isConfirmingMove;
+        private set => SetField(ref _isConfirmingMove, value);
+    }
+
+    /// <summary>True while the move is running — disables the strip's buttons.</summary>
+    public bool IsMoving
+    {
+        get => _isMoving;
+        set
+        {
+            if (SetField(ref _isMoving, value))
+                OnPropertyChanged(nameof(CanConfirmMove));
+        }
+    }
+
+    public string MoveConfirmWorktreePath => _moveConfirm?.WorktreePath ?? "";
+    public string MoveConfirmBranch => _moveConfirm?.Branch ?? "";
+    public string MoveConfirmCurrentBranch => _moveConfirm?.CurrentBranch ?? "";
+
+    /// <summary>The confirm button's caption, naming what happens after the move — e.g. <c>Move &amp; open in Rider</c>.</summary>
+    public string MoveConfirmLabel
+    {
+        get => _moveConfirmLabel;
+        private set => SetField(ref _moveConfirmLabel, value);
+    }
+
+    /// <summary>What stands in the way (changes in the worktree) or rides along (changes in the main tree);
+    /// empty when both trees are clean.</summary>
+    public string MoveConfirmWarnings
+    {
+        get
+        {
+            if (_moveConfirm is not { } move) return "";
+            var warnings = new List<string>();
+            if (move.WorktreeChanges.Count > 0)
+                warnings.Add($"⚠ The worktree has {move.WorktreeChanges.Count} uncommitted or untracked change(s) — " +
+                             "commit, stash or remove them first; Fido won't force the worktree away.");
+            if (move.MainChanges.Count > 0)
+                warnings.Add($"⚠ {move.MainChanges.Count} uncommitted change(s) in the main clone ride along onto " +
+                             $"'{move.Branch}'.");
+            return string.Join("\n", warnings);
+        }
+    }
+
+    public bool HasMoveConfirmWarnings => MoveConfirmWarnings.Length > 0;
+
+    /// <summary>The confirm button is live only when the worktree can go without losing anything.</summary>
+    public bool CanConfirmMove => _moveConfirm is { CanMove: true } && !_isMoving;
+
+    /// <summary>Raises the strip for <paramref name="move"/>; <paramref name="action"/> names what follows the move.</summary>
+    public void ArmMoveConfirm(MainCloneMove move, string action)
+    {
+        _moveConfirm = move;
+        MoveConfirmLabel = $"Move & {action}";
+        OnPropertyChanged(nameof(MoveConfirmWorktreePath));
+        OnPropertyChanged(nameof(MoveConfirmBranch));
+        OnPropertyChanged(nameof(MoveConfirmCurrentBranch));
+        OnPropertyChanged(nameof(MoveConfirmWarnings));
+        OnPropertyChanged(nameof(HasMoveConfirmWarnings));
+        OnPropertyChanged(nameof(CanConfirmMove));
+        IsConfirmingMove = true;
+    }
+
+    /// <summary>Backs out of a pending move (Esc, Cancel, the selection changing, or the move being done).</summary>
+    public void CancelMoveConfirm()
+    {
+        IsConfirmingMove = false;
+        _moveConfirm = null;
+        OnPropertyChanged(nameof(CanConfirmMove));
+    }
+
     // --- Delete retry strip -------------------------------------------------------------
 
     private bool _isDeleteRetryPending;
@@ -699,8 +783,9 @@ public sealed class MainWindowViewModel : ObservableObject
     /// there is one; when the branch's <c>.fido/cfg.yaml</c> asks for the main clone it's the clone's
     /// own working tree instead, whether that's already on the branch
     /// (<see cref="TargetKind.MainClone"/>) or offered to switch onto it
-    /// (<see cref="TargetKind.SwitchMainClone"/>). The preference chooses among what the scan found and
-    /// nothing more: with no main tree in the results the first card keeps the default.
+    /// (<see cref="TargetKind.SwitchMainClone"/>), or offered to take the branch from the worktree that
+    /// holds it (<see cref="TargetKind.MoveToMainClone"/>, which asks before it acts). With no main tree
+    /// among the cards the first one keeps the default.
     /// </summary>
     private TargetCard? PickInitialTarget(bool preferMainClone)
     {
@@ -708,6 +793,7 @@ public sealed class MainWindowViewModel : ObservableObject
         if (!preferMainClone) return Targets[0];
         return Targets.FirstOrDefault(t => t.IsMainClone)
                ?? Targets.FirstOrDefault(t => t.IsSwitchClone)
+               ?? Targets.FirstOrDefault(t => t.IsMoveToMain)
                ?? Targets[0];
     }
 
@@ -725,7 +811,8 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Drops a just-deleted target from the results, re-selecting the next one — or falling to
+    /// Drops a target that's gone from disk from the results, re-selecting the next one when it was the
+    /// selected card — or falling to
     /// NotFound when none remain, matching a fresh scan's outcome.
     /// </summary>
     public void RemoveTarget(TargetCard card)
@@ -734,7 +821,9 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(FoundChipText));
         OnPropertyChanged(nameof(HasMultipleTargets));
         OnPropertyChanged(nameof(MultiTargetHelperText));
-        SelectedTarget = Targets.Count > 0 ? Targets[0] : null;
+        // Keep the selection when a card other than the selected one went (a move released its worktree).
+        var kept = _selectedTarget is not null && Targets.Contains(_selectedTarget) ? _selectedTarget : null;
+        SelectedTarget = kept ?? (Targets.Count > 0 ? Targets[0] : null);
         if (Targets.Count == 0)
             Phase = DiscoveryPhase.NotFound;
     }

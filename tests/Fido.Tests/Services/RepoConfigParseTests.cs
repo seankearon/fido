@@ -132,4 +132,41 @@ public class RepoConfigParseTests
 
         await Assert.That(Joined(config.Commands)).IsEqualTo("run-fido.ps1");
     }
+
+    [Test]
+    public async Task The_settings_commands_replaced_are_named_not_read()
+    {
+        // A branch cut before its repo moved to `commands` — cortex's, as it was — carries the old keys.
+        var config = RepoConfigService.Parse(
+            """
+            prefer main clone: true
+            run files: [
+              - run-nexus.ps1
+            ]
+            aspire start: true
+            """);
+
+        await Assert.That(config.PreferMainClone).IsTrue();
+        await Assert.That(config.Commands.Count).IsEqualTo(0);
+        await Assert.That(Joined(config.RetiredKeys)).IsEqualTo("run files|aspire start");
+    }
+
+    [Test]
+    public async Task A_retired_setting_alone_keeps_the_file_from_reading_as_empty()
+    {
+        // Asking for something Fido no longer does is still asking: the file is reported, not passed over
+        // as though it weren't there.
+        await Assert.That(RepoConfigService.Parse("run_files: [build.ps1]").IsEmpty).IsFalse();
+        await Assert.That(RepoConfigService.Parse("aspireStart: yes").IsEmpty).IsFalse();
+
+        // …but the old starter file, left at its defaults, asks for nothing and stays inert.
+        var starter = RepoConfigService.Parse(
+            """
+            prefer main clone: false
+            run files: []
+            aspire start: false
+            """);
+        await Assert.That(starter.RetiredKeys.Count).IsEqualTo(0);
+        await Assert.That(starter.IsEmpty).IsTrue();
+    }
 }

@@ -244,7 +244,19 @@ public sealed class RepoConfigService
         {
             PreferMainClone = Truthy(scalars, "prefermainclone"),
             Commands = Listed("commands"),
+            RetiredKeys = Retired(),
         };
+
+        // The two settings `commands` replaced, named when they still ask for something. An old starter
+        // file left at its defaults (`run files: []`, `aspire start: false`) asks for nothing, so it stays
+        // an inert file that never shadows the copy below it.
+        List<string> Retired()
+        {
+            var retired = new List<string>();
+            if (Listed("runfiles").Count > 0) retired.Add("run files");
+            if (Truthy(scalars, "aspirestart")) retired.Add("aspire start");
+            return retired;
+        }
 
         // A command list can arrive as a sequence, or as a lone scalar (`commands: aspire start`).
         List<string> Listed(string name) =>

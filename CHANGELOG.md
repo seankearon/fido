@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`prefer main clone` now works when a worktree holds the branch.** git won't switch a main tree onto a
+  branch another worktree has checked out, so a branch that lived only in a worktree used to leave the
+  preference unhonoured, with nothing in the flight log but `No main clone among the results`. Fido now adds
+  a **move to main clone** card after the worktree and selects it, and the flight log says why the main
+  clone couldn't simply be picked. Opening the card **asks first**, inline, like a delete: *Move & open…*
+  removes the worktree — the branch and its commits stay — then switches the main clone onto the branch
+  and carries on with the open you asked for. A worktree with uncommitted or untracked changes is never
+  removed (Fido doesn't force it), and changes in the main clone ride along with the switch, as the card
+  and the strip warn. Offered only when the branch's config prefers the main clone and no main tree is on
+  the branch already.
+
 - **Fido tells you when the branch has a pull request open — and links to it.** Every scan that finds the
   branch now asks **GitHub**, through the **GitHub CLI (`gh`)**, whether that branch has an open PR. One
   that does gets a row above the result cards naming it — `PR #42 · Add the widget` — with an **Open pull
@@ -36,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stays advisory throughout: with no `gh` on the machine, everything on the screen works exactly as before.
 
 ### Fixed
+
+- **A branch still using `run files` / `aspire start` now says so.** `commands` replaced both, and a branch
+  cut before its repo's `.fido/cfg.yaml` moved over kept the old keys — which Fido quietly ignored, so the
+  Console run menu came up empty with nothing in the flight log to say why. The flight log now names the
+  retired settings and points at `commands:`. An old starter file left at its defaults still asks for
+  nothing and is still passed over.
 
 - **A checkout that's behind no longer loses the branch's `.fido/cfg.yaml`.** The in-repo config was read
   only out of the folder in front of you (or off the local branch ref), so a worktree made *before* the

@@ -25,6 +25,15 @@ public sealed class RepoConfig
     /// </summary>
     public List<string> Commands { get; set; } = new();
 
-    /// <summary>True when the file asked for nothing Fido acts on — treated the same as no file at all.</summary>
-    public bool IsEmpty => !PreferMainClone && Commands.Count == 0;
+    /// <summary>
+    /// Settings the file still uses from before <see cref="Commands"/> replaced them — <c>run files</c> and
+    /// <c>aspire start</c> — named only when they ask for something. Fido no longer reads them, but a branch
+    /// cut before its repo moved to <c>commands</c> still carries them, and without a word from the flight
+    /// log its run menu would simply come up empty.
+    /// </summary>
+    public List<string> RetiredKeys { get; set; } = new();
+
+    /// <summary>True when the file asked for nothing Fido acts on — or names — and is treated the same as no
+    /// file at all. A retired setting counts, so the flight log can say why it did nothing.</summary>
+    public bool IsEmpty => !PreferMainClone && Commands.Count == 0 && RetiredKeys.Count == 0;
 }

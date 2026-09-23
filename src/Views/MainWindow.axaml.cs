@@ -71,6 +71,13 @@ public partial class MainWindow : Window
     private WorktreeDeletion? _pendingDeletePlan;
     private TargetCard? _pendingDeleteCard;
 
+    /// <summary>A "move to main clone" waiting on its confirm strip: the plan the strip spelled out, the card
+    /// it belongs to, and the open that asked for it — which carries on once the move is done.</summary>
+    private PendingMove? _pendingMove;
+
+    private sealed record PendingMove(MainCloneMove Plan, TargetCard Card, Editor Editor, bool FromCommandLine,
+        string? ConsoleCommand, bool FromRunMenu, bool InConsolePane);
+
     /// <summary>What a part-way delete left behind, held while the retry strip offers another go: the same
     /// plan, the steps still outstanding, and everything earlier passes already removed (so the report after
     /// a successful retry describes the whole attempt).</summary>
@@ -264,8 +271,13 @@ public partial class MainWindow : Window
             if (cts.IsCancellationRequested) return;
             _scanFoundRepoConfig = repoConfig.Read is not null;
 
-            _vm.CompleteScan(targets, IsProtectedBranch(branch),
-                preferMainClone: repoConfig.Read?.Config.PreferMainClone == true);
+            // A main clone preferred but not on the branch — because a worktree holds it — can't just be picked:
+            // git won't switch a main tree onto a branch another worktree has checked out. Offer to move it.
+            var preferMainClone = repoConfig.Read?.Config.PreferMainClone == true;
+            var offered = preferMainClone ? await WithMoveOffersAsync(targets, cts.Token) : targets;
+            if (cts.IsCancellationRequested) return;
+
+            _vm.CompleteScan(offered, IsProtectedBranch(branch), preferMainClone);
             var placementRepos = targets.Count > 0 && targets.All(IsPlacementKind)
                 ? targets.Select(t => t.MainPath).Distinct(StringComparer.OrdinalIgnoreCase).Count()
                 : 0;
@@ -302,7 +314,7 @@ public partial class MainWindow : Window
 
             // One-shot CLI auto-open: only for an explicitly named tool, and never when the result
             // needs disambiguating — presenting the choice is the whole point of the redesign.
-            if (autoTool is not null && targets.Count == 1)
+            if (autoTool is not null && offered.Count == 1)
                 await OpenWithAsync(autoTool, fromCommandLine: true);
 
             // Last, and deliberately not awaited: the branch's locations are already on screen and
@@ -333,6 +345,26 @@ public partial class MainWindow : Window
     /// <summary>True when <paramref name="branch"/> is one of the configured default-branch names (e.g. main/master).</summary>
     private bool IsProtectedBranch(string branch) =>
         _config.MainBranchNames.Any(n => string.Equals(n, branch, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// <paramref name="targets"/> with a "move to main clone" card per clone whose branch sits only in a linked
+    /// worktree (see <see cref="OpenerService.FindMoveToMainOffersAsync"/>), after the worktrees. The offers are
+    /// a convenience on top of a scan that has already landed, so one that can't be built costs itself only.
+    /// </summary>
+    private async Task<IReadOnlyList<DiscoveredTarget>> WithMoveOffersAsync(
+        IReadOnlyList<DiscoveredTarget> targets, CancellationToken ct)
+    {
+        try
+        {
+            var offers = await _opener.FindMoveToMainOffersAsync(targets, _config, ct);
+            return offers.Count == 0 ? targets : [.. targets, .. offers];
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _vm.AppendLog($"[!] Couldn't work out how to move the branch into the main clone: {ex.Message}");
+            return targets;
+        }
+    }
 
     /// <summary>True for either placement offer (new worktree / switch the main tree).</summary>
     private static bool IsPlacementKind(DiscoveredTarget t) =>
@@ -456,6 +488,13 @@ public partial class MainWindow : Window
             ? $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — {string.Join(", ", asked)}."
             : $"✓ {RepoConfigService.RepoRelativePath} on '{branch}' — nothing in it applies here.");
 
+        // A branch cut before its repo moved to `commands` still carries the settings it replaced. Fido no
+        // longer reads them, so say which ones, rather than leave the run menu empty with no reason given.
+        if (read.Config.RetiredKeys.Count > 0)
+            _vm.AppendLog($"[!] {RepoConfigService.RepoRelativePath} on '{branch}' still uses " +
+                          $"{string.Join(" and ", read.Config.RetiredKeys.Select(k => $"'{k}'"))}, which Fido " +
+                          "no longer reads — list what to run under 'commands:' instead.");
+
         // Which copy answered is only worth a line when there's a folder it disagrees with: the settings
         // just applied are the branch's, but the tree the open actions will act on hasn't caught up. A
         // placement offer has no such folder — reading a branch off its refs is simply how those work, and
@@ -464,10 +503,22 @@ public partial class MainWindow : Window
             _vm.AppendLog($"[!] Read from {RepoConfigService.OriginRef(branch)} — the copy here is missing " +
                           "or out of date. Pull to bring this checkout level.");
 
-        // A preference for the main clone that this scan can't honour is worth saying out loud, rather
-        // than leaving the user wondering why a worktree is selected.
-        if (read.Config.PreferMainClone && _vm.SelectedTarget is { IsMainClone: false, IsSwitchClone: false })
-            _vm.AppendLog("[!] No main clone among the results — staying on the first location.");
+        // A preference for the main clone that this scan can't simply honour is worth saying out loud, and
+        // saying why — rather than leaving the user wondering why a worktree is selected.
+        if (read.Config.PreferMainClone && _vm.SelectedTarget is { } selected)
+        {
+            if (selected.IsMoveToMain)
+                _vm.AppendLog($"▸ Main clone preferred, but the worktree at {selected.Target.HeldByWorktree} has " +
+                              $"'{branch}' checked out, and git won't switch the main clone onto a branch another " +
+                              "worktree holds. Opening the 'move to main clone' card removes that worktree (the " +
+                              "branch and its commits stay) and switches the main clone over — it asks first.");
+            else if (selected.IsWorktree)
+                _vm.AppendLog($"[!] Main clone preferred, but the worktree at {selected.Path} has '{branch}' " +
+                              "checked out, and git won't switch the main clone onto a branch another worktree " +
+                              "holds. Remove that worktree (keeping the branch) to open it in the main clone.");
+            else if (selected is { IsMainClone: false, IsSwitchClone: false })
+                _vm.AppendLog("[!] No main clone among the results — staying on the first location.");
+        }
     }
 
     /// <summary>
@@ -624,9 +675,17 @@ public partial class MainWindow : Window
     /// menu — is run in the terminal at that folder instead of just opening one there. Internal for tests.
     /// </summary>
     internal async Task OpenWithAsync(Editor editor, bool fromCommandLine = false, string? consoleCommand = null,
-        bool fromRunMenu = false, bool inConsolePane = false)
+        bool fromRunMenu = false, bool inConsolePane = false, MainCloneMove? confirmedMove = null)
     {
         if (!_vm.CanOpen || _vm.SelectedTarget is not { } card) return;
+
+        // Moving the branch into the main clone removes a worktree, so it never happens on the open click
+        // itself: the click raises the confirm strip, and the strip's button carries this same open on.
+        if (card.IsMoveToMain && confirmedMove is null)
+        {
+            await RequestMoveAsync(card, editor, fromCommandLine, consoleCommand, fromRunMenu, inConsolePane);
+            return;
+        }
 
         CancelPendingClose();   // a fresh open supersedes any countdown left running from the last one
         var branch = _vm.ScannedBranch;
@@ -660,6 +719,17 @@ public partial class MainWindow : Window
                 // a second click just reopens it rather than re-running the switch.
                 await MaterialisePlacementAsync(card, folder, TargetKind.MainClone);
             }
+            else if (card.Target.Kind == TargetKind.MoveToMainClone && confirmedMove is not null)
+            {
+                // Confirmed on the strip: release the branch from its worktree, then switch the main tree.
+                _vm.AppendLog($"▸ Moving '{branch}' into {card.Target.RepoName}'s main clone…");
+                folder = await _opener.MoveToMainCloneAsync(confirmedMove, _config);
+                // The worktree it came from is gone; its card goes with it, and this one becomes the main clone.
+                if (_vm.Targets.FirstOrDefault(t => t.IsWorktree && SameFolder(t.Path, confirmedMove.WorktreePath))
+                    is { } released)
+                    _vm.RemoveTarget(released);
+                await MaterialisePlacementAsync(card, folder, TargetKind.MainClone);
+            }
             else
             {
                 folder = card.Target.Path;
@@ -675,7 +745,7 @@ public partial class MainWindow : Window
 
             // A placement card's chips previewed the clone's files before the branch was placed;
             // re-resolve the chosen solution against what's actually in the tree now.
-            if (solution is not null && card.Target.Kind is TargetKind.NewWorktree or TargetKind.SwitchMainClone)
+            if (solution is not null && card.IsPlacement)
             {
                 var name = Path.GetFileName(solution);
                 // A switch keeps the same paths (chip globbed under this very tree); a new worktree
@@ -752,6 +822,7 @@ public partial class MainWindow : Window
             Kind = kind,
             Solutions = solutions,
             UpdatedUtc = updated,
+            HeldByWorktree = null,
         };
         _vm.ReplaceTarget(card, materialised);
 
@@ -759,6 +830,84 @@ public partial class MainWindow : Window
         // had never fetched arrived with the placement, config and all.
         await RefreshRepoConfigAsync(materialised, _vm.ScannedBranch);
     }
+
+    // --- Move to the main clone (inline two-step confirm) --------------------------------
+
+    /// <summary>
+    /// First click on a "move to main clone" card: gathers what the move would do right now (changes in the
+    /// worktree block it; changes in the main tree ride along) and raises the confirm strip, remembering the
+    /// open that asked so the confirm can carry it on.
+    /// </summary>
+    private async Task RequestMoveAsync(TargetCard card, Editor editor, bool fromCommandLine, string? consoleCommand,
+        bool fromRunMenu, bool inConsolePane)
+    {
+        var branch = _vm.ScannedBranch;
+        MainCloneMove plan;
+        try
+        {
+            plan = await _opener.BuildMainCloneMoveAsync(card.Target, branch);
+        }
+        catch (Exception ex)
+        {
+            _vm.AppendLog($"⚠ {ex.Message}");
+            return;
+        }
+
+        // The await can race a fresh scan or a selection change; never arm a move for a card no longer in view.
+        if (!_vm.CanOpen || !ReferenceEquals(_vm.SelectedTarget, card) || _vm.ScannedBranch != branch) return;
+
+        _pendingMove = new PendingMove(plan, card, editor, fromCommandLine, consoleCommand, fromRunMenu, inConsolePane);
+        _vm.ArmMoveConfirm(plan, MoveActionLabel(editor, consoleCommand, fromRunMenu));
+        _vm.AppendLog($"▸ Moving '{branch}' into the main clone removes the worktree at {plan.WorktreePath} — " +
+                      "confirm below, or Esc to leave it.");
+        // The strip sits below the tools; bring it into view once it has been laid out, so the click that
+        // raised it visibly did something.
+        Dispatcher.UIThread.Post(() => MoveConfirmStrip.BringIntoView(), DispatcherPriority.Loaded);
+        if (!plan.CanMove)
+            _vm.AppendLog($"[!] The worktree at {plan.WorktreePath} has changes — commit, stash or remove them before " +
+                          "moving the branch into the main clone.");
+    }
+
+    /// <summary>Whether two paths name the same folder, trailing separators and case aside.</summary>
+    private static bool SameFolder(string a, string b) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>What happens once the branch is in the main clone, for the confirm button's caption.</summary>
+    private static string MoveActionLabel(Editor editor, string? consoleCommand, bool fromRunMenu) =>
+        consoleCommand is not null ? $"run {consoleCommand}"
+        : fromRunMenu ? "open a shell"
+        : $"open in {editor.Name}";
+
+    /// <summary>The strip's confirm: runs the move, then the open that asked for it. Internal for tests.</summary>
+    internal async Task ConfirmMoveAsync()
+    {
+        if (_pendingMove is not { } move || !_vm.CanConfirmMove) return;
+        if (!ReferenceEquals(_vm.SelectedTarget, move.Card)) { CancelMove(); return; }
+
+        _vm.IsMoving = true;
+        try
+        {
+            await OpenWithAsync(move.Editor, move.FromCommandLine, move.ConsoleCommand, move.FromRunMenu,
+                move.InConsolePane, confirmedMove: move.Plan);
+        }
+        finally
+        {
+            _vm.IsMoving = false;
+            CancelMove();
+        }
+    }
+
+    /// <summary>Backs out of a pending move without touching anything. Internal for tests.</summary>
+    internal void CancelMove()
+    {
+        _vm.CancelMoveConfirm();
+        _pendingMove = null;
+    }
+
+    private async void OnMoveConfirmClick(object? sender, RoutedEventArgs e) => await ConfirmMoveAsync();
+
+    private void OnMoveCancelClick(object? sender, RoutedEventArgs e) => CancelMove();
 
     // --- Delete (inline two-step confirm) -------------------------------------------------
 
@@ -1274,6 +1423,13 @@ public partial class MainWindow : Window
     // once the delete has run — dismisses a retry offer left over from it.
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _vm.IsConfirmingMove && !_vm.IsMoving)
+        {
+            e.Handled = true;
+            CancelMove();
+            return;
+        }
+
         if (e.Key == Key.Escape && _vm.IsConfirmingDelete)
         {
             e.Handled = true;

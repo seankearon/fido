@@ -21,7 +21,10 @@ namespace Fido.Models;
 /// <param name="CurrentBranch">For a <see cref="TargetKind.SwitchMainClone"/> offer: what the main
 /// tree is on right now — the branch the switch would move it off.</param>
 /// <param name="UncommittedChanges">For a <see cref="TargetKind.SwitchMainClone"/> offer: how many
-/// uncommitted changes sit in the main tree — a switch carries them onto the branch, so the card warns.</param>
+/// uncommitted changes sit in the main tree — a switch carries them onto the branch, so the card warns.
+/// The same two facts describe a <see cref="TargetKind.MoveToMainClone"/> offer's main tree.</param>
+/// <param name="HeldByWorktree">For a <see cref="TargetKind.MoveToMainClone"/> offer: the linked worktree
+/// that has the branch checked out now, and which the move would remove.</param>
 public sealed record DiscoveredTarget(
     string Path,
     TargetKind Kind,
@@ -31,4 +34,5 @@ public sealed record DiscoveredTarget(
     DateTime? UpdatedUtc,
     bool BranchOnOriginOnly = false,
     string? CurrentBranch = null,
-    int UncommittedChanges = 0);
+    int UncommittedChanges = 0,
+    string? HeldByWorktree = null);

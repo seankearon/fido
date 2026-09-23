@@ -58,6 +58,14 @@ chooser, and no second window:
   tree** onto the branch instead — warning right on the card when uncommitted changes
   would ride along. **Opening performs the placement first** (fetching and tracking
   the remote ref when needed) and then launches.
+- **Checked out in a worktree, but the branch prefers the main clone:** when the branch's
+  [`.fido/cfg.yaml`](guide/in-repo-config.md) sets `prefer main clone` and no main tree is
+  on the branch, a **move to main clone** card (an arrow into the house) follows the
+  worktree and is auto-selected. git won't switch a main tree onto a branch another
+  worktree has checked out, so **opening it asks first**, inline: *Move & open* removes
+  the worktree — the branch and its commits stay — and then switches the main clone
+  onto the branch and launches there. A worktree with uncommitted or untracked changes
+  is never moved away; the strip says so and its button stays off.
 - **Not found:** a warning card says no working tree or clone has the branch —
   double-check the name. Fido never switches an existing checkout; the only thing it
   will create is a worktree you explicitly selected.

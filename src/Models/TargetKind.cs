@@ -24,4 +24,13 @@ public enum TargetKind
     /// the card warns about. Never deletable.
     /// </summary>
     SwitchMainClone,
+
+    /// <summary>
+    /// The branch is checked out in a linked worktree, and the branch's <c>.fido/cfg.yaml</c> prefers the
+    /// main clone — which git won't switch onto a branch another worktree holds. Opening this removes that
+    /// worktree (the branch and its commits stay; git refuses when the worktree has changes) and then
+    /// switches the main tree onto the branch, like <see cref="SwitchMainClone"/>. It asks first, inline,
+    /// because it removes a folder. Offered only when no main tree is on the branch already; never deletable.
+    /// </summary>
+    MoveToMainClone,
 }
