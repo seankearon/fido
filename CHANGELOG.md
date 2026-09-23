@@ -46,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody could. Neither shows a row — but only one of them is a statement about your branch. The check
   stays advisory throughout: with no `gh` on the machine, everything on the screen works exactly as before.
 
+- **The release build can sign the macOS disk image with a Developer ID and notarize it.** Until now the
+  `.dmg` was only ad-hoc signed, so a Mac that downloaded it said Apple *could not verify "Fido" is free of
+  malware*, and since macOS 15 right-click → Open no longer gets past that. Put five `AppleSigning__*` keys
+  in `appbuild.env` (the Developer ID Application `.p12` and its password, the Team ID, and the Apple
+  Account and app-specific password that submit to Apple's notary service) and Parcel signs the app with
+  the hardened runtime, notarizes it and staples the ticket to the `.dmg`, all from the Windows release
+  machine. The Verify stage opens the certificate first and stops the build if Apple wouldn't notarize it:
+  the wrong type (an *Apple Development* certificate is the usual culprit), no private key, the wrong team
+  or out of date. Without the keys, the `.dmg` is ad-hoc signed as before, and `release.ps1` says so in its
+  plan. Setup is in *Building Fido → Signing and notarization*. *Getting started* now explains how to open a
+  build that isn't notarized.
+
 ### Fixed
 
 - **A branch still using `run files` / `aspire start` now says so.** `commands` replaced both, and a branch

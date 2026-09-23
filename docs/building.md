@@ -85,8 +85,9 @@ Run it on **Windows**: it publishes `win-x64` with Native AOT and lets Parcel cr
 the macOS heads from there.
 
 `release.ps1` is a front end. It checks the things that are cheap now and expensive later
-— the SDK, the Parcel CLI, that `gh` is installed *and authenticated*, and that all six
-signing keys are present — then prints what is about to happen and asks before doing it.
+— the SDK, the Parcel CLI, that `gh` is installed *and authenticated*, that all six
+Windows signing keys are present, and that the [macOS](#signing-and-notarization) ones are
+either all there or all absent — then prints what is about to happen and asks before doing it.
 The `gh` check earns its place: the build tags and pushes before it creates the release,
 so an unauthenticated `gh` would strand a pushed tag with no release against it. If a run
 does fail after tagging, the script prints the commands to clear the tag.
@@ -106,14 +107,14 @@ dotnet run --project build -- release           # …and tag, publish to GitHub,
 
 | Stage | What it does |
 |---|---|
-| **Verify** | Refuses to start on a dirty tree or off `main`; loads the signing configuration and checks every key is present. |
+| **Verify** | Refuses to start on a dirty tree or off `main`; loads the signing configuration and checks every key is present. With a Developer ID configured, also checks that its certificate is one Apple will notarize. |
 | **Update** | `git pull --ff-only`, then confirms `main` is not behind `origin`. |
 | **Clean** | Wipes `_build/`. |
 | **Test** | Builds and runs the TUnit suite; a non-zero exit code fails the build. |
 | **Restore** | Restores `src/Fido.csproj` for `win-x64` **with `PublishAot=true`**, so the ILCompiler package is in the assets file. |
 | **Version** | Writes a generated root `Directory.Build.props` carrying the version and product metadata. |
 | **Publish Windows** | Native AOT publish to `_build/out/win-x64`, then checks the output really is native. |
-| **Package** | Hands `src/Fido.parcel` to Parcel, which builds, **signs** and packages the NSIS installer and the `.dmg` into `_build/drop`. |
+| **Package** | Hands `src/Fido.parcel` to Parcel, which builds, **signs** and packages the NSIS installer and the `.dmg` into `_build/drop`, notarizing the `.dmg` when a Developer ID is configured. |
 | **Revert Generated Files** | Removes the generated `Directory.Build.props`, on success *and* on failure. |
 | **Tag Repo**, **GitHub Release**, **Update Version File** | `release` only — tag `vX.Y.Z`, `gh release create` with the installers attached and generated notes, then commit the new `ver.txt`. |
 
@@ -167,10 +168,81 @@ systems, so `src/Fido.csproj` turns Native AOT **off** for the `osx-*` runtimes 
 build is actually running on a Mac, falling back to a trimmed, self-contained publish —
 larger and JIT-started, but it runs. Run the build on a Mac and those come out native.
 
-The bundle is **ad-hoc signed** (`MacOsSettings.SigningCredentialsType`), so a first launch
-needs right-click → Open. Moving to a Developer ID certificate and notarization is a
-separate, Mac-only piece of work — see `macos-packaging-handoff.md`, which also records a
-Parcel icon-conversion problem worth re-checking.
+#### Signing and notarization
+
+A Mac opens a downloaded app without complaint only when the app is signed with a
+**Developer ID Application** certificate **and notarized** by Apple. Anything less gets
+*"Apple could not verify 'Fido' is free of malware"*, and that includes the ad-hoc signature
+the checked-in `src/Fido.parcel` asks for. Since macOS 15, right-click → Open no longer gets
+past that message. No setting fixes it: the certificate needs a paid
+[Apple Developer Program](https://developer.apple.com/programs/) membership.
+
+The build signs and notarizes when `appbuild.env` holds all five of these keys:
+
+| Key | What it is |
+|---|---|
+| `AppleSigning__P12Path` | Full path to the Developer ID Application certificate and its private key, exported as a `.p12`. |
+| `AppleSigning__P12Password` | The password the `.p12` was exported with. |
+| `AppleSigning__TeamId` | The 10-character Team ID, shown under *Membership details* on developer.apple.com. |
+| `AppleSigning__NotaryAppleId` | The Apple Account (an email address) that submits to the notary service. It must belong to the same team. |
+| `AppleSigning__NotaryAppPassword` | An **app-specific password** for that account, created at [account.apple.com](https://account.apple.com) under *Sign-In and Security*. Not the account's own password. |
+
+With all five, Parcel signs the bundle with the hardened runtime, submits it to Apple's
+notary service and staples the ticket to the signed `.dmg`. It does all of that from Windows:
+Parcel talks to the notary API itself, so neither Xcode nor a Mac is needed. It needs
+**Parcel 1.1.1 or later**, the release that started signing the bundle's nested executables
+with the hardened runtime. Without that, the notary service rejects the app. The secrets
+never land in `_build`: the generated project names the environment variables that hold
+them, and Parcel reads the values from there.
+
+With none of the five, the `.dmg` is ad-hoc signed as before, and both `release.ps1` and
+the build say so. With some but not all, both stop.
+
+**The Verify stage opens the `.p12` before anything is built** and stops the build unless it
+holds a *Developer ID Application* certificate, with its private key, for the configured
+team, that is currently valid. The certificate type is the usual mistake. An *Apple
+Development* certificate (the kind Xcode makes unprompted) or a *Developer ID Installer*
+one signs perfectly well, then gets every binary rejected by the notary service minutes
+later with *"not signed with a valid Developer ID certificate"*.
+
+**Getting the certificate.** Only the team's **Account Holder** can create a Developer ID
+certificate. On a Mac:
+
+1. In **Keychain Access**, choose *Certificate Assistant → Request a Certificate From a
+   Certificate Authority*, and save the request to disk.
+2. At [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates),
+   press **+**, choose **Developer ID Application**, upload the request and download the `.cer`.
+3. Double-click the `.cer`. Then in Keychain Access → *My Certificates*, select
+   *Developer ID Application: …* with its key, and use *File → Export Items* to save a `.p12`
+   with a password.
+
+On Windows, or anywhere OpenSSL is installed, the request and the `.p12` can be made without
+a Mac:
+
+```sh
+openssl req -new -newkey rsa:2048 -nodes -keyout developer_id.key -out developer_id.csr \
+  -subj "/emailAddress=you@example.com/CN=Your Name/C=GB"
+# upload developer_id.csr as in step 2 above, download the .cer, then:
+openssl x509 -inform DER -in developerID_application.cer -out developer_id.crt
+openssl pkcs12 -export -inkey developer_id.key -in developer_id.crt -out developer_id.p12
+```
+
+Keep the `.p12` and the key out of the repo. Next to `appbuild.env` in
+`%USERPROFILE%\.config` is a reasonable place for them.
+
+**Checking a release** on a Mac, with the downloaded `.dmg`:
+
+```sh
+spctl -a -vv -t install Fido.dmg   # expect: accepted, source=Notarized Developer ID
+xcrun stapler validate Fido.dmg    # expect: The validate action worked!
+```
+
+Two things have not been tried end to end yet. If the notarized app quits at launch where
+the ad-hoc one did not, check the entitlements first. The cross-built bundle is
+JIT-compiled, and the hardened runtime blocks JIT unless the app carries
+`com.apple.security.cs.allow-jit`. Parcel adds its default entitlements when it signs, and a
+build on a Mac (Native AOT, so no JIT) avoids the question entirely. Also check that the
+bundle has its icon: an earlier attempt saw Parcel fail to convert the icon to `.icns`.
 
 ## Documentation
 

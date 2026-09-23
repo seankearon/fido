@@ -1,6 +1,7 @@
 open System
 open System.Diagnostics
 open System.IO
+open System.Security.Cryptography.X509Certificates
 open System.Text.Json
 open System.Text.Json.Nodes
 open BuildLib
@@ -144,6 +145,15 @@ module LocalEnv =
 
 // --- code signing ----------------------------------------------------------
 
+/// The named object under a .parcel project, created empty when the project has none.
+let childObject (parent: JsonObject) (name: string) =
+    match parent[name] with
+    | null ->
+        let o = JsonObject()
+        parent[name] <- o
+        o
+    | node -> node.AsObject()
+
 /// Azure Trusted Signing (formerly Azure Code Signing).
 ///
 /// Parcel does the signing itself - the app exe, the NSIS uninstaller and the installer,
@@ -199,28 +209,9 @@ and certificate profile of the Trusted Signing resource)."""
         si.EnvironmentVariables["AZURE_CLIENT_ID"]     <- value ClientId
         si.EnvironmentVariables["AZURE_CLIENT_SECRET"] <- value ClientSecret
 
-    /// Writes a copy of the .parcel project with the Trusted Signing block added and
-    /// returns its path. Paths in the project are relative to the file, so the copy,
-    /// living elsewhere, gets them as absolute. Only the two that exist today are
-    /// rewritten; Parcel would say soon enough if another appeared.
-    let writeSignedParcelProject (source: string) (destination: string) =
-        let sourceDir = Path.GetDirectoryName source
-        let project = JsonNode.Parse(File.ReadAllText source).AsObject()
-
-        let general = project["GeneralSettings"].AsObject()
-
-        for key in [ "NetProjectPath"; "Icon" ] do
-            match general[key] with
-            | null -> ()
-            | node -> general[key] <- JsonValue.Create(Path.GetFullPath(sourceDir +/ node.GetValue<string>()))
-
-        let win32 =
-            match project["Win32Settings"] with
-            | null ->
-                let o = JsonObject()
-                project["Win32Settings"] <- o
-                o
-            | node -> node.AsObject()
+    /// Adds the Trusted Signing block to the project's Win32Settings.
+    let applyTo (project: JsonObject) =
+        let win32 = childObject project "Win32Settings"
 
         let value name = get name |> Option.defaultValue ""
         win32["SigningType"]                           <- JsonValue.Create "AzureTrustedSigning"
@@ -228,10 +219,161 @@ and certificate profile of the Trusted Signing resource)."""
         win32["ArtifactSigningCodeSigningAccountName"] <- JsonValue.Create(value AccountName)
         win32["ArtifactSigningCertificateProfileName"] <- JsonValue.Create(value ProfileName)
 
-        ensureFolder (Path.GetDirectoryName destination) |> ignore
-        File.WriteAllText(destination, project.ToJsonString(JsonSerializerOptions(WriteIndented = true)))
-        Write.line $"Wrote signed Parcel project to {destination}"
-        destination
+/// Developer ID signing and notarization for the macOS bundle and disk image.
+///
+/// Gatekeeper opens a downloaded app without complaint only when it is signed with a
+/// Developer ID Application certificate *and* notarized by Apple. Anything less gets
+/// "Apple could not verify Fido is free of malware", and that includes the ad-hoc signature
+/// the checked-in .parcel file asks for. Since macOS 15 there is no right-click > Open way
+/// past that either. No setting fixes it: the certificate needs a paid Apple Developer
+/// Program membership.
+///
+/// So this is optional. With all five keys in appbuild.env, Parcel signs the bundle with the
+/// hardened runtime, submits it to Apple's notary service and staples the ticket to the
+/// .dmg, all from Windows, because Parcel talks to the notary API itself rather than through
+/// Xcode's notarytool. With none, the .dmg stays ad-hoc signed and the build says so. With
+/// some but not all, the build stops, because that is a typo rather than a choice.
+module AppleSigning =
+    let P12Path           = "AppleSigning__P12Path"
+    let P12Password       = "AppleSigning__P12Password"
+    let TeamId            = "AppleSigning__TeamId"
+    let NotaryAppleId     = "AppleSigning__NotaryAppleId"
+    let NotaryAppPassword = "AppleSigning__NotaryAppPassword"
+
+    let Required = [ P12Path; P12Password; TeamId; NotaryAppleId; NotaryAppPassword ]
+
+    let get = AzureSigning.get
+
+    /// The certificate is the part that goes wrong, and Parcel only finds out late: a wrong
+    /// certificate type signs perfectly well, then waits minutes for the notary service to
+    /// reject every binary with "not signed with a valid Developer ID certificate". An
+    /// "Apple Development" certificate is the usual culprit: it is what Xcode makes
+    /// unprompted, and it is what sank PR #4. All of this is readable from the .p12 in a
+    /// millisecond.
+    let private ensureCertificateIsUsable (path: string) =
+        if not (File.Exists path) then
+            failwith $"{P12Path} points at {path}, which does not exist."
+
+        use certificate =
+            try
+                X509CertificateLoader.LoadPkcs12FromFile(path, get P12Password |> Option.toObj)
+            with ex ->
+                failwith $"Could not open {path} with the password in {P12Password}: {ex.Message}"
+
+        let commonName = certificate.GetNameInfo(X509NameType.SimpleName, false)
+
+        if not (commonName.StartsWith("Developer ID Application:", StringComparison.Ordinal)) then
+            failwith
+                $"""{path} holds "{commonName}", which Apple will not notarize.
+It must be a "Developer ID Application" certificate: create one at
+https://developer.apple.com/account/resources/certificates (it needs the Account Holder
+of a paid Apple Developer Program membership) and export it with its private key."""
+
+        if not certificate.HasPrivateKey then
+            failwith $"{path} holds the certificate but not its private key. Export it again with the key included."
+
+        // The team is the subject's OU. The notary service checks it against the team the
+        // Apple ID submits for, and a mismatch is otherwise only reported after the upload.
+        let organisationalUnit =
+            certificate.SubjectName.EnumerateRelativeDistinguishedNames()
+            |> Seq.tryFind (fun rdn -> not rdn.HasMultipleElements && rdn.GetSingleElementType().Value = "2.5.4.11")
+            |> Option.map _.GetSingleElementValue()
+
+        let teamId = get TeamId |> Option.defaultValue ""
+
+        if organisationalUnit <> Some teamId then
+            failwith $"""{path} belongs to team {defaultArg organisationalUnit "(none)"}, but {TeamId} is {teamId}."""
+
+        let now = DateTime.Now
+
+        if now < certificate.NotBefore || now > certificate.NotAfter then
+            failwith $"{commonName} is valid only from {certificate.NotBefore:d} to {certificate.NotAfter:d}."
+
+        Write.line $"Developer ID certificate: {commonName}, valid until {certificate.NotAfter:d}"
+
+        if certificate.NotAfter - now < TimeSpan.FromDays 30.0 then
+            Write.line "WARNING: the Developer ID certificate expires within 30 days. Renew it at developer.apple.com."
+
+    /// True when the .dmg will be signed and notarized, false when it will be ad-hoc.
+    ///
+    /// The .p12 path is written back to this process's environment fully resolved, so
+    /// Parcel opens the same file this checked however its working directory differs.
+    let checkConfiguration () =
+        match Required |> List.filter (get >> Option.isNone) with
+        | [] ->
+            let path =
+                (get P12Path).Value
+                |> Environment.ExpandEnvironmentVariables
+                |> Path.GetFullPath
+
+            Environment.SetEnvironmentVariable(P12Path, path)
+            ensureCertificateIsUsable path
+            Write.line "The macOS disk image will be signed with Developer ID and notarized"
+            true
+        | missing when missing.Length = Required.Length ->
+            Write.line "WARNING: no Developer ID configuration, so the macOS disk image will be ad-hoc"
+            Write.line "signed. Gatekeeper blocks it when downloaded - see docs/building.md."
+            false
+        | missing ->
+            failwith
+                $"""Developer ID configuration is incomplete - missing {String.Join(", ", missing)}.
+Add them to {LocalEnv.Path}, or remove the other AppleSigning__ keys to build an
+ad-hoc signed .dmg."""
+
+    /// Replaces the ad-hoc signing in the project's MacOsSettings with Developer ID signing
+    /// and notarization.
+    ///
+    /// Every credential goes in as a reference to the environment variable holding it
+    /// rather than as its value, so no password is written into _build. That is the
+    /// {"$type": "env"} object, not the "env:" string prefix the Azure block above could not
+    /// use. Parcel does resolve the object for these settings: PR #4 used it and got as far
+    /// as the notary service. LocalEnv.load has already put the values in this process's
+    /// environment, and Parcel inherits it.
+    let applyTo (project: JsonObject) =
+        let mac = childObject project "MacOsSettings"
+
+        let fromEnvironment (name: string) =
+            let reference = JsonObject()
+            reference["$type"] <- JsonValue.Create "env"
+            reference["name"] <- JsonValue.Create name
+            reference
+
+        mac["SigningCredentialsType"] <- JsonValue.Create "P12Certificate"
+        mac["SigningP12Certificate"]  <- fromEnvironment P12Path
+        mac["SigningP12Password"]     <- fromEnvironment P12Password
+        mac["TeamId"]                 <- fromEnvironment TeamId
+        mac["NotaryCredentialsType"]  <- JsonValue.Create "AppleAccount"
+        mac["NotaryAppleId"]          <- fromEnvironment NotaryAppleId
+        mac["NotaryAppPassword"]      <- fromEnvironment NotaryAppPassword
+
+        // Signed as well as the bundle inside it, so the notary ticket can be stapled to
+        // the image itself and Gatekeeper can check it offline.
+        mac["SignDmg"] <- JsonValue.Create true
+
+/// Writes a copy of the .parcel project with the signing blocks added and returns its
+/// path. Paths in the project are relative to the file, so the copy, living elsewhere,
+/// gets them as absolute. Only the two that exist today are rewritten; Parcel would say
+/// soon enough if another appeared.
+let writeSignedParcelProject (source: string) (destination: string) (notarizeMac: bool) =
+    let sourceDir = Path.GetDirectoryName source
+    let project = JsonNode.Parse(File.ReadAllText source).AsObject()
+
+    let general = project["GeneralSettings"].AsObject()
+
+    for key in [ "NetProjectPath"; "Icon" ] do
+        match general[key] with
+        | null -> ()
+        | node -> general[key] <- JsonValue.Create(Path.GetFullPath(sourceDir +/ node.GetValue<string>()))
+
+    AzureSigning.applyTo project
+
+    if notarizeMac then
+        AppleSigning.applyTo project
+
+    ensureFolder (Path.GetDirectoryName destination) |> ignore
+    File.WriteAllText(destination, project.ToJsonString(JsonSerializerOptions(WriteIndented = true)))
+    Write.line $"Wrote signed Parcel project to {destination}"
+    destination
 
 // --- parcel ----------------------------------------------------------------
 
@@ -303,6 +445,10 @@ let buildFido () =
     // props file it reverts was ours to begin with.
     let propsExistedBefore = File.Exists PropsFile
 
+    // Decided in Verify, where a half-configured or unusable Developer ID fails fast, and
+    // read again in Package.
+    let notarizeMac = lazy (AppleSigning.checkConfiguration ())
+
     let revertPropsFile () =
         if propsExistedBefore then
             git $"checkout -- \"{PropsFile}\""
@@ -320,7 +466,8 @@ let buildFido () =
                    $"The build expects to run on the {ReleaseBranch} branch, but is on {gitBranchName RepoFolder}."
 
             LocalEnv.load ()
-            AzureSigning.ensureCredentialsArePresent ())
+            AzureSigning.ensureCredentialsArePresent ()
+            notarizeMac.Force() |> ignore)
 
         stage "Update" (fun () ->
             workingDir RepoFolder
@@ -476,7 +623,7 @@ let buildFido () =
                       exposes only pack/step/install-tools), then re-run."
 
             let runtimes = WindowsRuntime :: MacRuntimes
-            let signedProject = AzureSigning.writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.parcel")
+            let signedProject = writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.parcel") notarizeMac.Value
 
             // Parcel builds the app itself. That repeats the publish above for win-x64;
             // once the .parcel publish settings are confirmed to match the csproj (AOT,

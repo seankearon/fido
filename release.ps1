@@ -148,6 +148,26 @@ if ($missing) {
 }
 Write-Ok "code-signing configuration present ($localEnv)"
 
+# Developer ID signing and notarization for the macOS disk image. Optional: without it the
+# .dmg is ad-hoc signed and Gatekeeper blocks it on download. All or nothing, because a
+# partial set is a typo, not a choice. The build checks the certificate itself.
+$appleKeys = @(
+    'AppleSigning__P12Path', 'AppleSigning__P12Password', 'AppleSigning__TeamId',
+    'AppleSigning__NotaryAppleId', 'AppleSigning__NotaryAppPassword'
+)
+$appleMissing = @($appleKeys | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+
+$notarizeMac = $appleMissing.Count -eq 0
+if ($notarizeMac) {
+    Write-Ok 'Developer ID configuration present: the macOS disk image will be notarized'
+}
+elseif ($appleMissing.Count -eq $appleKeys.Count) {
+    Write-Warn 'No Developer ID configuration: the macOS disk image will be ad-hoc signed'
+}
+else {
+    throw "Developer ID configuration is incomplete - missing $($appleMissing -join ', '). Add them to $localEnv, or remove the rest for an ad-hoc signed .dmg."
+}
+
 # --- what is about to happen -----------------------------------------------
 
 # Displayed so the prompt can name a version. Fido.Build computes this itself and is the
@@ -179,9 +199,15 @@ else {
     Write-Host "    tag       : v$plannedVersion  (pushed to origin)"
     Write-Host "    release   : public GitHub release with the Windows installer and the macOS disk image"
     Write-Host "    signing   : Windows exe and installer signed with Azure Trusted Signing"
-    Write-Host ''
-    Write-Warn 'The macOS disk image is ad-hoc signed: Gatekeeper will quarantine it, and'
-    Write-Warn 'users will need right-click > Open the first time.'
+
+    if ($notarizeMac) {
+        Write-Host "              macOS app and disk image signed with Developer ID and notarized"
+    }
+    else {
+        Write-Host ''
+        Write-Warn 'The macOS disk image is ad-hoc signed: Gatekeeper blocks it on download, and'
+        Write-Warn 'users must approve it in System Settings > Privacy & Security the first time.'
+    }
 
     # Not $IsMacOS: that automatic variable does not exist in Windows PowerShell 5.1, where
     # Set-StrictMode would then make reading it a terminating error.

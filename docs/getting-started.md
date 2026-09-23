@@ -17,6 +17,16 @@ a branch name in, its exact path on disk out.
 - **Platform:** Windows (primary). macOS support is included but experimental.
 - **Stack:** .NET 10, Avalonia 12.
 
+!!! note "Opening Fido on a Mac"
+    If macOS says it *could not verify "Fido" is free of malware*, that download was not
+    notarized by Apple. To open it anyway, drag Fido into **Applications** and try to open it
+    once. Then go to **System Settings → Privacy & Security**, scroll down to **Security**,
+    and press **Open Anyway** next to the message about Fido. Right-click → Open no longer
+    works for this on macOS 15 and later. Alternatively, clear the quarantine flag in
+    Terminal: `xattr -dr com.apple.quarantine /Applications/Fido.app`. Only do either for a
+    copy you downloaded from Fido's
+    [GitHub releases](https://github.com/seankearon/fido/releases).
+
 ---
 
 ## Overview
