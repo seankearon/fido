@@ -25,8 +25,15 @@ commands:                     # command lines the Console run menus offer
   instead (or, when the branch is checked out nowhere, the **switch the main tree** placement offer).
   It directs the **default choice, not the scan**: every location on the branch is still found and
   listed exactly as before, and each is one click away — this only decides which one the open actions
-  start on. If the results hold no main tree at all, the flight log says so and the first card keeps
-  the default.
+  start on.
+
+  When the branch is checked out **only in a linked worktree**, the main clone can't simply be picked:
+  git won't switch a main tree onto a branch another worktree holds. Fido then adds a **move to main
+  clone** card after the worktree, selects it, and says why in the flight log. Opening it **asks first**,
+  in a strip under the tools: confirming removes the worktree — the branch and its commits stay, the
+  folder and its ignored files (build output, local settings) go — then switches the main clone onto the
+  branch and opens it there. A worktree with uncommitted or untracked changes is never removed; the strip
+  says so and won't confirm. Cancel, Esc or picking another card leaves everything as it was.
 - **`commands`** *(ordered list of command lines)* — each entry becomes an entry in **both run menus** —
   the **Console button's** drop-down and the **[Console tab's](console.md)** — in the order given. An
   entry is a **command line, not a file name**: whatever you'd type in a terminal at that location —

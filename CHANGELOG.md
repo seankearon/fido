@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`prefer main clone` now works when a worktree holds the branch.** git won't switch a main tree onto a
+  branch another worktree has checked out, so a branch that lived only in a worktree used to leave the
+  preference unhonoured, with nothing in the flight log but `No main clone among the results`. Fido now adds
+  a **move to main clone** card after the worktree and selects it, and the flight log says why the main
+  clone couldn't simply be picked. Opening the card **asks first**, inline, like a delete: *Move & open…*
+  removes the worktree — the branch and its commits stay — then switches the main clone onto the branch
+  and carries on with the open you asked for. A worktree with uncommitted or untracked changes is never
+  removed (Fido doesn't force it), and changes in the main clone ride along with the switch, as the card
+  and the strip warn. Offered only when the branch's config prefers the main clone and no main tree is on
+  the branch already.
+
 - **Fido tells you when the branch has a pull request open — and links to it.** Every scan that finds the
   branch now asks **GitHub**, through the **GitHub CLI (`gh`)**, whether that branch has an open PR. One
   that does gets a row above the result cards naming it — `PR #42 · Add the widget` — with an **Open pull

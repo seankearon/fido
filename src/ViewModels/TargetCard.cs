@@ -25,9 +25,12 @@ public sealed class TargetCard
     public bool IsMainClone => Target.Kind == TargetKind.MainClone;
     public bool IsNewWorktree => Target.Kind == TargetKind.NewWorktree;
     public bool IsSwitchClone => Target.Kind == TargetKind.SwitchMainClone;
+    public bool IsMoveToMain => Target.Kind == TargetKind.MoveToMainClone;
 
-    /// <summary>True for either placement offer — the branch isn't checked out anywhere yet.</summary>
-    public bool IsPlacement => IsNewWorktree || IsSwitchClone;
+    /// <summary>True for an offer that puts the branch somewhere it isn't yet — a new worktree, a switch of the
+    /// main tree, or a move of the branch out of its worktree into the main tree. None has the branch's tree on
+    /// disk at its path until it's opened.</summary>
+    public bool IsPlacement => IsNewWorktree || IsSwitchClone || IsMoveToMain;
 
     /// <summary>The trailing kind chip's caption.</summary>
     public string KindLabel => Target.Kind switch
@@ -35,6 +38,7 @@ public sealed class TargetCard
         TargetKind.Worktree => "worktree",
         TargetKind.MainClone => "main clone",
         TargetKind.NewWorktree => "new worktree",
+        TargetKind.MoveToMainClone => "move to main clone",
         _ => "switch clone",
     };
 
@@ -58,6 +62,14 @@ public sealed class TargetCard
                     ? $" · ⚠ {t.UncommittedChanges} uncommitted change(s) ride along"
                     : "";
                 return $"{t.RepoName} · main tree on '{t.CurrentBranch}' · opening switches it here{warning}";
+            }
+            case TargetKind.MoveToMainClone:
+            {
+                var warning = t.UncommittedChanges > 0
+                    ? $" · ⚠ {t.UncommittedChanges} uncommitted change(s) ride along"
+                    : "";
+                return $"{t.RepoName} · main tree on '{t.CurrentBranch}' · opening moves the branch here " +
+                       $"from its worktree (asks first){warning}";
             }
             default:
             {

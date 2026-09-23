@@ -531,6 +531,92 @@ public sealed class OpenerService
         return path;
     }
 
+    // --- Moving a branch into the main clone ---------------------------------------------
+
+    /// <summary>
+    /// The "move to main clone" offers for a scan whose branch is checked out only in linked worktrees, for
+    /// a branch whose <c>.fido/cfg.yaml</c> prefers the main clone. git won't switch a main tree onto a branch
+    /// another worktree holds, so the preference can't simply pick a card; this offers, per clone, to release
+    /// the branch from its worktree and switch that clone's main tree onto it (see
+    /// <see cref="TargetKind.MoveToMainClone"/>). Empty when any main tree is already on the branch — the
+    /// preference is honoured as it stands — or when there's no worktree to move from. Only reads: the move
+    /// itself is <see cref="MoveToMainCloneAsync"/>, and only after the user confirms it.
+    /// </summary>
+    public async Task<IReadOnlyList<DiscoveredTarget>> FindMoveToMainOffersAsync(
+        IReadOnlyList<DiscoveredTarget> targets, AppConfig config, CancellationToken ct = default)
+    {
+        if (targets.Any(t => t.Kind == TargetKind.MainClone)) return [];
+
+        var offers = new List<DiscoveredTarget>();
+        var seenClones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var worktree in targets.Where(t => t.Kind == TargetKind.Worktree))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!seenClones.Add(worktree.MainPath)) continue;   // git lets one branch into one worktree per clone
+
+            var solutions = await Task.Run(() => FindSolutionsInFolder(worktree.MainPath, config), ct);
+            var currentBranch = await _git.GetCurrentBranchAsync(worktree.MainPath, ct);
+            var changes = await _git.GetStatusAsync(worktree.MainPath, ct);
+            offers.Add(new DiscoveredTarget(
+                worktree.MainPath, TargetKind.MoveToMainClone, worktree.RepoName, worktree.MainPath, solutions,
+                UpdatedUtc: null, CurrentBranch: currentBranch, UncommittedChanges: changes.Count,
+                HeldByWorktree: worktree.Path));
+        }
+        return offers;
+    }
+
+    /// <summary>
+    /// What moving <paramref name="branch"/> from its worktree into the main tree would do right now —
+    /// gathered fresh when the move is asked for, not when the card was offered, because either tree can
+    /// have changed since the scan. Feeds the confirm strip.
+    /// </summary>
+    public async Task<MainCloneMove> BuildMainCloneMoveAsync(
+        DiscoveredTarget offer, string branch, CancellationToken ct = default)
+    {
+        var worktree = offer.HeldByWorktree
+                       ?? throw new InvalidOperationException("A move-to-main-clone offer names no worktree.");
+        var worktreeChanges = await _git.GetStatusAsync(worktree, ct);
+        var currentBranch = await _git.GetCurrentBranchAsync(offer.MainPath, ct);
+        var mainChanges = await _git.GetStatusAsync(offer.MainPath, ct);
+        return new MainCloneMove(offer.MainPath, worktree, branch, currentBranch, worktreeChanges, mainChanges);
+    }
+
+    /// <summary>
+    /// Carries out a confirmed <see cref="MainCloneMove"/>: removes the worktree — never forced, so git
+    /// refuses rather than lose a change the plan didn't see — and then switches the main tree onto the
+    /// branch. The branch itself is never touched. Returns the main tree's path.
+    /// <para>The removal comes first because git allows nothing else, and it's the step that can't be taken
+    /// back, so a switch that then fails is said plainly: the branch is intact and checked out nowhere, and
+    /// a rescan offers to place it again.</para>
+    /// </summary>
+    public async Task<string> MoveToMainCloneAsync(MainCloneMove plan, AppConfig config, CancellationToken ct = default)
+    {
+        if (!plan.CanMove)
+            throw new InvalidOperationException(
+                $"The worktree at {plan.WorktreePath} has changes — commit, stash or remove them first.");
+
+        _log($"Removing worktree at {plan.WorktreePath} (the branch '{plan.Branch}' stays)…");
+        var remove = await GitRetry.ExecuteAsync(_deletionRetry, "worktree remove",
+            token => _git.WorktreeRemoveAsync(plan.MainWorktreePath, plan.WorktreePath, force: false, token), ct);
+        if (!remove.Success)
+            throw new InvalidOperationException(
+                $"git couldn't remove the worktree — close anything open in it and try again: {remove.Message}");
+        _log("Worktree removed.");
+
+        var repo = new RepositoryInfo(plan.MainWorktreePath, "");
+        try
+        {
+            var ctx = await BuildMainContextAsync(repo, plan.Branch, config, ct);
+            return await CheckoutInMainAsync(repo, plan.Branch, ctx, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log($"[!] The worktree is gone, but the main clone couldn't switch to '{plan.Branch}' — the branch " +
+                 "is intact and checked out nowhere; rescan to place it.");
+            throw;
+        }
+    }
+
     // --- Updating before a run ------------------------------------------------------------
 
     /// <summary>

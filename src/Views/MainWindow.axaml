@@ -351,6 +351,15 @@
                                                   StrokeLineCap="Round" StrokeJoin="Round"
                                                   Data="M4,7 H17 M13,3 L17,7 L13,11 M20,17 H7 M11,13 L7,17 L11,21" />
                                         </Border>
+                                        <!-- Move the branch out of its worktree into the main clone — an arrow into the house -->
+                                        <Border Width="38" Height="38" CornerRadius="9" VerticalAlignment="Center"
+                                                Background="{DynamicResource FidoCloneTileBg}"
+                                                IsVisible="{Binding IsMoveToMain}">
+                                            <Path Width="18" Height="18" Stretch="Uniform"
+                                                  Stroke="{DynamicResource FidoCloneText}" StrokeThickness="1.8"
+                                                  StrokeLineCap="Round" StrokeJoin="Round"
+                                                  Data="M9,9 L15,4 L21,9 V20 a1,1 0 0 1 -1,1 H10 a1,1 0 0 1 -1,-1 Z M2,15 H13 M10,12 L13,15 L10,18" />
+                                        </Border>
 
                                         <StackPanel Grid.Column="1" Margin="12,0" Spacing="3" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Path}" FontSize="13.5" FontWeight="SemiBold"
@@ -365,7 +374,8 @@
                                                 Classes.worktree="{Binding IsWorktree}"
                                                 Classes.clone="{Binding IsMainClone}"
                                                 Classes.newwt="{Binding IsNewWorktree}"
-                                                Classes.switchwt="{Binding IsSwitchClone}">
+                                                Classes.switchwt="{Binding IsSwitchClone}"
+                                                Classes.movewt="{Binding IsMoveToMain}">
                                             <TextBlock Text="{Binding KindLabel}" />
                                         </Border>
 
@@ -556,6 +566,30 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- ============== 4b. Move-to-main-clone confirm strip ============== -->
+                        <!-- Opening a "move to main clone" card removes a worktree, so it asks first — in place,
+                             like the delete. Enter never confirms; only the explicit click does. -->
+                        <Border x:Name="MoveConfirmStrip" IsVisible="{Binding IsConfirmingMove}" Background="{DynamicResource FidoDangerSoftBg}"
+                                BorderBrush="{DynamicResource FidoDangerBorder}" BorderThickness="1.5"
+                                CornerRadius="10" Padding="14,12">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="MoveConfirmText" TextWrapping="Wrap" FontSize="13"
+                                           Foreground="{DynamicResource FidoDangerConfirmText}">
+                                    <Run Text="Remove the worktree at " /><Run Text="{Binding MoveConfirmWorktreePath}" FontWeight="Bold" Foreground="{DynamicResource FidoDangerEmphasis}" /><Run Text=" and switch the main clone from " /><Run Text="{Binding MoveConfirmCurrentBranch}" FontWeight="Bold" Foreground="{DynamicResource FidoDangerEmphasis}" /><Run Text=" to " /><Run Text="{Binding MoveConfirmBranch}" FontWeight="Bold" Foreground="{DynamicResource FidoDangerEmphasis}" /><Run Text="? The branch and its commits stay; the worktree folder goes, ignored files (build output, local settings) with it." />
+                                </TextBlock>
+                                <TextBlock IsVisible="{Binding HasMoveConfirmWarnings}"
+                                           Text="{Binding MoveConfirmWarnings}" TextWrapping="Wrap"
+                                           FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource FidoDangerEmphasis}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                    <Button x:Name="MoveCancelButton" Classes="confirmcancel" Content="Cancel"
+                                            Click="OnMoveCancelClick" IsEnabled="{Binding !IsMoving}" />
+                                    <Button x:Name="MoveConfirmButton" Classes="dangersolid" Content="{Binding MoveConfirmLabel}"
+                                            Click="OnMoveConfirmClick" IsEnabled="{Binding CanConfirmMove}" IsTabStop="False" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                         <!-- ========================= 5. Delete row ========================= -->
                         <StackPanel IsVisible="{Binding ShowDeleteRow}" Spacing="12">
