@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The release build can sign the macOS disk image with a Developer ID and notarize it.** Until now the
   `.dmg` was only ad-hoc signed, so a Mac that downloaded it said Apple *could not verify "Fido" is free of
-  malware*, and since macOS 15 right-click → Open no longer gets past that. Put five `AppleSigning__*` keys
+  malware*, and since macOS 15 right-click → Open no longer gets past that. Put five `MacSigning__*` keys
   in `appbuild.env` (the Developer ID Application `.p12` and its password, the Team ID, and the Apple
   Account and app-specific password that submit to Apple's notary service) and Parcel signs the app with
   the hardened runtime, notarizes it and staples the ticket to the `.dmg`, all from the Windows release

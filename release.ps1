@@ -151,21 +151,21 @@ Write-Ok "code-signing configuration present ($localEnv)"
 # Developer ID signing and notarization for the macOS disk image. Optional: without it the
 # .dmg is ad-hoc signed and Gatekeeper blocks it on download. All or nothing, because a
 # partial set is a typo, not a choice. The build checks the certificate itself.
-$appleKeys = @(
-    'AppleSigning__P12Path', 'AppleSigning__P12Password', 'AppleSigning__TeamId',
-    'AppleSigning__NotaryAppleId', 'AppleSigning__NotaryAppPassword'
+$macKeys = @(
+    'MacSigning__P12Path', 'MacSigning__P12Password', 'MacSigning__TeamId',
+    'MacSigning__AppleId', 'MacSigning__AppPassword'
 )
-$appleMissing = @($appleKeys | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+$macMissing = @($macKeys | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
 
-$notarizeMac = $appleMissing.Count -eq 0
+$notarizeMac = $macMissing.Count -eq 0
 if ($notarizeMac) {
     Write-Ok 'Developer ID configuration present: the macOS disk image will be notarized'
 }
-elseif ($appleMissing.Count -eq $appleKeys.Count) {
+elseif ($macMissing.Count -eq $macKeys.Count) {
     Write-Warn 'No Developer ID configuration: the macOS disk image will be ad-hoc signed'
 }
 else {
-    throw "Developer ID configuration is incomplete - missing $($appleMissing -join ', '). Add them to $localEnv, or remove the rest for an ad-hoc signed .dmg."
+    throw "Developer ID configuration is incomplete - missing $($macMissing -join ', '). Add them to $localEnv, or remove the rest for an ad-hoc signed .dmg."
 }
 
 # --- what is about to happen -----------------------------------------------

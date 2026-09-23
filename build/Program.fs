@@ -233,14 +233,14 @@ and certificate profile of the Trusted Signing resource)."""
 /// .dmg, all from Windows, because Parcel talks to the notary API itself rather than through
 /// Xcode's notarytool. With none, the .dmg stays ad-hoc signed and the build says so. With
 /// some but not all, the build stops, because that is a typo rather than a choice.
-module AppleSigning =
-    let P12Path           = "AppleSigning__P12Path"
-    let P12Password       = "AppleSigning__P12Password"
-    let TeamId            = "AppleSigning__TeamId"
-    let NotaryAppleId     = "AppleSigning__NotaryAppleId"
-    let NotaryAppPassword = "AppleSigning__NotaryAppPassword"
+module MacSigning =
+    let P12Path     = "MacSigning__P12Path"
+    let P12Password = "MacSigning__P12Password"
+    let TeamId      = "MacSigning__TeamId"
+    let AppleId     = "MacSigning__AppleId"
+    let AppPassword = "MacSigning__AppPassword"
 
-    let Required = [ P12Path; P12Password; TeamId; NotaryAppleId; NotaryAppPassword ]
+    let Required = [ P12Path; P12Password; TeamId; AppleId; AppPassword ]
 
     let get = AzureSigning.get
 
@@ -317,7 +317,7 @@ of a paid Apple Developer Program membership) and export it with its private key
         | missing ->
             failwith
                 $"""Developer ID configuration is incomplete - missing {String.Join(", ", missing)}.
-Add them to {LocalEnv.Path}, or remove the other AppleSigning__ keys to build an
+Add them to {LocalEnv.Path}, or remove the other MacSigning__ keys to build an
 ad-hoc signed .dmg."""
 
     /// Replaces the ad-hoc signing in the project's MacOsSettings with Developer ID signing
@@ -343,8 +343,8 @@ ad-hoc signed .dmg."""
         mac["SigningP12Password"]     <- fromEnvironment P12Password
         mac["TeamId"]                 <- fromEnvironment TeamId
         mac["NotaryCredentialsType"]  <- JsonValue.Create "AppleAccount"
-        mac["NotaryAppleId"]          <- fromEnvironment NotaryAppleId
-        mac["NotaryAppPassword"]      <- fromEnvironment NotaryAppPassword
+        mac["NotaryAppleId"]          <- fromEnvironment AppleId
+        mac["NotaryAppPassword"]      <- fromEnvironment AppPassword
 
         // Signed as well as the bundle inside it, so the notary ticket can be stapled to
         // the image itself and Gatekeeper can check it offline.
@@ -368,7 +368,7 @@ let writeSignedParcelProject (source: string) (destination: string) (notarizeMac
     AzureSigning.applyTo project
 
     if notarizeMac then
-        AppleSigning.applyTo project
+        MacSigning.applyTo project
 
     ensureFolder (Path.GetDirectoryName destination) |> ignore
     File.WriteAllText(destination, project.ToJsonString(JsonSerializerOptions(WriteIndented = true)))
@@ -447,7 +447,7 @@ let buildFido () =
 
     // Decided in Verify, where a half-configured or unusable Developer ID fails fast, and
     // read again in Package.
-    let notarizeMac = lazy (AppleSigning.checkConfiguration ())
+    let notarizeMac = lazy (MacSigning.checkConfiguration ())
 
     let revertPropsFile () =
         if propsExistedBefore then

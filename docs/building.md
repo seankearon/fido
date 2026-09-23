@@ -181,11 +181,11 @@ The build signs and notarizes when `appbuild.env` holds all five of these keys:
 
 | Key | What it is |
 |---|---|
-| `AppleSigning__P12Path` | Full path to the Developer ID Application certificate and its private key, exported as a `.p12`. |
-| `AppleSigning__P12Password` | The password the `.p12` was exported with. |
-| `AppleSigning__TeamId` | The 10-character Team ID, shown under *Membership details* on developer.apple.com. |
-| `AppleSigning__NotaryAppleId` | The Apple Account (an email address) that submits to the notary service. It must belong to the same team. |
-| `AppleSigning__NotaryAppPassword` | An **app-specific password** for that account, created at [account.apple.com](https://account.apple.com) under *Sign-In and Security*. Not the account's own password. |
+| `MacSigning__P12Path` | Full path to the Developer ID Application certificate and its private key, exported as a `.p12`. |
+| `MacSigning__P12Password` | The password the `.p12` was exported with. |
+| `MacSigning__TeamId` | The 10-character Team ID, shown under *Membership details* on developer.apple.com. |
+| `MacSigning__AppleId` | The Apple Account (an email address) that submits to the notary service. It must belong to the same team. |
+| `MacSigning__AppPassword` | An **app-specific password** for that account, created at [account.apple.com](https://account.apple.com) under *Sign-In and Security*. Not the account's own password. |
 
 With all five, Parcel signs the bundle with the hardened runtime, submits it to Apple's
 notary service and staples the ticket to the signed `.dmg`. It does all of that from Windows:
