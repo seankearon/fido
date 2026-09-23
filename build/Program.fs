@@ -354,9 +354,21 @@ ad-hoc signed .dmg."""
 /// path. Paths in the project are relative to the file, so the copy, living elsewhere,
 /// gets them as absolute. Only the two that exist today are rewritten; Parcel would say
 /// soon enough if another appeared.
-let writeSignedParcelProject (source: string) (destination: string) (notarizeMac: bool) =
+///
+/// <paramref name="singleFile"/> turns on PublishSingleFile, which the mac pack needs. The
+/// cross-built mac heads are not NativeAOT, so a normal publish puts every managed .dll in
+/// Contents/MacOS - and Apple treats everything there as code needing its own signature.
+/// The main binary's seal is then invalid and notarization rejects the bundle ("The
+/// signature of the binary is invalid"). A single-file publish leaves only the apphost and
+/// the native .dylibs, all of which codesign properly. The Windows head keeps its own
+/// setting, since it is NativeAOT and already a single native exe.
+let writeSignedParcelProject (source: string) (destination: string) (notarizeMac: bool) (singleFile: bool) =
     let sourceDir = Path.GetDirectoryName source
     let project = JsonNode.Parse(File.ReadAllText source).AsObject()
+
+    if singleFile then
+        let publish = childObject project "PublishSettings"
+        publish["PublishSingleFile"] <- JsonValue.Create "True"
 
     let general = project["GeneralSettings"].AsObject()
 
@@ -622,21 +634,29 @@ let buildFido () =
                       Create it with the Parcel MCP's create-project tool (it is MCP-only; the CLI \
                       exposes only pack/step/install-tools), then re-run."
 
-            let runtimes = WindowsRuntime :: MacRuntimes
-            let signedProject = writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.parcel") notarizeMac.Value
+            let windowsProject = writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.parcel") notarizeMac.Value false
+            let macProject = writeSignedParcelProject ParcelProject (BuildDir +/ "Fido.mac.parcel") notarizeMac.Value true
 
             // Parcel builds the app itself. That repeats the publish above for win-x64;
             // once the .parcel publish settings are confirmed to match the csproj (AOT,
             // trimming, self-contained), --no-build removes the duplication.
+            parcel [
+                "pack"; doubleQuote windowsProject
+                $"--runtimes {WindowsRuntime}"
+                "--packages nsis"
+                $"--output {doubleQuote DropFolder}"
+            ]
+
+            // A separate pack because the mac heads need a single-file publish (see
+            // writeSignedParcelProject) and one .parcel project has one PublishSettings.
             //
             // The mac runtimes are cross-built from Windows, which ILC cannot do - the
-            // RuntimeIdentifier guard in src/Fido.csproj drops those two to a trimmed,
+            // RuntimeIdentifier guard in src/Fido.csproj drops them to a trimmed,
             // self-contained publish so the .dmg is still produced. Run this on a Mac and
             // they come out native.
             parcel [
-                "pack"; doubleQuote signedProject
-                yield! runtimes |> List.map (fun r -> $"--runtimes {r}")
-                "--packages nsis"
+                "pack"; doubleQuote macProject
+                yield! MacRuntimes |> List.map (fun r -> $"--runtimes {r}")
                 "--packages dmg"
                 $"--output {doubleQuote DropFolder}"
             ]
