@@ -102,8 +102,8 @@ let ensureNativeLinkerIsReachable () =
 
 // --- local configuration ---------------------------------------------------
 
-/// The machine's private configuration: %USERPROFILE%\.config\shine.env, a KEY=value file
-/// with # comments, shared by every Shine build and never checked in. Anything here that
+/// The machine's private configuration: %USERPROFILE%\.config\appbuild.env, a KEY=value file
+/// with # comments, shared by every app build and never checked in. Anything here that
 /// identifies an Azure tenant, account or company belongs in that file, not in this repo,
 /// which is public.
 ///
@@ -111,14 +111,14 @@ let ensureNativeLinkerIsReachable () =
 /// not already set - so a value exported in the shell still wins, which is how CI or a
 /// one-off override would supply it. Child processes inherit the result, which is what
 /// lets Parcel read its own settings with the env: prefix.
-module ShineEnv =
+module LocalEnv =
     let Path =
         let home =
             Environment.GetEnvironmentVariable "USERPROFILE"
             |> Option.ofObj
             |> Option.defaultWith (fun () -> Environment.GetEnvironmentVariable "HOME")
 
-        home +/ ".config" +/ "shine.env"
+        home +/ ".config" +/ "appbuild.env"
 
     let load () =
         if File.Exists Path then
@@ -164,7 +164,7 @@ module ShineEnv =
 /// the shape Defender's Wacatac.B!ml heuristic flags, and a quarantined download is a
 /// worse first impression than no installer at all.
 module AzureSigning =
-    /// Every variable Parcel or the build reads. Named in the shine.env Section__Key style.
+    /// Every variable Parcel or the build reads. Named in the appbuild.env Section__Key style.
     let TenantId    = "CodeSigning__TenantId"
     let ClientId    = "CodeSigning__ClientId"
     let ClientSecret = "CodeSigning__ClientSecret"
@@ -188,7 +188,7 @@ module AzureSigning =
         | missing ->
             failwith
                 $"""Code-signing configuration is missing: {String.Join(", ", missing)}.
-Add them to {ShineEnv.Path} (tenant, client id and secret of the Entra app registration
+Add them to {LocalEnv.Path} (tenant, client id and secret of the Entra app registration
 that holds the Trusted Signing Certificate Profile Signer role; the endpoint, account
 and certificate profile of the Trusted Signing resource)."""
 
@@ -319,7 +319,7 @@ let buildFido () =
             verify (fun () -> gitBranchName RepoFolder = ReleaseBranch)
                    $"The build expects to run on the {ReleaseBranch} branch, but is on {gitBranchName RepoFolder}."
 
-            ShineEnv.load ()
+            LocalEnv.load ()
             AzureSigning.ensureCredentialsArePresent ())
 
         stage "Update" (fun () ->

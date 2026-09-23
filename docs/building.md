@@ -144,8 +144,8 @@ build's own version still wins.
 
 Parcel signs the app exe, the NSIS uninstaller and the installer with **Azure Trusted
 Signing**. Nothing identifying the signing account is in this repo: the build reads
-`%USERPROFILE%\.config\shine.env` — a private `KEY=value` file with `#` comments, shared
-by every Shine build and never checked in — and refuses to start unless it holds all six
+`%USERPROFILE%\.config\appbuild.env` — a private `KEY=value` file with `#` comments, shared
+with the Klippy build and never checked in — and refuses to start unless it holds all six
 keys:
 
 | Key | What it is |

@@ -117,21 +117,21 @@ if (-not $DryRun) {
 
 # Parcel signs the Windows exe and installer with Azure Trusted Signing. Everything it
 # needs - tenant, app registration, endpoint, account, certificate profile - lives in the
-# machine's private shine.env, never in the repo. The build loads that file itself and
+# machine's private appbuild.env, never in the repo. The build loads that file itself and
 # checks the same keys; checking here as well keeps the failure ahead of the
 # confirmation prompt rather than behind it.
 $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
 # Nested Join-Path rather than a two-segment literal: Windows PowerShell 5.1's Join-Path
 # takes only one child path, and a hard-coded separator would be wrong on one platform.
-$shineEnv = Join-Path (Join-Path $userHome '.config') 'shine.env'
+$localEnv = Join-Path (Join-Path $userHome '.config') 'klippy.env'
 $signingKeys = @(
     'CodeSigning__TenantId', 'CodeSigning__ClientId', 'CodeSigning__ClientSecret',
     'CodeSigning__Endpoint', 'CodeSigning__AccountName', 'CodeSigning__CertificateProfileName'
 )
 
 # Only into this process, and only for keys the shell has not already set.
-if (Test-Path $shineEnv) {
-    foreach ($line in Get-Content $shineEnv) {
+if (Test-Path $localEnv) {
+    foreach ($line in Get-Content $localEnv) {
         if ($line -match '^\s*([^#=\s][^=]*?)\s*=\s*(.*)$' -and -not (Test-Path "env:$($Matches[1])")) {
             Set-Item -Path "env:$($Matches[1])" -Value $Matches[2]
         }
@@ -144,9 +144,9 @@ if (Test-Path $shineEnv) {
 # die with "The property 'Value' cannot be found on this object."
 $missing = $signingKeys | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
 if ($missing) {
-    throw "Code-signing configuration is missing: $($missing -join ', '). Add them to $shineEnv."
+    throw "Code-signing configuration is missing: $($missing -join ', '). Add them to $localEnv."
 }
-Write-Ok "code-signing configuration present ($shineEnv)"
+Write-Ok "code-signing configuration present ($localEnv)"
 
 # --- what is about to happen -----------------------------------------------
 
