@@ -6,9 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Fido.Models;
 using Fido.Services;
@@ -546,7 +548,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnRepoConfigClick(object? sender, RoutedEventArgs e) => await EditRepoConfigAsync();
+    private async void OnRepoConfigClick(object? sender, RoutedEventArgs e)
+    {
+        CloseRunMenu(sender);
+        await EditRepoConfigAsync();
+    }
 
     /// <summary>
     /// The context strip's create/edit action (and the run menu's footer row): makes sure the selected
@@ -630,7 +636,22 @@ public partial class MainWindow : Window
     private async void OnConsoleRunClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Control { DataContext: ConsoleRunOption run }) return;
+        CloseRunMenu(sender);
         await RunConsoleOptionAsync(run);
+    }
+
+    /// <summary>
+    /// Closes the run menu a row was clicked in, before the pick itself runs — a run can sit on a fetch
+    /// or a worktree add for a while, and a menu left hanging over the window meanwhile reads as if the
+    /// click never landed. A flyout's popup is logically parented to the caret that opened it, so this
+    /// serves all three copies of the menu (hero, grid, Console tab) alike. A click from outside any
+    /// flyout — the context strip's own edit button — has no popup above it, and closes nothing.
+    /// </summary>
+    private static void CloseRunMenu(object? source)
+    {
+        if (source is Control control
+            && control.FindLogicalAncestorOfType<Popup>() is { PlacementTarget: Button { Flyout: { } menu } })
+            menu.Hide();
     }
 
     /// <summary>

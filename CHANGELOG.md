@@ -60,6 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Console run menu closes once you pick from it.** Clicking a command — or **Edit .fido/cfg.yaml…** —
+  left the menu open over the window while the run got going, which could take a while behind a fetch or a
+  new worktree and read as if the click hadn't landed. All three copies of the menu (the Console tool's
+  caret, the hero's when Console is the default, and the Console tab's **Run**) now close on the pick.
+
 - **A branch still using `run files` / `aspire start` now says so.** `commands` replaced both, and a branch
   cut before its repo's `.fido/cfg.yaml` moved over kept the old keys — which Fido quietly ignored, so the
   Console run menu came up empty with nothing in the flight log to say why. The flight log now names the

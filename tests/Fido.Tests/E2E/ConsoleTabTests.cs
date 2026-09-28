@@ -1,9 +1,11 @@
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Fido.Models;
 using Fido.Services;
 using Fido.Theme;
@@ -163,6 +165,37 @@ public class ConsoleTabTests
             await Assert.That(launcher.Launches.Count).IsEqualTo(0);
             await Assert.That(window.Vm().IsConsoleTab).IsTrue();   // the pane is shown before it runs
             await Assert.That(window.LogText()).Contains("Opening a shell in");
+        });
+    }
+
+    [Test]
+    public async Task A_pick_from_the_console_tabs_run_menu_closes_the_menu()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+            window.Vm().IsConsoleTab = true;
+            UiTestExtensions.Pump();
+
+            // The real flyout and a real row — the wiring the user actually touches.
+            var runMenu = window.FindControl<Button>("ConsoleRunsButton")!;
+            var flyout = (Flyout)runMenu.Flyout!;
+            flyout.ShowAt(runMenu);
+            UiTestExtensions.Pump();
+            await Assert.That(flyout.IsOpen).IsTrue();
+
+            var shellHere = ((Control)flyout.Content!).GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Classes.Contains("runitem"));
+            shellHere.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            UiTestExtensions.Pump();
+
+            await Assert.That(flyout.IsOpen).IsFalse();
+            await Assert.That(launcher.Launches.Count).IsEqualTo(0);   // still the pane's, not a terminal's
         });
     }
 
