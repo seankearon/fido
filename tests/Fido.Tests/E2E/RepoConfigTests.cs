@@ -142,6 +142,7 @@ public class RepoConfigTests
             var flyout = (Flyout)caret.Flyout!;
             flyout.ShowAt(caret);
             UiTestExtensions.Pump();
+            await Assert.That(flyout.IsOpen).IsTrue();
 
             var rows = ((Control)flyout.Content!).GetVisualDescendants().OfType<Button>()
                 .Where(b => b.Classes.Contains("runitem")).ToList();
@@ -150,10 +151,51 @@ public class RepoConfigTests
             rows[1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             UiTestExtensions.Pump();
 
+            // A pick is the menu's whole job — it closes rather than hang over the window while it runs.
+            await Assert.That(flyout.IsOpen).IsFalse();
+
             var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
             await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
             await Assert.That(launcher.LastLaunch!.Value.Editor.Kind).IsEqualTo(EditorKind.Console);
             await Assert.That(launcher.LastLaunch!.Value.ConsoleCommand).IsEqualTo("aspire start");
+        });
+    }
+
+    [Test]
+    public async Task The_menus_edit_row_closes_the_menu_too()
+    {
+        using var world = new TestRepoWorld();
+        var origin = world.CreateOrigin("Foo", "Foo");
+        var root = world.SearchRoot("root");
+        var clone = world.Clone(origin, root, "Foo");
+        var worktree = world.AddWorktree(clone, "feature/edit");
+        TestRepoWorld.WriteFidoConfig(worktree, "commands: [build.ps1]\n");
+
+        var launcher = new FakeEditorLauncher();
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("feature/edit");
+
+            var caret = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Classes.Contains("runcaret") && b.IsVisible);
+            var flyout = (Flyout)caret.Flyout!;
+            flyout.ShowAt(caret);
+            UiTestExtensions.Pump();
+
+            // The footer row is a pick like any other: it leaves the menu behind as it goes.
+            var edit = ((Control)flyout.Content!).GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Classes.Contains("secondary"));
+            edit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            UiTestExtensions.Pump();
+
+            await Assert.That(flyout.IsOpen).IsFalse();
+
+            // And the edit itself still goes ahead: the file opens in the default tool (Rider here).
+            var completed = await Task.WhenAny(launcher.FirstLaunch, Task.Delay(TimeSpan.FromSeconds(10)));
+            await Assert.That(completed).IsEqualTo((Task)launcher.FirstLaunch);
+            await Assert.That(launcher.LastLaunch!.Value.Target).IsEqualTo(RepoConfigService.PathIn(worktree));
         });
     }
 
