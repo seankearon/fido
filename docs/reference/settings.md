@@ -43,6 +43,12 @@ Reach these via ⚙ → **All settings…**.
       **[Fido's own Console tab](../guide/console.md)** instead — a real shell over a real pseudo-terminal,
       beside the flight log. It governs that button's menu only: the Console **button itself** always opens
       your terminal, and the Console **tab's** own Run menu always runs in the pane.
+- **Command line** — **Switch to a window that already has the branch** *(default on)*. On, `fido <branch>`
+  brings the Fido window already open on that branch to the front instead of opening a second, and runs
+  anything else the command line asked for — a tool, `-s`, `--folder` — there (see
+  **[A window that already has the branch](../guide/command-line.md#a-window-that-already-has-the-branch)**).
+  Untick it and every launch opens its own window; `--new-window` does the same for a single launch. Takes
+  effect from the next launch.
 - **Close after opening** — when Fido quits after a successful launch: **Command line** *(default —
   only when started with a branch on the command line)*, **Always** (after every launch, including
   the on-screen buttons), or **Never** (turns auto-close off).
@@ -58,6 +64,7 @@ Reach these via ⚙ → **All settings…**.
   `%USERPROFILE%\RiderProjects`, `%USERPROFILE%\Projects`.
 - **Default branch names:** `main`, `master` (never offered for deletion).
 - **Search depth:** 4.
+- **Command line:** `fido <branch>` switches to a window already open on the branch.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 - **Window title:** shows `<repo> · <branch>` once discovery resolves.
 - **Console tab colours:** the terminal's own scheme; Fido's palette is opt-in.
@@ -75,3 +82,8 @@ setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-con
 JSON at **`%APPDATA%\Fido\config.json`**. If that doesn't exist, Fido reads a legacy
 `%APPDATA%\atlantic-opener\config.json` (from before the rename) so existing settings survive;
 the next save writes to the new location.
+
+Each open window also leaves an empty marker file in **`%LOCALAPPDATA%\Fido\instances`**
+(`~/.local/share/Fido/instances` on Linux, `~/Library/Application Support/Fido/instances` on macOS), which
+is how `fido <branch>` finds [a window that already has the branch](../guide/command-line.md#a-window-that-already-has-the-branch).
+A window removes its marker when it closes, and the next launch clears away any left by a Fido that didn't.

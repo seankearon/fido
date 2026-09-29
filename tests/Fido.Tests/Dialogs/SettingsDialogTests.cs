@@ -102,6 +102,30 @@ public class SettingsDialogTests
     }
 
     [Test]
+    public async Task Save_persists_the_switch_to_an_open_window_option()
+    {
+        using var world = new TestRepoWorld();
+        var (service, config, dir) = NewConfig(world);
+        await Assert.That(config.SwitchToOpenWindow).IsTrue();   // on out of the box
+
+        await Harness.OnUi(async owner =>
+        {
+            var dialog = new SettingsDialog(config, service);
+            var resultTask = dialog.ShowDialog(owner);
+            UiTestExtensions.Pump();
+
+            dialog.SetChecked("SwitchToOpenWindowCheck", false);   // untick the real box
+
+            dialog.ClickButton("SaveButton");
+            await resultTask;
+            App.ApplyTheme(AppTheme.System);
+        });
+
+        var reloaded = new ConfigService(dir).Load();
+        await Assert.That(reloaded.SwitchToOpenWindow).IsFalse();
+    }
+
+    [Test]
     public async Task Cancel_discards_edits()
     {
         using var world = new TestRepoWorld();

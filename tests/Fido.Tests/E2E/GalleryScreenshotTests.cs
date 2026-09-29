@@ -207,6 +207,7 @@ public class GalleryScreenshotTests
                 var dialog = new SettingsDialog(config, configService);
                 var shown = dialog.ShowDialog(owner);
                 UiTestExtensions.Pump();
+                FitDialogToContent(dialog);
                 Screenshots.Save(dialog, $"settings-dialog-{suffix}");
                 dialog.Close(false);
                 await shown;
@@ -249,6 +250,21 @@ public class GalleryScreenshotTests
             // something sets it, so adding to it would only ever produce NaN.
             window.Height = window.Bounds.Height + Math.Ceiling(overflow);
         }
+    }
+
+    /// <summary>
+    /// The settings dialog's counterpart to <see cref="FitWindowToContent"/>. It sizes to its content too, and
+    /// is clamped to the same 1080-tall headless screen — but it has no scroller of its own, so once its
+    /// settings outgrow that, the clamp slices Save and Cancel off the bottom of the shot. Measured without a
+    /// height limit and sized to match, it's shown whole, as a screen with room for it shows it.
+    /// </summary>
+    private static void FitDialogToContent(Window dialog)
+    {
+        if (dialog.Content is not Control content) return;
+        content.Measure(new Avalonia.Size(dialog.Bounds.Width, double.PositiveInfinity));
+        dialog.SizeToContent = SizeToContent.Manual;   // else the screen clamp undoes the growth
+        dialog.Height = Math.Ceiling(content.DesiredSize.Height);
+        UiTestExtensions.Pump();
     }
 
     /// <summary>

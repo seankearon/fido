@@ -116,6 +116,16 @@
 
         <StackPanel Spacing="9">
             <TextBlock Classes="label" TextWrapping="Wrap">
+                <Run Text="Command line " /><Run Text="· when fido &lt;branch&gt; runs" Foreground="{DynamicResource FidoTextDim}" />
+            </TextBlock>
+            <CheckBox x:Name="SwitchToOpenWindowCheck" Classes="fido"
+                      IsChecked="{Binding SwitchToOpenWindow, Mode=TwoWay}"
+                      Content="Switch to a window that already has the branch"
+                      ToolTip.Tip="On: a Fido window already open on the branch comes to the front instead of a second one opening — and runs whatever else the command line asked for, such as a tool. Off: every launch opens its own window. --new-window always does." />
+        </StackPanel>
+
+        <StackPanel Spacing="9">
+            <TextBlock Classes="label" TextWrapping="Wrap">
                 <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
             </TextBlock>
             <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"

@@ -95,6 +95,24 @@ public class SettingsViewModelTests
     }
 
     [Test]
+    public async Task SwitchToOpenWindow_round_trips_through_load_and_apply()
+    {
+        var vm = new SettingsViewModel();
+        vm.LoadFrom(new AppConfig());   // on by default
+
+        await Assert.That(vm.SwitchToOpenWindow).IsTrue();
+
+        vm.SwitchToOpenWindow = false;   // unticking the box
+
+        var cfg = new AppConfig();
+        vm.ApplyTo(cfg);
+        await Assert.That(cfg.SwitchToOpenWindow).IsFalse();
+
+        vm.LoadFrom(cfg);                // and a config with it off loads unticked
+        await Assert.That(vm.SwitchToOpenWindow).IsFalse();
+    }
+
+    [Test]
     public async Task PullBeforeRun_round_trips_through_load_and_apply()
     {
         var vm = new SettingsViewModel();

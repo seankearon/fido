@@ -238,7 +238,8 @@ public sealed class TestRepoWorld : IDisposable
         bool consoleUsesFidoPalette = false,
         GitService? git = null,
         GitHubCli? gitHub = null,
-        FakeBrowser? browser = null)
+        FakeBrowser? browser = null,
+        InstanceHandoff? instances = null)
     {
         var config = new AppConfig
         {
@@ -268,6 +269,8 @@ public sealed class TestRepoWorld : IDisposable
             // Never the real one, even when a test doesn't care: a link opened from here would open on
             // the machine running the suite.
             OpenUrl = (browser ?? new FakeBrowser()).Open,
+            // Unregistered unless a test asks: a window built here must never answer a real `fido <branch>`.
+            Instances = instances,
         };
     }
 

@@ -16,6 +16,7 @@ public sealed class SettingsViewModel : ObservableObject
     private AppTheme _selectedTheme = AppTheme.System;
     private bool _showTargetInWindowTitle = true;
     private bool _pullBeforeRun = true;
+    private bool _switchToOpenWindow = true;
     private bool _runInFido;
     private bool _consoleUsesFidoPalette;
     private CloseAfterOpen _closeAfterOpen = CloseAfterOpen.CommandLine;
@@ -105,6 +106,14 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _showTargetInWindowTitle;
         set => SetField(ref _showTargetInWindowTitle, value);
+    }
+
+    /// <summary>Whether <c>fido &lt;branch&gt;</c> switches to a window already open on the branch;
+    /// unticked, every launch opens its own window.</summary>
+    public bool SwitchToOpenWindow
+    {
+        get => _switchToOpenWindow;
+        set => SetField(ref _switchToOpenWindow, value);
     }
 
     /// <summary>Whether a pick from the Console run menu fast-forwards the target first;
@@ -201,6 +210,7 @@ public sealed class SettingsViewModel : ObservableObject
         PullBeforeRun = config.PullBeforeRun;
         RunInFido = config.RunInFido;
         ConsoleUsesFidoPalette = config.ConsoleUsesFidoPalette;
+        SwitchToOpenWindow = config.SwitchToOpenWindow;
         CloseAfterOpen = config.CloseAfterOpen;
         CloseAfterOpenDelayText = config.CloseAfterOpenDelaySeconds.ToString(CultureInfo.InvariantCulture);
     }
@@ -223,6 +233,7 @@ public sealed class SettingsViewModel : ObservableObject
         config.PullBeforeRun = PullBeforeRun;
         config.RunInFido = RunInFido;
         config.ConsoleUsesFidoPalette = ConsoleUsesFidoPalette;
+        config.SwitchToOpenWindow = SwitchToOpenWindow;
         config.CloseAfterOpen = CloseAfterOpen;
         config.CloseAfterOpenDelaySeconds = ParseDelaySeconds(CloseAfterOpenDelayText);
         // config.NewBranchRepos is deliberately left untouched: the redesigned main screen no longer

@@ -177,6 +177,7 @@ public class ConfigServiceTests
 
         await Assert.That(loaded.ShowTargetInWindowTitle).IsTrue();
         await Assert.That(loaded.PullBeforeRun).IsTrue();
+        await Assert.That(loaded.SwitchToOpenWindow).IsTrue();
         await Assert.That(loaded.Theme).IsEqualTo(AppTheme.Dark);   // the rest of the file still read
     }
 
@@ -198,5 +199,15 @@ public class ConfigServiceTests
         svc.Save(new AppConfig { PullBeforeRun = false });
 
         await Assert.That(svc.Load().PullBeforeRun).IsFalse();
+    }
+
+    [Test]
+    public async Task Turning_the_switch_to_an_open_window_off_survives_a_save_and_load_round_trip()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        svc.Save(new AppConfig { SwitchToOpenWindow = false });
+
+        await Assert.That(svc.Load().SwitchToOpenWindow).IsFalse();
     }
 }

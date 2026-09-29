@@ -26,5 +26,12 @@ internal sealed class FidoServices
     /// </summary>
     public Func<string, bool> OpenUrl { get; init; } = UrlLauncher.Open;
 
-    public static FidoServices CreateDefault() => new();
+    /// <summary>
+    /// Where the window registers to take over a later <c>fido &lt;branch&gt;</c> for the branch it already has
+    /// (see <see cref="InstanceHandoff"/>). Null unless asked for — so a window a test builds never answers a
+    /// real command line — and the window then simply isn't found.
+    /// </summary>
+    public InstanceHandoff? Instances { get; init; }
+
+    public static FidoServices CreateDefault() => new() { Instances = InstanceHandoff.ForCurrentUser() };
 }

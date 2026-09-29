@@ -21,7 +21,7 @@ description: Every capability in one table.
 | In-repo config | `.fido/cfg.yaml` on the branch: **prefer main clone** and **commands** — an ordered list of command lines, offered as a run menu on the **Console** button *and* on the **Console tab**. Created (or opened) from the **OPEN** strip, seeded at its defaults and never overwritten |
 | Console tab | Fido's own terminal beside the **Flight log**, at the selected location: a real shell over a real pseudo-terminal — colour, prompts, **Ctrl+C**, and a live prompt still there when a script fails. Its **Run** menu leads with **shell here**, then the branch's commands; a run never closes Fido. **Ctrl+Click** follows an `http`/`https` link in the output, and the flight log names what opened |
 | Editor discovery | Explicit path → PATH → standard installs (per kind) |
-| CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location |
+| CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location; switches to a window **already open on the branch** instead of opening another (`--new-window` for one launch, or a setting to turn it off) |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |
 | Theme | **System / Light / Dark** in Settings, plus a **sun/moon toggle** left of the gear that flips light ↔ dark **for this run only** — the saved default, and the next launch, are untouched |
 | Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder), plus the repo's own `.fido/cfg.yaml` on the branch |

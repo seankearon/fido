@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`fido <branch>` switches to the window that already has the branch.** Running Fido from the command line
+  for a branch an open Fido window is already on used to open a second window on it. Now that window comes to
+  the front — restored if it was minimised — and the command returns without opening another; the flight log
+  says it was called up, and an auto-close counting down in it is called off. A command line that asks for
+  more than the branch — a tool, `-s`, `--folder` — runs in that window just as a new one would have run it,
+  so `fido feature/x rider` still opens Rider when the branch is in exactly one place. A different branch, or
+  **`--new-window`** (`-n`), opens a new window as before, and so does anything going wrong along the way: the
+  switch can save you a window, never cost you one. Prefer a window per launch? **Settings → Command line →
+  _Switch to a window that already has the branch_** (on by default) turns it off, from the next launch on.
+  Each window listens on a pipe only your own account can reach, and one that went without closing (a crash,
+  a kill) is tidied away by the next launch.
+
 - **`prefer main clone` now works when a worktree holds the branch.** git won't switch a main tree onto a
   branch another worktree has checked out, so a branch that lived only in a worktree used to leave the
   preference unhonoured, with nothing in the flight log but `No main clone among the results`. Fido now adds

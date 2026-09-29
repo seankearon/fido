@@ -100,7 +100,13 @@ fido feature/new-ui rider              # …and auto-open in Rider if there's ex
 fido feature/new-ui -s MyApp           # …with the solution chips filtered to MyApp
 fido feature/new-ui term               # open a terminal on that branch (files = file explorer)
 fido -b feature/new-ui -s MyApp -t vs  # the same, with explicit options
+fido feature/new-ui --new-window       # a window of its own, even if one already has the branch
 ```
+
+**Already open?** When a Fido window is already on that branch, `fido <branch>` **switches to it** instead of
+opening a second — restored and brought to the front, with anything else the command line asked for (a tool,
+`-s`, `--folder`) run there. `--new-window` (`-n`) opens a new window regardless, and **Settings → Command
+line** turns the switch off altogether.
 
 Each tool has a short **slug** (built-in: `rider`, `vsc`, `vs`, `zed`, plus `term` for a terminal and
 `files` for the file explorer) that you can pass as the **second argument** — or explicitly with `-t` /
