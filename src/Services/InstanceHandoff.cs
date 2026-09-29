@@ -98,8 +98,9 @@ internal sealed class InstanceHandoff
         }
     }
 
+    /// <summary>Two instances: the one answering a caller, and the next one, already listening.</summary>
     private static NamedPipeServerStream CreateServer(string pipeName) =>
-        new(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
+        new(pipeName, PipeDirection.InOut, 2, PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
     /// <summary>One window's listener: its marker, and the loop answering whoever connects.</summary>
@@ -137,22 +138,34 @@ internal sealed class InstanceHandoff
                 try
                 {
                     await server.WaitForConnectionAsync(ct);
-                    await AnswerAsync(server, take, ct);
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    return;
-                }
-                catch (Exception)
-                {
-                    // A caller that hung up early or sent something unreadable costs its own answer, nothing
-                    // more. The pause keeps a pipe that fails straight away from spinning the loop.
+                    // This pipe instance is broken: put up a fresh one, after a pause so that one failing
+                    // straight away can't spin the loop.
+                    server.Dispose();
                     await Task.Delay(100, ct);
+                    server = CreateServer(pipeName);
+                    continue;
                 }
 
-                // One caller at a time: this pipe instance is spent, so put up a fresh one for the next.
-                server.Dispose();
-                server = CreateServer(pipeName);
+                // The next caller's pipe goes up before this one comes down, so something is always listening.
+                // Off Windows a pipe is a socket, and a caller that connected while only the spent one was up
+                // would be dropped along with it — a second `fido` right behind the first would open a window.
+                var next = CreateServer(pipeName);
+                try
+                {
+                    await AnswerAsync(server, take, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                {
+                    // A caller that hung up early or sent something unreadable costs its own answer, nothing more.
+                }
+                finally
+                {
+                    server.Dispose();
+                    server = next;
+                }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

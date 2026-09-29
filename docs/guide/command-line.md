@@ -51,7 +51,10 @@ branch only asks to see it. A command line that asks for **more** than the branc
 the branch there and opens Rider if the branch is in exactly one place.
 
 - **Another branch** — or no window having this one — opens a new window as usual.
-- **`--new-window`** (or `-n`) always opens a new window.
+- **`--new-window`** (or `-n`) always opens a new window, for that one launch.
+- **Settings → Command line → _Switch to a window that already has the branch_** *(default on)* turns the
+  switch off altogether: every launch opens its own window, as it did before. It's read as each launch starts,
+  so a change applies from the next `fido` you run — no restart needed.
 - If anything gets in the way — a window that doesn't answer in time, say — Fido opens a new window, rather
   than leaving you with none.
 

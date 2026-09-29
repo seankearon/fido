@@ -112,6 +112,15 @@ public sealed class AppConfig
     /// </summary>
     public bool ConsoleUsesFidoPalette { get; set; }
 
+    /// <summary>
+    /// Whether <c>fido &lt;branch&gt;</c> switches to a Fido window already open on that branch — bringing it to
+    /// the front and running there whatever else the command line asked for — instead of opening a second
+    /// window on it (see <c>InstanceHandoff</c>). Default on. Off, every launch opens its own window, as
+    /// <c>--new-window</c> does for a single one. Read by the launch, so a change applies from the next launch
+    /// on. A config written before this setting existed has no entry for it and so keeps the default.
+    /// </summary>
+    public bool SwitchToOpenWindow { get; set; } = true;
+
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;
 

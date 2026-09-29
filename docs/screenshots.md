@@ -111,8 +111,9 @@ The ⚙ gear popover picks the **default tool** (or **No default** for the equal
 **All settings…** opens the full dialog to configure **search roots**, your **editors** (each with
 a CLI slug, with the default marked **●**), the **worktree root**, **theme**, what the **window
 title** reads, what happens **before running** a command — fast-forward the target, and whether a
-run-menu pick lands in [Fido's Console tab](guide/console.md) or your own terminal — and the
-**close-after-opening** behaviour and delay.
+run-menu pick lands in [Fido's Console tab](guide/console.md) or your own terminal — whether
+`fido <branch>` **switches to a window already open on the branch** — and the **close-after-opening**
+behaviour and delay.
 
 ![Fido settings dialog](assets/screenshots/settings-dialog-light.png#only-light)
 ![Fido settings dialog](assets/screenshots/settings-dialog-dark.png#only-dark)

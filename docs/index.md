@@ -59,7 +59,8 @@ hide:
 
     `fido feature/new-ui rider` resolves the branch and auto-opens — but only when
     it is checked out in exactly one place. Multiple locations are presented, never
-    guessed between.
+    guessed between. A window already open on the branch is brought forward
+    instead of a second one opening.
 
     [:octicons-arrow-right-24: Command line](guide/command-line.md)
 

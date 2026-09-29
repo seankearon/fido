@@ -57,6 +57,26 @@ public class InstanceHandoffTests
     }
 
     [Test]
+    public async Task Launches_back_to_back_are_all_taken_by_the_same_window()
+    {
+        // The window answers one caller at a time. Something has to be listening in between: off Windows a
+        // caller that connects in a gap lands on the pipe being torn down, and is dropped with it.
+        var handoff = NewRegistry();
+        var taken = 0;
+        using var registration = handoff.Listen(_ => { Interlocked.Increment(ref taken); return Task.FromResult(true); });
+        try
+        {
+            for (var i = 0; i < 25; i++)
+                await Assert.That(await handoff.TryHandOffAsync(["feature/x"])).IsTrue();
+            await Assert.That(taken).IsEqualTo(25);
+        }
+        finally
+        {
+            Cleanup(handoff);
+        }
+    }
+
+    [Test]
     public async Task A_window_that_declines_leaves_the_launch_to_open_its_own()
     {
         var handoff = NewRegistry();

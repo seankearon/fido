@@ -18,19 +18,23 @@ internal static class Program
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
+    private static bool HandedOff(string[] args) =>
+        HandOff(args, new ConfigService(), InstanceHandoff.ForCurrentUser());
+
     /// <summary>
     /// True when a Fido window that already has this command line's branch took it over: that window has come
-    /// to the front, and this launch has nothing left to do. Only a command line naming a branch is offered,
-    /// and never one with <c>--new-window</c>. Anything going wrong just means opening a window of our own.
+    /// to the front, and this launch has nothing left to do. Only a command line naming a branch is offered —
+    /// never one with <c>--new-window</c>, and not at all with <see cref="AppConfig.SwitchToOpenWindow"/> off.
+    /// Anything going wrong just means opening a window of our own. Blocks, which is safe before any UI exists
+    /// — there is no synchronisation context yet to deadlock on.
     /// </summary>
-    private static bool HandedOff(string[] args)
+    internal static bool HandOff(IReadOnlyList<string> args, ConfigService configService, InstanceHandoff? instances)
     {
         var command = StartupCommand.Parse(args);
-        if (string.IsNullOrWhiteSpace(command.Branch) || command.NewWindow) return false;
+        if (string.IsNullOrWhiteSpace(command.Branch) || command.NewWindow || instances is null) return false;
         try
         {
-            // No UI and no synchronisation context yet, so blocking here can't deadlock.
-            return InstanceHandoff.ForCurrentUser()?.TryHandOffAsync(args).GetAwaiter().GetResult() == true;
+            return configService.Load().SwitchToOpenWindow && instances.TryHandOffAsync(args).GetAwaiter().GetResult();
         }
         catch (Exception)
         {
