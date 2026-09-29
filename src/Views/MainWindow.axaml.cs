@@ -39,6 +39,17 @@ public partial class MainWindow : Window
     private readonly RepoConfigService _repoConfigs;
     private readonly AppConfig _config;
 
+    /// <summary>Where this window registers to take over a later <c>fido &lt;branch&gt;</c> for its branch;
+    /// null leaves it unregistered (see <see cref="TakeHandoff"/>).</summary>
+    private readonly InstanceHandoff? _instances;
+    private IDisposable? _handoffRegistration;
+
+    /// <summary>Set once the window has closed, so a handoff that arrives on the way out is declined.</summary>
+    private bool _closed;
+
+    /// <summary>How the window stood before it was last minimised — what a handoff restores it to.</summary>
+    private WindowState _restoreState = WindowState.Normal;
+
     /// <summary>Hands a URL to the OS default browser — injected, so a test never opens one.</summary>
     private readonly Func<string, bool> _openUrl;
 
@@ -95,9 +106,10 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _closeCountdown;
 
     /// <summary>
-    /// The discovery scan a CLI-supplied branch kicks off on open. Tests await this instead of starting a
-    /// scan of their own: whichever scan lands first consumes the run's one-shots (the auto-open, the
-    /// unknown-tool report) and a superseding scan clears the log, so racing it is a coin toss.
+    /// The discovery scan a command line kicks off: this launch's own, on open, or one a later
+    /// <c>fido &lt;branch&gt;</c> handed to this window (see <see cref="TakeHandoff"/>). Tests await this instead
+    /// of starting a scan of their own: whichever scan lands first consumes the run's one-shots (the auto-open,
+    /// the unknown-tool report) and a superseding scan clears the log, so racing it is a coin toss.
     /// </summary>
     internal Task StartupScan { get; private set; } = Task.CompletedTask;
 
@@ -119,6 +131,7 @@ public partial class MainWindow : Window
         _git = services.Git;
         _launcher = services.Launcher;
         _openUrl = services.OpenUrl;
+        _instances = services.Instances;
 
         // Load config and apply the theme variant before the XAML resolves its DynamicResources.
         _config = _configService.Load();
@@ -166,27 +179,36 @@ public partial class MainWindow : Window
         // window can be resized, and the upper stack's own height moves with the discovery results.
         LayoutUpdated += (_, _) => UpdateFlightLogHeight();
 
-        var startup = ApplyStartupArgs();
+        var startup = ApplyCommand(StartupCommand.Parse(Program.StartupArgs));
         Opened += (_, _) =>
         {
             BranchBox.Focus();
+
+            // From here on a later `fido <branch>` for the branch this window has comes here, not to a new window.
+            _handoffRegistration ??= _instances?.Listen(TakeHandoffAsync);
+
             if (startup.UnknownToolSlug is { } slug && !startup.BranchProvided)
             {
                 ReportUnknownTool(slug);   // an explicit tool that doesn't exist: say so, don't auto-open
                 return;
             }
-            // A CLI-supplied branch starts discovery straight away; if a tool was named too, the first
-            // scan's completion may auto-open (single location only — see RunDiscoveryAsync). An unknown
-            // tool id suppresses only the auto-open, never the scan itself — it's reported after the
-            // scan lands, because starting a scan clears the log.
             if (startup.BranchProvided)
-            {
-                _autoOpenTool = startup.Tool;
-                _startupUnknownToolSlug = startup.UnknownToolSlug;
-                _startupPreferFolder = startup.PreferFolder;
-                StartupScan = RunDiscoveryAsync();
-            }
+                StartCommandScan(startup);
         };
+    }
+
+    /// <summary>
+    /// Runs discovery for a command line's branch, straight away. If a tool was named too, the scan's
+    /// completion may auto-open (single location only — see <see cref="RunDiscoveryAsync"/>). An unknown tool id
+    /// suppresses only the auto-open, never the scan itself — it's reported after the scan lands, because
+    /// starting a scan clears the log.
+    /// </summary>
+    private void StartCommandScan(StartupPlan plan)
+    {
+        _autoOpenTool = plan.Tool;
+        _startupUnknownToolSlug = plan.UnknownToolSlug;
+        _startupPreferFolder = plan.PreferFolder;
+        StartupScan = RunDiscoveryAsync();
     }
 
     // --- Discovery ----------------------------------------------------------------------
@@ -1557,56 +1579,21 @@ public partial class MainWindow : Window
     // --- Startup / CLI --------------------------------------------------------------------
 
     /// <summary>
-    /// Pre-fills inputs from the CLI and resolves the run's tool. A bare first argument or
-    /// <c>--branch/-b</c> sets the branch (which starts discovery on open), <c>--solution/-s</c> the
-    /// solution filter, and a bare second argument or <c>--tool/-t</c> (legacy <c>--editor/-e</c>)
-    /// names a tool: it becomes the run's default (hero button), and — the only auto behaviour left —
-    /// opens automatically when discovery finds <em>exactly one</em> location. <c>--tool none</c>
-    /// shows the equal-weight grid for this run. An unknown tool id is reported, never guessed.
+    /// Pre-fills inputs from a command line (see <see cref="StartupCommand"/>) and resolves the run's tool. The
+    /// branch starts discovery on open, and a named tool becomes the run's default (hero button) and — the only
+    /// auto behaviour left — opens automatically when discovery finds <em>exactly one</em> location.
+    /// <c>--tool none</c> shows the equal-weight grid for this run. An unknown tool id is reported, never guessed.
     /// </summary>
-    private StartupPlan ApplyStartupArgs()
+    private StartupPlan ApplyCommand(StartupCommand command)
     {
-        var args = Program.StartupArgs;
-        var branchProvided = false;
-        var preferFolder = false;
-        string? toolSlug = null;
-        for (var i = 0; i < args.Length; i++)
-        {
-            switch (args[i])
-            {
-                case "--branch" or "-b" when i + 1 < args.Length:
-                    _vm.BranchName = args[++i];
-                    branchProvided = true;
-                    break;
-                case "--solution" or "-s" when i + 1 < args.Length:
-                    _vm.SolutionFilter = args[++i];
-                    break;
-                case "--tool" or "-t" or "--editor" or "-e" when i + 1 < args.Length:
-                    toolSlug = args[++i];
-                    break;
-                case "--folder":
-                    // The Solution/Folder toggle is gone; honour existing scripts by starting the run
-                    // on the Folder chip (only Rider/Visual Studio consult the choice anyway).
-                    preferFolder = true;
-                    break;
-                default:
-                    // Bare positional arguments: the first is the branch, the second the tool id.
-                    if (args[i].StartsWith('-')) break;
-                    if (!branchProvided)
-                    {
-                        _vm.BranchName = args[i];
-                        branchProvided = true;
-                    }
-                    else
-                    {
-                        toolSlug ??= args[i];   // an explicit --tool still wins over the positional
-                    }
-                    break;
-            }
-        }
+        if (command.Branch is { } branch) _vm.BranchName = branch;
+        if (command.Solution is { } solution) _vm.SolutionFilter = solution;
+        var branchProvided = command.Branch is not null;
+        var preferFolder = command.PreferFolder;
+        var toolSlug = command.ToolSlug;
 
-        // The pre-fill above already queued a debounced scan via the BranchName listener; the Opened
-        // handler runs discovery itself, so stop the timer double-firing it.
+        // The pre-fill above already queued a debounced scan via the BranchName listener; the caller runs
+        // discovery itself, so stop the timer double-firing it.
         _scanDebounce.Stop();
 
         Editor? tool = null;
@@ -1651,10 +1638,64 @@ public partial class MainWindow : Window
         _vm.AppendLog($"⚠ Unknown tool '{slug}' on the command line{hint}.");
     }
 
-    /// <summary>What <see cref="ApplyStartupArgs"/> resolved from the CLI: whether a branch was supplied
+    /// <summary>What <see cref="ApplyCommand"/> resolved from the CLI: whether a branch was supplied
     /// (starts discovery), the explicitly named tool (drives the one-shot auto-open), any tool id that
     /// didn't match, and whether <c>--folder</c> asked the run to start on the Folder chip.</summary>
     private sealed record StartupPlan(bool BranchProvided, Editor? Tool, string? UnknownToolSlug, bool PreferFolder);
+
+    // --- Handoff from a later launch -----------------------------------------------------
+
+    /// <summary>The listener's way in (see <see cref="InstanceHandoff"/>): it runs off the UI thread, and the
+    /// window's state lives on it.</summary>
+    private Task<bool> TakeHandoffAsync(string[] args) =>
+        Dispatcher.UIThread.InvokeAsync(() => TakeHandoff(StartupCommand.Parse(args))).GetTask();
+
+    /// <summary>
+    /// A later <c>fido &lt;branch&gt;</c> offering this window its command line. Taken only when the branch box
+    /// already holds that branch: the window comes to the front, and the launch that offered it exits instead of
+    /// opening a second window on the branch. A command line that asks for more than the branch — a tool, a
+    /// solution filter, the Folder chip — is then run here just as a fresh launch would have run it: applied, and
+    /// the branch re-scanned with it armed. A bare branch only asks to see the window, so what's on screen stays.
+    /// Internal so tests can offer one without a second process.
+    /// </summary>
+    internal bool TakeHandoff(StartupCommand command)
+    {
+        var branch = command.Branch?.Trim();
+        if (_closed || string.IsNullOrEmpty(branch) || !string.Equals(branch, _vm.BranchName.Trim(), StringComparison.Ordinal))
+            return false;
+
+        BringToFront();
+        if (command.NamesMoreThanBranch)
+        {
+            StartCommandScan(ApplyCommand(command));
+        }
+        else
+        {
+            // Somebody just asked for this window: an auto-close counting down would take it away from them.
+            CancelPendingClose();
+            _vm.AppendLog($"▸ Called up for '{branch}' again — this window already has it.");
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Restores the window if it was minimised and asks for the foreground. On Windows that is granted because
+    /// the launch handing over allowed this process to take it (see <see cref="InstanceHandoff"/>); elsewhere
+    /// it's the window manager's call, and at worst the window asks for attention instead.
+    /// </summary>
+    private void BringToFront()
+    {
+        if (WindowState == WindowState.Minimized) WindowState = _restoreState;
+        Activate();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == WindowStateProperty && change.GetNewValue<WindowState>() is var state
+            && state != WindowState.Minimized)
+            _restoreState = state;
+    }
 
     // --- Auto-close -----------------------------------------------------------------------
 
@@ -1737,6 +1778,10 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        // First, so a later `fido <branch>` stops finding a window that is on its way out.
+        _closed = true;
+        _handoffRegistration?.Dispose();
+        _handoffRegistration = null;
         CancelPendingClose();
         _scanCts?.Cancel();
         _pullRequestCts?.Cancel();

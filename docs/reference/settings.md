@@ -75,3 +75,8 @@ setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-con
 JSON at **`%APPDATA%\Fido\config.json`**. If that doesn't exist, Fido reads a legacy
 `%APPDATA%\atlantic-opener\config.json` (from before the rename) so existing settings survive;
 the next save writes to the new location.
+
+Each open window also leaves an empty marker file in **`%LOCALAPPDATA%\Fido\instances`**
+(`~/.local/share/Fido/instances` on Linux, `~/Library/Application Support/Fido/instances` on macOS), which
+is how `fido <branch>` finds [a window that already has the branch](../guide/command-line.md#a-window-that-already-has-the-branch).
+A window removes its marker when it closes, and the next launch clears away any left by a Fido that didn't.
