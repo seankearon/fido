@@ -12,6 +12,8 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Fido.Input;
 using Fido.Models;
 using Fido.Services;
 using Fido.ViewModels;
@@ -105,6 +107,26 @@ public partial class MainWindow : Window
     /// <summary>Live while a post-launch auto-close countdown is running; cancelling it aborts the close.</summary>
     private CancellationTokenSource? _closeCountdown;
 
+    /// <summary>How long the chord pill says a chord led nowhere before it clears itself.</summary>
+    internal static readonly TimeSpan ChordMissNotice = TimeSpan.FromSeconds(2.5);
+
+    /// <summary>The keyboard shortcuts in force, built from the config (see <see cref="ApplyShortcuts"/>).</summary>
+    private ShortcutMap _shortcuts = ShortcutMap.Empty;
+
+    /// <summary>Turns key presses into shortcuts — two-press chords included — against <see cref="_shortcuts"/>.</summary>
+    private readonly ChordMatcher _chords = new(ShortcutMap.Empty);
+
+    /// <summary>The key press the chord took on its way down (see <see cref="OnChordKeyDown"/>), so the same
+    /// press isn't then read again on its way back up as an Esc for a confirm strip, or as a shortcut of its own.</summary>
+    private KeyEventArgs? _chordKey;
+
+    /// <summary>Set when a shortcut has just taken a key press, so the character that press would type — the
+    /// <c>T</c> of <c>Ctrl+K, T</c> — doesn't land in the focused box as well. Cleared by the next press.</summary>
+    private bool _swallowTextInput;
+
+    /// <summary>Clears the chord pill's "isn't a shortcut" after <see cref="ChordMissNotice"/>.</summary>
+    private readonly DispatcherTimer _chordMissTimer;
+
     /// <summary>
     /// The discovery scan a command line kicks off: this launch's own, on open, or one a later
     /// <c>fido &lt;branch&gt;</c> handed to this window (see <see cref="TakeHandoff"/>). Tests await this instead
@@ -162,9 +184,25 @@ public partial class MainWindow : Window
         BranchBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         SolutionBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // Window-level keys: Ctrl+1…9 open with the Nth tool (respecting the found-gate), Esc backs
-        // out of a pending delete confirm. handledEventsToo so a focused child can't swallow them.
+        // Window-level keys: the keyboard shortcuts (see OnWindowKeyDown) and Esc backing out of a pending
+        // confirm. handledEventsToo so a focused child can't swallow an Esc; a shortcut's first press still
+        // yields to a child that used it. A chord's second press is heard on the way down instead, before
+        // the focused control can act on it, and the character it would type is held back.
+        _chordMissTimer = new DispatcherTimer { Interval = ChordMissNotice };
+        _chordMissTimer.Tick += (_, _) =>
+        {
+            _chordMissTimer.Stop();
+            if (_vm.IsChordMiss) _vm.ClearChordStatus();
+        };
+        AddHandler(InputElement.KeyDownEvent, OnChordKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(InputElement.KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(InputElement.TextInputEvent, OnShortcutTextInput, RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        // A chord waits for its second press for as long as it takes — but not across a click, or the window
+        // losing the keyboard: by then the user has plainly moved on.
+        AddHandler(InputElement.PointerPressedEvent, (_, _) => CancelChord(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        Deactivated += (_, _) => CancelChord();
+        ApplyShortcuts();
 
         // Alt+Space drops the native system menu (Avalonia otherwise swallows the gesture).
         SystemMenu.EnableAltSpace(this);
@@ -1147,7 +1185,11 @@ public partial class MainWindow : Window
         _pendingDeleteCard = null;
     }
 
-    private void OnOpenPullRequestClick(object? sender, RoutedEventArgs e)
+    private void OnOpenPullRequestClick(object? sender, RoutedEventArgs e) => OpenPullRequest();
+
+    /// <summary>Hands the branch's open pull request to the browser — the link row's button, and its shortcut.
+    /// Nothing to open is a no-op: the row isn't there either.</summary>
+    private void OpenPullRequest()
     {
         var url = _vm.OpenPullRequestUrl;
         if (string.IsNullOrWhiteSpace(url)) return;
@@ -1440,6 +1482,20 @@ public partial class MainWindow : Window
 
     private async void OnAllSettingsClick(object? sender, RoutedEventArgs e) => await ShowSettingsAsync();
 
+    private async void OnKeyboardShortcutsClick(object? sender, RoutedEventArgs e) => await ShowShortcutsAsync();
+
+    /// <summary>
+    /// Opens the Keyboard shortcuts dialog, and puts what it saved into force — the matcher, and every label
+    /// that shows a shortcut. Internal for tests, which can't reach the button inside the gear flyout without
+    /// opening it.
+    /// </summary>
+    internal async Task ShowShortcutsAsync()
+    {
+        GearButton.Flyout?.Hide();
+        await _dialogs.ShowShortcutsAsync(_config, _configService);
+        ApplyShortcuts();
+    }
+
     /// <summary>
     /// Opens the settings dialog and re-applies what it changed to the live screen. Internal for tests,
     /// which can't reach the button inside the gear flyout without opening it.
@@ -1453,6 +1509,7 @@ public partial class MainWindow : Window
         _vm.SetConfig(_config);   // the worktree root may have moved the line under the branch box
         _runDefaultToolIndex = _config.DefaultEditorIndex;
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
+        ApplyShortcuts();   // a tool added, removed or renamed takes its shortcut with it
         RebuildDefaultToolChoices();
         // Repaints a shell that is already running — the pane reads its colours through a live options
         // object, so there is nothing to wait for.
@@ -1461,11 +1518,69 @@ public partial class MainWindow : Window
 
     // --- Keyboard -------------------------------------------------------------------------
 
-    // Ctrl+1…Ctrl+9 → open with tool index 0…8 (matching the accelerators on the buttons),
-    // gated on discovery having found the branch. Esc backs out of a pending delete confirm, or —
-    // once the delete has run — dismisses a retry offer left over from it.
+    /// <summary>
+    /// Builds the shortcuts from the config — on startup, and after either dialog has saved — and hands them
+    /// to the matcher and to every label that shows one. A chord half-pressed under the old ones is called off.
+    /// </summary>
+    private void ApplyShortcuts()
+    {
+        _shortcuts = ShortcutMap.FromConfig(_config);
+        _chords.Map = _shortcuts;
+        _chordMissTimer.Stop();
+        _vm.ClearChordStatus();
+        _vm.SetShortcuts(_shortcuts);
+    }
+
+    /// <summary>
+    /// The second press of a chord, heard on its way <em>down</em> to the focused control — so it is the
+    /// chord's and nothing else's: the <c>Ctrl+C</c> of <c>Ctrl+K, Ctrl+C</c> mustn't also copy in the branch
+    /// box. Only while a chord is waiting; a first press goes the ordinary way, through
+    /// <see cref="OnWindowKeyDown"/>.
+    /// </summary>
+    private void OnChordKeyDown(object? sender, KeyEventArgs e)
+    {
+        _swallowTextInput = false;   // a fresh press: whatever the last one left to hold back is stale now
+        if (!_chords.IsPending) return;
+
+        var outcome = _chords.Press(KeyStroke.From(e.Key, e.KeyModifiers));
+        if (outcome.Kind == ChordOutcomeKind.StillWaiting) return;   // Ctrl going down for the second press
+
+        e.Handled = true;
+        _chordKey = e;
+        _swallowTextInput = true;   // a plain second key would otherwise type itself into the focused box
+        _vm.ClearChordStatus();
+        switch (outcome)
+        {
+            case { Kind: ChordOutcomeKind.Matched, Binding: { } binding }:
+                RunShortcut(binding.Action);
+                break;
+            case { Kind: ChordOutcomeKind.Missed, Keys: { } keys }:
+                _vm.ShowChordMiss(keys);
+                _chordMissTimer.Stop();
+                _chordMissTimer.Start();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Window-level keys. <c>Esc</c> backs out of a pending move or delete confirm, or — once a delete has
+    /// run — dismisses a retry offer left over from it. Then the keyboard shortcuts: a press that is one runs
+    /// it (see <see cref="RunShortcut"/>), and the first press of a chord raises the pill and waits for the
+    /// second (taken by <see cref="OnChordKeyDown"/>).
+    ///
+    /// A first press yields twice over. A key the focused control has already used is the control's —
+    /// <c>Ctrl+C</c> copies in the branch box whatever it is bound to here. And a key pressed in the Console
+    /// tab is the shell's: <c>Ctrl+K</c> and <c>Ctrl+L</c> mean something to a shell, and a console that lost
+    /// them to Fido would be no console at all.
+    /// </summary>
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
+        if (ReferenceEquals(e, _chordKey))
+        {
+            _chordKey = null;   // already the chord's — not an Esc for a confirm, nor a shortcut of its own
+            return;
+        }
+
         if (e.Key == Key.Escape && _vm.IsConfirmingMove && !_vm.IsMoving)
         {
             e.Handled = true;
@@ -1487,23 +1602,171 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.KeyModifiers != KeyModifiers.Control) return;
-        var index = DigitKeyToIndex(e.Key);
-        if (index is not { } i || i < 0 || i >= _config.Editors.Count) return;
+        if (e.Handled || IsInConsole(e.Source)) return;
 
-        e.Handled = true;
-        if (!_vm.CanOpen) return;   // the found-gate applies to accelerators too
-        var editor = _config.Editors[i];
-        Dispatcher.UIThread.Post(() => _ = OpenWithAsync(editor), DispatcherPriority.Input);
+        var outcome = _chords.Press(KeyStroke.From(e.Key, e.KeyModifiers));
+        switch (outcome)
+        {
+            case { Kind: ChordOutcomeKind.Waiting, Keys: { } first }:
+                e.Handled = true;
+                _swallowTextInput = true;   // Ctrl+Alt is AltGr on some layouts, and AltGr types
+                _chordMissTimer.Stop();
+                _vm.ShowChordWaiting(first);
+                break;
+            case { Kind: ChordOutcomeKind.Matched, Binding: { } binding }:
+                e.Handled = true;
+                _swallowTextInput = true;
+                RunShortcut(binding.Action);
+                break;
+        }
     }
 
-    /// <summary>Maps a top-row or numpad digit key (1–9) to a zero-based tool index, else null.</summary>
-    private static int? DigitKeyToIndex(Key key) => key switch
+    /// <summary>Holds back the character a key press would have typed, when a shortcut has just taken that press.</summary>
+    private void OnShortcutTextInput(object? sender, TextInputEventArgs e)
     {
-        >= Key.D1 and <= Key.D9 => key - Key.D1,
-        >= Key.NumPad1 and <= Key.NumPad9 => key - Key.NumPad1,
-        _ => null,
-    };
+        if (!_swallowTextInput) return;
+        _swallowTextInput = false;
+        e.Handled = true;
+    }
+
+    /// <summary>Whether <paramref name="source"/> is inside the Console tab's terminal — where every key is the shell's.</summary>
+    private bool IsInConsole(object? source) =>
+        source is Visual visual && (ReferenceEquals(visual, ConsoleView) || ConsoleView.IsVisualAncestorOf(visual));
+
+    /// <summary>Calls off a chord waiting for its second press, pill and all.</summary>
+    private void CancelChord()
+    {
+        if (_chords.Reset()) _vm.ClearChordStatus();
+    }
+
+    /// <summary>
+    /// Does what a shortcut is bound to — exactly what its button or click does, gates included: nothing opens
+    /// before discovery has found the branch, and Delete still only raises its confirm strip. Anything that
+    /// awaits, or opens a window, is posted rather than run inline, so the key press has finished dispatching
+    /// first — as the numbered tool shortcuts always have. Internal for tests.
+    /// </summary>
+    internal void RunShortcut(ShortcutAction action)
+    {
+        switch (action.Command)
+        {
+            case ShortcutCommand.OpenTool:
+                if (!_vm.CanOpen || action.ToolIndex < 0 || action.ToolIndex >= _config.Editors.Count) return;
+                var tool = _config.Editors[action.ToolIndex];
+                Post(() => OpenWithAsync(tool));
+                return;
+
+            case ShortcutCommand.OpenDefault:
+                if (!_vm.CanOpen) return;
+                if (_vm.HeroTool is not { } hero || hero.Index < 0 || hero.Index >= _config.Editors.Count)
+                {
+                    _vm.AppendLog("▸ No default tool is set — pick one in ⚙, or use a tool's own shortcut.");
+                    return;
+                }
+                var heroTool = _config.Editors[hero.Index];
+                Post(() => OpenWithAsync(heroTool));
+                return;
+
+            case ShortcutCommand.Rescan:
+                if (_vm.BranchName.Trim().Length > 0) Post(RunDiscoveryAsync);
+                return;
+
+            case ShortcutCommand.FocusBranch:
+                FocusInput(BranchBox);
+                return;
+
+            case ShortcutCommand.FocusSolution:
+                FocusInput(SolutionBox);
+                return;
+
+            case ShortcutCommand.NextLocation:
+                SelectLocation(+1);
+                return;
+
+            case ShortcutCommand.PreviousLocation:
+                SelectLocation(-1);
+                return;
+
+            case ShortcutCommand.CopyPath:
+                Post(CopySelectedPathAsync);
+                return;
+
+            case ShortcutCommand.EditRepoConfig:
+                Post(EditRepoConfigAsync);
+                return;
+
+            case ShortcutCommand.OpenPullRequest:
+                OpenPullRequest();
+                return;
+
+            case ShortcutCommand.DeleteWorktree:
+                Post(RequestDeleteAsync);
+                return;
+
+            case ShortcutCommand.ShowFlightLog:
+                _vm.IsFlightLogTab = true;
+                return;
+
+            case ShortcutCommand.ShowConsole:
+                _vm.IsConsoleTab = true;
+                return;
+
+            case ShortcutCommand.CopyFlightLog:
+                Post(CopyFlightLogAsync);
+                return;
+
+            case ShortcutCommand.SaveFlightLog:
+                Post(SaveFlightLogAsync);
+                return;
+
+            case ShortcutCommand.ToggleTheme:
+                App.ToggleTheme();
+                return;
+
+            case ShortcutCommand.Settings:
+                Post(ShowSettingsAsync);
+                return;
+
+            case ShortcutCommand.KeyboardShortcuts:
+                Post(ShowShortcutsAsync);
+                return;
+        }
+
+        static void Post(Func<Task> work) => Dispatcher.UIThread.Post(() => _ = work(), DispatcherPriority.Input);
+    }
+
+    /// <summary>
+    /// Puts the keyboard in <paramref name="box"/>'s text field with its text selected, as a browser's
+    /// <c>Ctrl+L</c> does the address bar: what you type next replaces what was there. The field rather than
+    /// the box, because the text field is what takes typing.
+    /// </summary>
+    private static void FocusInput(AutoCompleteBox box)
+    {
+        if (box.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is { } field)
+        {
+            field.Focus();
+            field.SelectAll();
+        }
+        else
+        {
+            box.Focus();
+        }
+    }
+
+    /// <summary>
+    /// Moves the selection along the location cards, wrapping round at either end — the keyboard's way of
+    /// doing what a click on a card does. Nothing to move between until discovery has landed.
+    /// </summary>
+    private void SelectLocation(int step)
+    {
+        var targets = _vm.Targets;
+        if (!_vm.IsFound || targets.Count == 0) return;
+
+        var at = _vm.SelectedTarget is { } selected ? targets.IndexOf(selected) : -1;
+        var next = at < 0
+            ? step > 0 ? 0 : targets.Count - 1
+            : ((at + step) % targets.Count + targets.Count) % targets.Count;
+        _vm.SelectedTarget = targets[next];
+    }
 
     // Key handling for the branch/solution boxes.
     //
@@ -1523,7 +1786,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key != Key.Enter) return;
+        // Not with Ctrl, Alt or Meta held: Ctrl+Enter and the like are left free to be keyboard shortcuts.
+        if (e.Key != Key.Enter || (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0)
+            return;
         box.IsDropDownOpen = false;
         e.Handled = true;
         if (ReferenceEquals(box, BranchBox))
@@ -1786,6 +2051,7 @@ public partial class MainWindow : Window
         _scanCts?.Cancel();
         _pullRequestCts?.Cancel();
         _scanDebounce.Stop();
+        _chordMissTimer.Stop();
         // The console holds a live child process. Fido is on its way out, and an orphaned shell with no
         // terminal attached to it would linger.
         ConsoleView.Stop();

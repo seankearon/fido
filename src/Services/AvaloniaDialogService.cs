@@ -18,6 +18,9 @@ public sealed class AvaloniaDialogService : IDialogService
     public Task ShowSettingsAsync(AppConfig config, ConfigService configService)
         => new SettingsDialog(config, configService).ShowDialog(_owner);
 
+    public Task ShowShortcutsAsync(AppConfig config, ConfigService configService)
+        => new ShortcutsDialog(config, configService).ShowDialog(_owner);
+
     public async Task<string?> PickFlightLogPathAsync(string suggestedFileName)
     {
         var storage = _owner.StorageProvider;

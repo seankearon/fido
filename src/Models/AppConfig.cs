@@ -26,7 +26,8 @@ public sealed class AppConfig
 
     /// <summary>
     /// The editors/IDEs Fido can launch into. The one at <see cref="DefaultEditorIndex"/> drives the
-    /// Open button and Enter; the rest are reachable by numbered keyboard shortcuts (Ctrl+1…Ctrl+9).
+    /// Open button; every one has a keyboard shortcut — Ctrl+1…Ctrl+9 by position unless one is assigned
+    /// (see <see cref="Editor.Shortcut"/>).
     /// </summary>
     public List<Editor> Editors { get; set; } = new();
 
@@ -120,6 +121,16 @@ public sealed class AppConfig
     /// on. A config written before this setting existed has no entry for it and so keeps the default.
     /// </summary>
     public bool SwitchToOpenWindow { get; set; } = true;
+
+    /// <summary>
+    /// Keyboard shortcuts for the main screen's actions, by command name — <c>"Rescan": "F5"</c>,
+    /// <c>"ToggleTheme": "Ctrl+K, Ctrl+T"</c> — holding only what differs from the defaults; an empty value
+    /// means the action has no shortcut. A two-press chord is written with a comma between the presses. The
+    /// tools' own shortcuts live on the tools (<see cref="Editor.Shortcut"/>). Edited in the Keyboard
+    /// shortcuts dialog; see <c>ShortcutCatalog</c> for the commands and their defaults. A config written
+    /// before shortcuts were configurable has no entry, and so keeps every default.
+    /// </summary>
+    public Dictionary<string, string> Shortcuts { get; set; } = new();
 
     /// <summary>When Fido closes itself after a successful launch; defaults to command-line launches only.</summary>
     public CloseAfterOpen CloseAfterOpen { get; set; } = CloseAfterOpen.CommandLine;

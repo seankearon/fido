@@ -17,8 +17,10 @@ Reach these via ⚙ → **All settings…**.
   **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
   so you can point Fido at the terminal you prefer. Tick the
   **●** radio to set the default (the hero button) — or use the ⚙ gear popover on the main screen,
-  which offers the same choice plus **No default (equal weight)**. The rest are reached by
-  **Ctrl+1 … Ctrl+9** or by their slug on the command line. **Add** appends a new row; **✕** removes one.
+  which offers the same choice plus **No default (equal weight)**. The rest are reached by their
+  keyboard shortcut — **Ctrl+1 … Ctrl+9** unless you assign others (see [Keyboard shortcuts](#keyboard-shortcuts)
+  below) — or by their slug on the command line. **Add** appends a new row; **✕** removes one, and its
+  shortcut with it.
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention. Setting one also collapses
   the **worktree folders line** under the branch box to a single row, answered from the branch name alone
   with no scan needed (see **[The branch's worktree folders](../guide/discovery.md#the-branchs-worktree-folders)**).
@@ -58,6 +60,55 @@ Reach these via ⚙ → **All settings…**.
   **Keep open** — or simply starting another scan or open — cancels the close, so it's never a point
   of no return.
 
+## Keyboard shortcuts
+
+Reach these via ⚙ → **Keyboard shortcuts…**, or press ++ctrl+k++, ++ctrl+s++. Every action on the main
+screen is listed with its keys — a single press, or a two-press **chord** such as `Ctrl+K, Ctrl+S`. Click
+one and press the keys to change it; **↺** restores a default, **✕** removes a shortcut, **Reset all**
+restores them all. How recording, chords and clashes work is in
+**[Your own shortcuts](../guide/interface.md#your-own-shortcuts)**.
+
+In the config, a **tool's** shortcut lives on the tool, and **everything else** under `Shortcuts`, keyed by
+the action's name. Only what differs from the defaults is written; an empty string means *no shortcut*
+rather than *the default*; and a chord is two presses with a comma between them:
+
+```json
+"Editors": [
+  { "Name": "Rider", "Slug": "rider", "Kind": "Rider", "Shortcut": "Ctrl+K, R" },
+  { "Name": "WebStorm", "Slug": "ws", "Kind": "WebStorm" }
+],
+"Shortcuts": {
+  "ToggleTheme": "Ctrl+K, T",
+  "CopyPath": "Ctrl+Shift+C",
+  "Rescan": ""
+}
+```
+
+A tool with no `Shortcut` keeps its number — the first nine answer to **Ctrl+1 … Ctrl+9** by their place in
+the list. The names under `Shortcuts`, matched in any case:
+
+| Name | Action | Default |
+|---|---|---|
+| `OpenDefault` | Open in the default tool | — |
+| `Rescan` | Scan for the branch again | `F5` |
+| `FocusBranch` | Go to the branch box | — |
+| `FocusSolution` | Go to the solution filter | — |
+| `NextLocation` / `PreviousLocation` | Select the next / previous location card | — |
+| `CopyPath` | Copy the selected path | — |
+| `EditRepoConfig` | Create or edit `.fido/cfg.yaml` | — |
+| `OpenPullRequest` | Open the branch's pull request | — |
+| `DeleteWorktree` | Delete the worktree (raises the confirm strip) | — |
+| `ShowFlightLog` / `ShowConsole` | Show the Flight log / Console tab | — |
+| `CopyFlightLog` / `SaveFlightLog` | Copy / save the flight log | — |
+| `ToggleTheme` | Flip light / dark for this run | `Ctrl+K, Ctrl+T` |
+| `Settings` | Settings… | `Ctrl+,` |
+| `KeyboardShortcuts` | Keyboard shortcuts… | `Ctrl+K, Ctrl+S` |
+
+Keys are written as on the dialog — modifiers `Ctrl`, `Shift`, `Alt`, `Meta` (also `Cmd` / `Win`), then the
+key by the character on it (`Ctrl+,`, `Ctrl+[`) or its name (`F5`, `Enter`, `PageUp`); VS Code's
+space-separated `ctrl+k ctrl+t` reads too. A hand edit that clashes is settled the way the dialog would
+have it: a shortcut you chose beats a default, and otherwise the first in the dialog's order keeps the keys.
+
 ## Defaults
 
 - **Search roots:** `%USERPROFILE%\source\repos`, `%USERPROFILE%\src`,
@@ -65,6 +116,8 @@ Reach these via ⚙ → **All settings…**.
 - **Default branch names:** `main`, `master` (never offered for deletion).
 - **Search depth:** 4.
 - **Command line:** `fido <branch>` switches to a window already open on the branch.
+- **Keyboard shortcuts:** **Ctrl+1 … Ctrl+9** open with the tools by position; **F5** rescans; **Ctrl+,**
+  opens Settings; **Ctrl+K, Ctrl+S** the Keyboard shortcuts; **Ctrl+K, Ctrl+T** flips light / dark.
 - **Close after opening:** command-line launches only, with a **10-second** close delay.
 - **Window title:** shows `<repo> · <branch>` once discovery resolves.
 - **Console tab colours:** the terminal's own scheme; Fido's palette is opt-in.

@@ -647,6 +647,62 @@
         <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
     </Style>
 
+    <!-- Keyboard shortcuts dialog: the key cap a row's keys sit on. Click it to record; while it listens it
+         takes the accent, and keys that differ from the default read in the accent too. -->
+    <Style Selector="Button.keycap">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextBody}" />
+        <Setter Property="Background" Value="{DynamicResource FidoChipBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoCardBorder}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.keycap /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoChipBg}" />
+    </Style>
+    <Style Selector="Button.keycap:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoSelectedBorder}" />
+    </Style>
+    <Style Selector="Button.keycap.custom">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentText}" />
+    </Style>
+    <Style Selector="Button.keycap.recording /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintBtn}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoAccent}" />
+    </Style>
+    <Style Selector="Button.keycap.recording">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentText}" />
+        <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <!-- The main screen's chord pill: the first press of a two-press shortcut is down and Fido is waiting for
+         the second — or the second led nowhere, which it says in the warning colour before it fades. -->
+    <Style Selector="Border.chordpill">
+        <Setter Property="Background" Value="{DynamicResource FidoLogBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoSelectedBorder}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Padding" Value="16,7" />
+        <Setter Property="BoxShadow" Value="0 8 20 -8 #66000000" />
+    </Style>
+    <Style Selector="Border.chordpill TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentText}" />
+    </Style>
+    <Style Selector="Border.chordpill.miss">
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoLogBorder}" />
+    </Style>
+    <Style Selector="Border.chordpill.miss TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource FidoLogWarn}" />
+    </Style>
+
     <!-- Small ghost icon button: copy-to-clipboard beside the selected path, copy/save on the flight log -->
     <Style Selector="Button.iconaction">
         <Setter Property="Background" Value="Transparent" />

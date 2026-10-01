@@ -6,8 +6,8 @@ namespace Fido.Tests.Infrastructure;
 /// <summary>
 /// A real <see cref="IDialogService"/> that returns scripted choices and records every request, so the
 /// end-to-end flow can be driven without real modal windows. Discovery, target choice, and worktree
-/// deletion render inline on the main screen now; only the settings dialog and the exceptional
-/// force-delete recovery remain modal. A fake, not a mock — assert against the recorded requests.
+/// deletion render inline on the main screen now; only the settings and keyboard-shortcuts dialogs and
+/// the exceptional force-delete recovery remain modal. A fake, not a mock — assert against the recorded requests.
 /// </summary>
 public sealed class FakeDialogService : IDialogService
 {
@@ -37,6 +37,14 @@ public sealed class FakeDialogService : IDialogService
     /// </summary>
     public Action<AppConfig> OnShowSettings { get; set; } = _ => { };
 
+    public int ShortcutsShownCount { get; private set; }
+
+    /// <summary>
+    /// Stands in for the user's edits in the Keyboard shortcuts dialog, as <see cref="OnShowSettings"/> does for
+    /// Settings: invoked with the live <see cref="AppConfig"/>. Defaults to changing nothing.
+    /// </summary>
+    public Action<AppConfig> OnShowShortcuts { get; set; } = _ => { };
+
     public Task<bool> ConfirmForceDeleteWorktreeFolderAsync(WorktreeForceDelete request)
     {
         ForceDeleteConfirmations.Add(request);
@@ -47,6 +55,13 @@ public sealed class FakeDialogService : IDialogService
     {
         SettingsShownCount++;
         OnShowSettings(config);
+        return Task.CompletedTask;
+    }
+
+    public Task ShowShortcutsAsync(AppConfig config, ConfigService configService)
+    {
+        ShortcutsShownCount++;
+        OnShowShortcuts(config);
         return Task.CompletedTask;
     }
 

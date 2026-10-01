@@ -12,8 +12,10 @@ targets below. The list is configured in Settings, and one entry can be the **de
 
 - The **default** tool takes the **hero button**; set it from the **⚙ gear popover**
   or the **●** radio in Settings (or leave it unset for the equal-weight grid).
-- Every tool — hero included — has a numbered keyboard shortcut, **Ctrl+1 … Ctrl+9**
-  (Ctrl+N opens with the Nth entry in the configured list).
+- Every tool — hero included — has a keyboard shortcut, shown on its button: by default the numbered
+  **Ctrl+1 … Ctrl+9** (Ctrl+N opens with the Nth entry in the configured list). Give a tool keys of its
+  own — a two-press chord such as `Ctrl+K, R` included — in **⚙ → Keyboard shortcuts…** (see
+  [Your own shortcuts](interface.md#your-own-shortcuts)); they go where the tool goes.
 
 Built-in editor kinds — **Rider**, **WebStorm**, **VS Code**, **Visual Studio**, **Zed** — auto-detect
 when their path is left blank; a **Custom** editor opens whatever executable/app-bundle path you give it.

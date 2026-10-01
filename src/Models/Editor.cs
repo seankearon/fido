@@ -2,8 +2,8 @@ namespace Fido.Models;
 
 /// <summary>
 /// A configured editor/IDE Fido can launch a resolved target in. One editor in
-/// <see cref="AppConfig.Editors"/> is the default (driven by the Open button / Enter); the rest are
-/// reachable by numbered keyboard shortcuts. Known <see cref="EditorKind"/>s auto-detect when
+/// <see cref="AppConfig.Editors"/> is the default (driven by the Open button); every one is reachable by
+/// its keyboard shortcut (<see cref="Shortcut"/>). Known <see cref="EditorKind"/>s auto-detect when
 /// <see cref="Path"/> is blank; <see cref="EditorKind.Custom"/> requires an explicit path.
 /// </summary>
 public sealed class Editor
@@ -37,6 +37,15 @@ public sealed class Editor
 
     /// <summary>Explicit path to the executable/app bundle; auto-detected from <see cref="Kind"/> when null/empty.</summary>
     public string? Path { get; set; }
+
+    /// <summary>
+    /// The keyboard shortcut that opens the selected location with this tool — <c>Ctrl+R</c>, or a two-press
+    /// chord such as <c>Ctrl+K, R</c>. Null (the default) leaves the tool on its number: the first nine answer
+    /// to <c>Ctrl+1</c> … <c>Ctrl+9</c> by their place in the list. An empty string means no shortcut at all.
+    /// Kept on the tool rather than with the other shortcuts so it goes where the tool goes — removing a tool
+    /// takes its shortcut with it, rather than handing it to whichever tool slides into its place.
+    /// </summary>
+    public string? Shortcut { get; set; }
 
     /// <summary>
     /// Optional extra command-line arguments passed before the target path (space-separated).

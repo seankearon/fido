@@ -238,4 +238,23 @@ public class SettingsViewModelTests
         await Assert.That(vm.Editors[0].IsDefault).IsTrue();   // the survivor became default
     }
 
+    [Test]
+    public async Task Saving_settings_keeps_each_tools_keyboard_shortcut()
+    {
+        // The shortcut is edited in its own dialog; a Settings save rebuilds the tool list and mustn't drop it —
+        // and a removed tool takes its shortcut with it rather than passing it to the next one along.
+        var vm = new SettingsViewModel();
+        var cfg = new AppConfig { Editors = Editor.Defaults() };
+        cfg.Editors[2].Shortcut = "Ctrl+K, V";
+        cfg.Editors[3].Shortcut = "";
+        vm.LoadFrom(cfg);
+
+        vm.RemoveEditor(vm.Editors[0]);
+        vm.ApplyTo(cfg);
+
+        await Assert.That(cfg.Editors[1].Name).IsEqualTo("VS Code");
+        await Assert.That(cfg.Editors[1].Shortcut).IsEqualTo("Ctrl+K, V");
+        await Assert.That(cfg.Editors[2].Shortcut).IsEqualTo("");
+        await Assert.That(cfg.Editors[0].Shortcut).IsNull();
+    }
 }

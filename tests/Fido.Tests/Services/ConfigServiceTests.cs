@@ -210,4 +210,39 @@ public class ConfigServiceTests
 
         await Assert.That(svc.Load().SwitchToOpenWindow).IsFalse();
     }
+    [Test]
+    public async Task Keyboard_shortcuts_round_trip_on_the_commands_and_on_the_tools()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var config = AppConfig.CreateDefault();
+        config.Shortcuts["ToggleTheme"] = "Ctrl+K, T";
+        config.Shortcuts["Rescan"] = "";               // deliberately none
+        config.Editors[2].Shortcut = "Ctrl+K, V";
+        svc.Save(config);
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.Shortcuts["ToggleTheme"]).IsEqualTo("Ctrl+K, T");
+        await Assert.That(loaded.Shortcuts["Rescan"]).IsEqualTo("");
+        await Assert.That(loaded.Editors[2].Shortcut).IsEqualTo("Ctrl+K, V");
+        await Assert.That(loaded.Editors[0].Shortcut).IsNull();   // unset: still follows its number
+    }
+
+    [Test]
+    public async Task A_config_from_before_shortcuts_were_configurable_keeps_every_default()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        Directory.CreateDirectory(svc.ConfigDirectory);
+        File.WriteAllText(svc.ConfigFilePath, """
+            { "ConfigVersion": 2, "Editors": [ { "Name": "Rider", "Kind": "Rider" } ], "Shortcuts": null }
+            """);
+
+        var loaded = svc.Load();
+
+        await Assert.That(loaded.Shortcuts).IsNotNull();
+        await Assert.That(loaded.Shortcuts.Count).IsEqualTo(0);
+        await Assert.That(loaded.Editors[0].Shortcut).IsNull();
+    }
 }

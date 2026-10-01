@@ -117,3 +117,22 @@ behaviour and delay.
 
 ![Fido settings dialog](assets/screenshots/settings-dialog-light.png#only-light)
 ![Fido settings dialog](assets/screenshots/settings-dialog-dark.png#only-dark)
+
+---
+
+## Keyboard shortcuts
+
+**⚙ → Keyboard shortcuts…** — or ++ctrl+k++, ++ctrl+s++ — lists every action on the main screen with its
+keys. Click one and press the keys: a second press makes it a **chord**, **Enter** keeps the single press.
+Keys that differ from the defaults read in the accent; here *Open in the default tool* has been given
+`Ctrl+Enter`, and *Open in Zed* is half-way through recording a chord. See
+[Your own shortcuts](guide/interface.md#your-own-shortcuts).
+
+![The Keyboard shortcuts dialog](assets/screenshots/keyboard-shortcuts-dialog-light.png#only-light)
+![The Keyboard shortcuts dialog](assets/screenshots/keyboard-shortcuts-dialog-dark.png#only-dark)
+
+Press the first half of a chord on the main screen and a pill at the foot of the window waits for the
+second — **Esc** or a click calls it off.
+
+![A chord half-pressed](assets/screenshots/chord-pill-light.png#only-light)
+![A chord half-pressed](assets/screenshots/chord-pill-dark.png#only-dark)
