@@ -18,6 +18,10 @@ public sealed class EditorChoice : ObservableObject
     private string _arguments;
     private bool _isDefault;
 
+    /// <summary>The tool's keyboard shortcut, carried through untouched: it is edited in the Keyboard shortcuts
+    /// dialog, not here, and saving Settings mustn't lose it.</summary>
+    private readonly string? _shortcut;
+
     public EditorChoice(Editor editor, bool isDefault)
     {
         _name = editor.Name;
@@ -25,6 +29,7 @@ public sealed class EditorChoice : ObservableObject
         _kind = editor.Kind;
         _path = editor.Path ?? "";
         _arguments = editor.Arguments ?? "";
+        _shortcut = editor.Shortcut;
         _isDefault = isDefault;
     }
 
@@ -97,5 +102,6 @@ public sealed class EditorChoice : ObservableObject
         Kind = Kind,
         Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim(),
         Arguments = string.IsNullOrWhiteSpace(Arguments) ? null : Arguments.Trim(),
+        Shortcut = _shortcut,
     };
 }

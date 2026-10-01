@@ -1,6 +1,8 @@
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
+using Fido.Input;
 using Fido.Models;
 using Fido.Services;
 using Fido.Tests.Infrastructure;
@@ -133,6 +135,14 @@ public class GalleryScreenshotTests
             });
             vm.CancelDeleteConfirm();
 
+            // 4b. A two-press shortcut half-pressed: Ctrl+K is down and the pill waits for the second key.
+            await CapturePairAsync("chord-pill", () =>
+            {
+                if (!vm.HasChordStatus) window.PressKey(Key.K, KeyModifiers.Control);
+                return Task.CompletedTask;
+            });
+            window.PressKey(Key.Escape);   // and called off again
+
             // 5. The placement offer — a branch checked out nowhere: new-worktree + switch cards.
             await window.Discover("feature/api-cleanup");
             await CapturePairAsync("placement-offer");
@@ -209,6 +219,32 @@ public class GalleryScreenshotTests
                 UiTestExtensions.Pump();
                 FitDialogToContent(dialog);
                 Screenshots.Save(dialog, $"settings-dialog-{suffix}");
+                dialog.Close(false);
+                await shown;
+            }
+            App.ApplyTheme(AppTheme.System);
+        });
+
+        // 9. The Keyboard shortcuts dialog, both themes: one action given a shortcut of its own (so the accent
+        //    shows what differs from the defaults), and another half-way through recording a chord.
+        await Harness.OnUi(async owner =>
+        {
+            foreach (var (theme, suffix) in Themes)
+            {
+                App.ApplyTheme(theme);
+                var dialog = new ShortcutsDialog(config, configService);
+                var shown = dialog.ShowDialog(owner);
+                UiTestExtensions.Pump();
+
+                var rows = dialog.ViewModel.Rows;
+                dialog.ViewModel.BeginRecording(rows.First(r => r.Definition.Action == ShortcutCommand.OpenDefault));
+                dialog.PressKey(Key.Enter, KeyModifiers.Control);
+                dialog.PressKey(Key.Enter);
+                dialog.ViewModel.BeginRecording(rows.First(r => r.Name == "Open in Zed"));
+                dialog.PressKey(Key.K, KeyModifiers.Control);
+
+                FitDialogToContent(dialog);
+                Screenshots.Save(dialog, $"keyboard-shortcuts-dialog-{suffix}");
                 dialog.Close(false);
                 await shown;
             }

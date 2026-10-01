@@ -1,6 +1,6 @@
 ---
 icon: lucide/layout
-description: The flight log, window title, version badge and keyboard shortcuts.
+description: The flight log, window title, version badge, and keyboard shortcuts — chords included.
 ---
 
 # The main screen
@@ -113,7 +113,8 @@ sixteen](console.md#its-colours) — because the ground follows the theme either
   a suggestion forgets it).
 - **Ctrl+1 … Ctrl+9** open the selected target with the corresponding configured tool
   (the same tools shown as buttons), gated — like the buttons — on discovery having
-  **found** the branch.
+  **found** the branch. Those are the defaults: every tool, and every other action on the
+  screen, can have a shortcut of your choosing — see [Your own shortcuts](#your-own-shortcuts).
 - **Esc** backs out of a pending delete confirmation — or, once a delete has run,
   dismisses the **Retry** strip a part-way delete left behind.
 - **Settings dialog:** `Enter` saves, `Esc` cancels.
@@ -122,4 +123,79 @@ sixteen](console.md#its-colours) — because the ground follows the theme either
 
 The destructive delete buttons sit outside the tab order, so `Enter`/`Tab` can never
 land on them by accident.
+
+## Your own shortcuts
+
+Every action on the main screen can have a keyboard shortcut — a **single press** such as ++f5++, or a
+**chord**: two presses one after the other, such as ++ctrl+k++ then ++ctrl+s++, written `Ctrl+K, Ctrl+S`,
+as Visual Studio and VS Code have them. Assign them in **⚙ → Keyboard shortcuts…** — itself
+++ctrl+k++, ++ctrl+s++.
+
+Out of the box:
+
+| Shortcut | Does |
+|---|---|
+| ++ctrl+1++ … ++ctrl+9++ | Open the selected location with the 1st … 9th tool in your list |
+| ++f5++ | Scan for the branch again |
+| ++ctrl+comma++ | **Settings…** |
+| ++ctrl+k++, ++ctrl+s++ | **Keyboard shortcuts…** |
+| ++ctrl+k++, ++ctrl+t++ | Flip light / dark — the [theme toggle](#the-theme-toggle) |
+
+Everything else starts with no shortcut, ready for one: open in the **default tool**, go to the **branch
+box** or the **solution filter**, select the **next** or **previous location**, **copy the selected path**,
+create or edit **`.fido/cfg.yaml`**, open the **pull request**, **delete the worktree**, show the **flight
+log** or the **Console tab**, and **copy** or **save** the flight log.
+
+A shortcut does exactly what its button does, gates included: a tool's shortcut does nothing until
+discovery has **found** the branch, and the delete shortcut only raises the confirm strip — the **Delete**
+click is still yours to make.
+
+### Chords
+
+Press the first half of a chord and a pill at the foot of the window says Fido is waiting for the second.
+It waits as long as you take; **Esc**, a click, or switching to another window calls it off. A second
+press that finishes no chord is reported in the same pill — `Ctrl+K, X isn't a shortcut` — rather than
+silently dropped, and whatever it was, the second press **never types** into the box you're in: the `T`
+of a `Ctrl+K, T` doesn't leave a `t` behind in the branch name.
+
+![A chord half-pressed: the pill waits for the second key](../assets/screenshots/chord-pill-light.png#only-light)
+![A chord half-pressed: the pill waits for the second key](../assets/screenshots/chord-pill-dark.png#only-dark)
+
+### Assigning one
+
+**⚙ → Keyboard shortcuts…** lists every action — your tools first, then the rest, by group. Click a
+shortcut, then press the keys:
+
+- a **second** press makes it a chord, and assigns it there and then;
+- **Enter** after the first press keeps that one press as the whole shortcut;
+- **Esc** — or clicking away — leaves it as it was.
+
+**↺** puts a row's default back and **✕** takes its shortcut away; **Reset all** puts back every default.
+Anything that differs from the defaults reads in the accent colour, and nothing is changed until you
+**Save**.
+
+![The Keyboard shortcuts dialog, recording a chord](../assets/screenshots/keyboard-shortcuts-dialog-light.png#only-light)
+![The Keyboard shortcuts dialog, recording a chord](../assets/screenshots/keyboard-shortcuts-dialog-dark.png#only-dark)
+
+A shortcut has to **start** with **Ctrl**, **Alt** or **Win** / **Cmd** held down — or with a function
+key — because anything else is typing: a shortcut on plain `K` would take the letter from the branch box.
+The second press of a chord can be any key. **Alt+Space** and **Alt+F4** belong to the system and are
+refused.
+
+**No two actions share keys.** Give one action keys another already has, and they move — the line under
+the list says where from. That includes a single press that is where a chord starts: with `Ctrl+K` bound
+on its own, `Ctrl+K, Ctrl+S` could never be reached, so whichever you assign last takes the keys from the
+other.
+
+A tool's shortcut belongs to the **tool**: remove a tool from the list and its shortcut goes with it,
+rather than passing to whichever tool moves up into its place. A tool you've never given a shortcut keeps
+answering to its number.
+
+### Where shortcuts stand aside
+
+- **In the Console tab, every key is the shell's.** `Ctrl+K` and `Ctrl+L` mean something to a shell, and
+  a console that lost them to Fido would be no console. Click outside it and the shortcuts are back.
+- **A key the focused box uses itself stays the box's.** Bind **Ctrl+C** to something and it still copies
+  in the branch box — and does your something everywhere else. **Enter** rescans from the boxes, but
+  **Ctrl+Enter**, **Alt+Enter** and the like are left free to be shortcuts there.
 

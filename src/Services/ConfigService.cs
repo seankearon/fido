@@ -78,6 +78,7 @@ public sealed class ConfigService
         cfg.RecentBranches ??= new();
         cfg.RecentSolutions ??= new();
         cfg.NewBranchRepos ??= new();
+        cfg.Shortcuts ??= new();
 
         // Seed the editor list for configs written before multi-editor support, carrying a legacy
         // explicit Rider path forward onto the Rider editor so the old setting isn't lost.

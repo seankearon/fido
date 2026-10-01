@@ -6,7 +6,7 @@ namespace Fido.Services;
 /// The modal dialogs the main flow still drives, abstracted from <see cref="Views.MainWindow"/> so the
 /// end-to-end flow can be tested headlessly with a fake that returns scripted choices and records what
 /// it was shown. Discovery, target choice, and worktree deletion render inline on the main screen now;
-/// only settings and the exceptional force-delete recovery remain modal.
+/// only settings, the keyboard shortcuts and the exceptional force-delete recovery remain modal.
 /// </summary>
 public interface IDialogService
 {
@@ -19,6 +19,10 @@ public interface IDialogService
 
     /// <summary>Opens the settings dialog (modal).</summary>
     Task ShowSettingsAsync(AppConfig config, ConfigService configService);
+
+    /// <summary>Opens the Keyboard shortcuts dialog (modal); a save writes the shortcuts into <paramref name="config"/>
+    /// and persists it.</summary>
+    Task ShowShortcutsAsync(AppConfig config, ConfigService configService);
 
     /// <summary>
     /// Asks where to save the flight log, offering <paramref name="suggestedFileName"/>. Returns the

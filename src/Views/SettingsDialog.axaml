@@ -27,7 +27,7 @@
         <StackPanel Spacing="9">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0">
-                    <Run Text="Editors " /><Run Text="· ● = default (Enter); others by Ctrl+N or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
+                    <Run Text="Editors " /><Run Text="· ● = default; every tool by its shortcut or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
                 </TextBlock>
                 <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
             </Grid>

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Keyboard shortcuts you choose — chords included.** Every action on the main screen can now have a
+  shortcut: a single press such as `F5`, or a **two-press chord** such as `Ctrl+K, Ctrl+S`, as Visual Studio
+  and VS Code have them. That covers each tool (`Ctrl+1` … `Ctrl+9` stay the defaults) and the rest of the
+  screen — open in the default tool, rescan, go to the branch box or the solution filter, step through the
+  locations, copy the path, edit `.fido/cfg.yaml`, open the pull request, delete the worktree (which still
+  only raises its confirm strip), switch between the Flight log and the Console tab, copy or save the log,
+  flip the theme, and open Settings. New defaults: `F5` rescans, `Ctrl+,` opens Settings, `Ctrl+K, Ctrl+T`
+  flips light / dark, and `Ctrl+K, Ctrl+S` opens **⚙ → Keyboard shortcuts…** — the new dialog that assigns
+  them. Click a shortcut and press the keys: a second press makes it a chord, `Enter` keeps the single
+  press, `Esc` leaves it alone. No two actions can share keys — or have one sit where the other's chord
+  starts — so keys you give one action are taken from whatever had them, and the dialog says where from.
+  On the main screen, the first half of a chord raises a pill that waits for the second (`Esc` or a click
+  calls it off, and a second key that finishes nothing says so), and that second key never types into the
+  box you're in. Every button shows its tool's current shortcut, and the gear popover shows Settings' and
+  the dialog's own. Shortcuts stand aside while the **Console tab** has the keyboard, where `Ctrl+K` and
+  `Ctrl+L` belong to the shell, and a key the focused box uses itself — `Ctrl+C` in the branch box — stays
+  the box's. A tool's shortcut is saved on the tool, so it goes where the tool goes; the rest are saved
+  under `Shortcuts` in `config.json`, holding only what differs from the defaults. A config from before
+  this has neither, and keeps every default.
+
 - **`fido <branch>` switches to the window that already has the branch.** Running Fido from the command line
   for a branch an open Fido window is already on used to open a second window on it. Now that window comes to
   the front — restored if it was minimised — and the command returns without opening another; the flight log
@@ -69,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or out of date. Without the keys, the `.dmg` is ad-hoc signed as before, and `release.ps1` says so in its
   plan. Setup is in *Building Fido → Signing and notarization*. *Getting started* now explains how to open a
   build that isn't notarized.
+
+### Changed
+
+- **`Ctrl+Enter`, `Alt+Enter` and the like no longer rescan from the branch and solution boxes.** They used to
+  do what `Enter` does; they are now free to be keyboard shortcuts — `Ctrl+Enter` for *Open in the default
+  tool* works from the branch box. `Enter` itself rescans as before.
 
 ### Fixed
 

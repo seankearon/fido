@@ -33,14 +33,15 @@ selected automatically when a scan lands — unless the branch's own
 ## Open actions & the default tool
 
 - The **hero button** is the **default tool** — full-width, marked with a `default`
-  pill and its `Ctrl+N` accelerator. Every other tool sits in the **3-column grid**
-  below it, each with its own accelerator.
+  pill and its keyboard shortcut (`Ctrl+N` unless you've [assigned another](interface.md#your-own-shortcuts)).
+  Every other tool sits in the **3-column grid** below it, each with its own.
 - **No default set?** There's no hero — all tools render in the equal-weight grid,
   with a note: *"No default tool set — every option is equal weight. Pick one, set a
   default in ⚙, or pass `--tool` on launch."*
 - The **⚙ gear popover** (top-right) sets the default: a radio list of your configured
   tools plus **No default (equal weight)**. The choice persists to config immediately.
-  **All settings…** opens the full Settings dialog from the same popover.
+  **All settings…** opens the full Settings dialog from the same popover, and **Keyboard shortcuts…**
+  the dialog that assigns them — each with its own shortcut beside it.
 - A CLI `--tool <id>` overrides the default **for that run only** — picking a radio in
   the popover (or editing Settings) takes back over.
 - All open actions are visible in every phase but **enabled only when discovery has

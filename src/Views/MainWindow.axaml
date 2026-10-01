@@ -98,8 +98,23 @@
                                     </ItemsControl>
                                     <TextBlock FontSize="11.5" Foreground="{DynamicResource FidoTextMuted}" TextWrapping="Wrap"
                                                Text="A launch flag like --tool rider overrides this for a single run." />
-                                    <Button Classes="secondary" Content="All settings…" HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Center" Click="OnAllSettingsClick" />
+                                    <!-- The two doors out, each with its own shortcut beside it -->
+                                    <Button x:Name="AllSettingsButton" Classes="secondary" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch" Click="OnAllSettingsClick">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="All settings…" />
+                                            <TextBlock Grid.Column="1" Text="{Binding SettingsGesture}" FontSize="11.5"
+                                                       Foreground="{DynamicResource FidoTextDim}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
+                                    <Button x:Name="KeyboardShortcutsButton" Classes="secondary" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch" Click="OnKeyboardShortcutsClick">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="Keyboard shortcuts…" />
+                                            <TextBlock Grid.Column="1" Text="{Binding ShortcutsGesture}" FontSize="11.5"
+                                                       Foreground="{DynamicResource FidoTextDim}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
@@ -758,6 +773,15 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <!-- The first press of a two-press shortcut is down and Fido is waiting for the second — or the second
+             led nowhere. It floats over the foot of the flight log rather than taking a row of its own: it is
+             there for a moment, and nothing on the screen should move to make room for it. -->
+        <Border x:Name="ChordPill" Grid.Row="1" Classes="chordpill" Classes.miss="{Binding IsChordMiss}"
+                IsVisible="{Binding HasChordStatus}" IsHitTestVisible="False" ZIndex="10"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12">
+            <TextBlock x:Name="ChordPillText" Text="{Binding ChordStatus}" />
+        </Border>
 
         <!-- Close countdown + "keep open" escape hatch; only while an auto-close is pending -->
         <Border x:Name="CountdownBar" Grid.Row="2" IsVisible="{Binding IsClosingCountdown}" Margin="0,16,0,0"

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -52,6 +53,27 @@ public static class UiTestExtensions
     public static void PressKey(this Window window, Key key)
     {
         window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key });
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    /// <summary>Sends a key-down with modifiers held through the routed-event pipeline, as the real press would.</summary>
+    public static void PressKey(this Window window, Key key, KeyModifiers modifiers)
+    {
+        window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers });
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    /// <summary>
+    /// Presses a key the way a keyboard does: through the headless platform, so it is delivered to whatever has
+    /// focus and runs the real tunnel and bubble routes — then the character it types, when it types one, and
+    /// the release. What shortcuts must be tested through, since what they do depends on where focus is.
+    /// </summary>
+    public static void TypeKey(this Window window, Key key, RawInputModifiers modifiers = RawInputModifiers.None,
+        string? text = null)
+    {
+        window.KeyPress(key, modifiers, PhysicalKey.None, text);
+        if (text is not null) window.KeyTextInput(text);
+        window.KeyRelease(key, modifiers, PhysicalKey.None, text);
         Dispatcher.UIThread.RunJobs();
     }
 

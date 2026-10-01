@@ -91,6 +91,10 @@ very folder holding it.
     live prompt underneath**, rather than vanishing with an exit code. That is the whole reason for
     running it here rather than in a window that closes.
 
+    The keyboard is the shell's too. While the console has focus, Fido's own
+    [keyboard shortcuts](interface.md#your-own-shortcuts) stand aside — ++ctrl+k++ and ++ctrl+l++ mean
+    something to a shell, chord or no chord — and come back as soon as you click outside it.
+
 ## Following a link
 
 A URL the console prints is a link you can follow: a dev server's

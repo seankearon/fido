@@ -28,7 +28,7 @@ hide:
     ---
 
     A default tool on the big button, every other tool one ++ctrl+1++ … ++ctrl+9++
-    away. Solution chips for `.sln`, `.slnx` and `.slnf`, or hand over the folder —
+    away — or any shortcut you give it, two-press chords included. Solution chips for `.sln`, `.slnx` and `.slnf`, or hand over the folder —
     plus a terminal and your file explorer.
 
     [:octicons-arrow-right-24: Opening a target](guide/opening.md)

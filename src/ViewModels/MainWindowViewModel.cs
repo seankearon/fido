@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using Avalonia.Threading;
+using Fido.Input;
 using Fido.Models;
 using Fido.Mvvm;
 using Fido.Services;
@@ -356,8 +357,8 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>
     /// Sets the tools the screen offers. <paramref name="defaultIndex"/> is a position into
     /// <paramref name="editors"/>; <see cref="AppConfig.NoDefaultEditor"/> (or out of range) means no
-    /// hero — every tool renders at equal weight. Accelerators stay tied to config order (Ctrl+1…9)
-    /// regardless of which tool is the hero.
+    /// hero — every tool renders at equal weight. Each button shows its tool's shortcut from
+    /// <see cref="SetShortcuts"/>, whichever tool is the hero.
     /// </summary>
     public void SetEditors(IReadOnlyList<Editor> editors, int defaultIndex)
     {
@@ -388,7 +389,7 @@ public sealed class MainWindowViewModel : ObservableObject
         EditorLaunchOption? hero = null;
         for (var i = 0; i < _editors.Count; i++)
         {
-            var gesture = i < 9 ? $"Ctrl+{i + 1}" : "";
+            var gesture = _shortcuts.DisplayFor(ShortcutAction.Tool(i));
             // Only the Console tool carries a run menu — it's the one that can host a command.
             var runs = _editors[i].Kind == EditorKind.Console
                 ? _consoleRuns.Select(run => run with { ToolIndex = i }).ToArray()
@@ -408,6 +409,79 @@ public sealed class MainWindowViewModel : ObservableObject
     /// <summary>The gear popover's radio rows (each tool + "No default"); populated by the window
     /// alongside <see cref="SetEditors"/> so both views of the config stay in step.</summary>
     public ObservableCollection<DefaultToolChoice> DefaultToolChoices { get; } = new();
+
+    // --- Keyboard shortcuts -------------------------------------------------------------
+
+    /// <summary>Until the window hands over the config's, the shortcuts every Fido starts with — the numbered
+    /// tools included, however many there turn out to be.</summary>
+    private ShortcutMap _shortcuts = ShortcutMap.FromConfig(new AppConfig
+    {
+        Editors = Enumerable.Range(0, ShortcutCatalog.NumberedTools).Select(_ => new Editor()).ToList(),
+    });
+
+    /// <summary>
+    /// The shortcuts in force, for the labels that show them: each tool button's, and the gear popover's.
+    /// Called by the window on startup and after either dialog saves.
+    /// </summary>
+    public void SetShortcuts(ShortcutMap shortcuts)
+    {
+        _shortcuts = shortcuts;
+        RebuildTools();
+        OnPropertyChanged(nameof(SettingsGesture));
+        OnPropertyChanged(nameof(ShortcutsGesture));
+    }
+
+    /// <summary>Settings' shortcut as it reads on screen — empty when it has none.</summary>
+    public string SettingsGesture => _shortcuts.DisplayFor(ShortcutCommand.Settings);
+
+    /// <summary>The Keyboard shortcuts dialog's own shortcut as it reads on screen — empty when it has none.</summary>
+    public string ShortcutsGesture => _shortcuts.DisplayFor(ShortcutCommand.KeyboardShortcuts);
+
+    private string _chordStatus = "";
+    private bool _isChordMiss;
+
+    /// <summary>
+    /// The chord pill's text: the first press of a two-press shortcut, waiting for the second — or, briefly,
+    /// a second press that led nowhere. Empty hides the pill.
+    /// </summary>
+    public string ChordStatus
+    {
+        get => _chordStatus;
+        private set
+        {
+            if (SetField(ref _chordStatus, value))
+                OnPropertyChanged(nameof(HasChordStatus));
+        }
+    }
+
+    public bool HasChordStatus => _chordStatus.Length > 0;
+
+    /// <summary>True while the pill reports a chord that isn't a shortcut, rather than one in progress.</summary>
+    public bool IsChordMiss
+    {
+        get => _isChordMiss;
+        private set => SetField(ref _isChordMiss, value);
+    }
+
+    /// <summary>The first press of a chord is down: say so, and what ends the wait.</summary>
+    public void ShowChordWaiting(Shortcut first)
+    {
+        IsChordMiss = false;
+        ChordStatus = $"{first.DisplayText} — waiting for the second key… (Esc cancels)";
+    }
+
+    /// <summary>A chord's second press led nowhere: say which keys, so a mistyped chord isn't a silent nothing.</summary>
+    public void ShowChordMiss(Shortcut keys)
+    {
+        IsChordMiss = true;
+        ChordStatus = $"{keys.DisplayText} isn't a shortcut";
+    }
+
+    public void ClearChordStatus()
+    {
+        ChordStatus = "";
+        IsChordMiss = false;
+    }
 
     // --- Delete row -------------------------------------------------------------------
 

@@ -8,7 +8,8 @@
 Give it a branch name; it scans your repos for every **worktree** and **clone** currently on
 that branch, lists them right on the main screen — clearly labelled — and opens your pick's
 solution or folder in your editor. Set a **default tool** for the big Open button; every tool is a
-**Ctrl+1 … Ctrl+9** away. It can also drop you into a **terminal** or open the folder in your
+**Ctrl+1 … Ctrl+9** away — or any shortcut you assign it, VS Code-style **chords** like
+**Ctrl+K, Ctrl+R** included. It can also drop you into a **terminal** or open the folder in your
 **file explorer** — on Windows, macOS, and Linux. Finished with a branch? Delete its worktree and
 local branch — and, optionally, its remote branch too (unless an open PR says otherwise) — from the
 same screen, with an inline confirm.

@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Fido.ViewModels"
+        x:Class="Fido.Views.ShortcutsDialog"
+        x:DataType="vm:ShortcutsViewModel"
+        Title="Keyboard shortcuts"
+        Width="600" SizeToContent="Height"
+        MinWidth="520" CanResize="False"
+        WindowDecorations="Full"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/fido-icon-256.png"
+        FontFamily="{DynamicResource FidoMono}"
+        Background="{DynamicResource FidoWindowBg}">
+
+    <StackPanel Margin="22,20" Spacing="14">
+
+        <TextBlock Classes="label" TextWrapping="Wrap">
+            <Run Text="Keyboard shortcuts " /><Run Text="· click one, then press the keys" Foreground="{DynamicResource FidoTextDim}" />
+        </TextBlock>
+
+        <Border BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
+                Background="{DynamicResource FidoLogBg}">
+            <ScrollViewer MaxHeight="430" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="ShortcutList" ItemsSource="{Binding Rows}" Margin="14,4,10,10">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ShortcutRow">
+                            <StackPanel>
+                                <TextBlock Classes="label" Text="{Binding Group}" IsVisible="{Binding IsFirstInGroup}"
+                                           Margin="0,10,0,6" />
+                                <!-- name · key cap (click to record) · reset · clear -->
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,5">
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="13"
+                                               Foreground="{DynamicResource FidoTextBody}"
+                                               TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                                    <Button Grid.Column="1" Classes="keycap" Width="196"
+                                            Classes.recording="{Binding IsRecording}"
+                                            Classes.custom="{Binding IsCustom}"
+                                            Content="{Binding KeysText}" Click="OnRecordClick"
+                                            ToolTip.Tip="Click, then press the keys" />
+                                    <Button Grid.Column="2" Classes="iconaction" Margin="6,0,0,0"
+                                            Click="OnResetClick" IsEnabled="{Binding IsCustom}"
+                                            ToolTip.Tip="{Binding ResetTip}">
+                                        <Path Width="14" Height="14" Stretch="Uniform"
+                                              Data="M3,12 A9,9 0 1 0 6,5.3 M3,3 L3,9 L9,9" />
+                                    </Button>
+                                    <Button Grid.Column="3" Classes="iconaction"
+                                            Click="OnClearClick" IsEnabled="{Binding HasKeys}"
+                                            ToolTip.Tip="Remove this shortcut">
+                                        <Path Width="12" Height="12" Stretch="Uniform" Data="M5,5 L19,19 M19,5 L5,19" />
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- What recording wants next, or what the last change did — including anything it took from elsewhere -->
+        <TextBlock x:Name="NoticeText" Text="{Binding Notice}" TextWrapping="Wrap" FontSize="12"
+                   MinHeight="32" Foreground="{DynamicResource FidoTextSecondary}" />
+
+        <Grid ColumnDefinitions="Auto,*,Auto">
+            <Button x:Name="ResetAllButton" Classes="secondary" Content="Reset all" Click="OnResetAllClick"
+                    ToolTip.Tip="Put every shortcut back to its default" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button x:Name="SaveButton" Classes="primary" Content="Save" Click="OnSaveClick" IsDefault="True"
+                        FontSize="13" Padding="24,9" />
+            </StackPanel>
+        </Grid>
+
+    </StackPanel>
+</Window>
