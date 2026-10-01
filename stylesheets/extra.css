@@ -1,0 +1,249 @@
+/* ==========================================================================
+   Fido docs theme
+   --------------------------------------------------------------------------
+   Colours are lifted from the app's own Avalonia theme (src/Theme/FidoTheme.axaml)
+   so the site and the application read as one thing.
+
+     amber      #F4A62A   the hero button, the flight log's "GO"
+     amber-lo   #EF9E1C   pressed
+     amber-hi   #F8BA4D   hover
+     ink        #1B1712   dark surface
+     parchment  #F5F1E8   light surface
+     alert      #E06055   destructive actions
+
+   Amber on white is ~1.9:1, so it is never used for body links. Light mode
+   links use a darkened amber (#8A5A0B, ~5.6:1 on white) instead; dark mode
+   can use the amber itself.
+   ========================================================================== */
+
+:root {
+  --fido-amber: #f4a62a;
+  --fido-amber-hi: #f8ba4d;
+  --fido-amber-lo: #ef9e1c;
+  --fido-amber-text: #8a5a0b;
+  --fido-ink: #1b1712;
+  --fido-ink-2: #211c15;
+  --fido-ink-3: #2a251c;
+  --fido-parchment: #f5f1e8;
+  --fido-parchment-2: #f1ece0;
+  --fido-parchment-3: #ebe4d4;
+  --fido-alert: #e06055;
+}
+
+/* -- Light ---------------------------------------------------------------- */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--fido-amber);
+  --md-primary-fg-color--light: var(--fido-amber-hi);
+  --md-primary-fg-color--dark: var(--fido-amber-lo);
+  --md-primary-bg-color: var(--fido-ink);
+  --md-primary-bg-color--light: var(--fido-ink-3);
+
+  --md-accent-fg-color: var(--fido-amber-text);
+  --md-accent-fg-color--transparent: rgb(138 90 11 / 10%);
+
+  --md-default-bg-color: #fffdf9;
+  --md-typeset-a-color: var(--fido-amber-text);
+  --md-code-bg-color: var(--fido-parchment-2);
+  --md-footer-bg-color: var(--fido-ink);
+  --md-footer-bg-color--dark: var(--fido-ink-2);
+}
+
+/* -- Dark ----------------------------------------------------------------- */
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: var(--fido-ink-2);
+  --md-primary-fg-color--light: var(--fido-ink-3);
+  --md-primary-fg-color--dark: var(--fido-ink);
+  --md-primary-bg-color: var(--fido-parchment-2);
+
+  --md-accent-fg-color: var(--fido-amber);
+  --md-accent-fg-color--transparent: rgb(244 166 42 / 12%);
+
+  --md-hue: 32deg;
+  --md-default-bg-color: var(--fido-ink);
+  --md-typeset-a-color: var(--fido-amber);
+  --md-code-bg-color: var(--fido-ink-3);
+  --md-footer-bg-color: #16120e;
+}
+
+/* The header keeps the amber in light mode; in dark it goes to ink, with the
+   amber retained as a hairline so the brand edge does not disappear. */
+[data-md-color-scheme="slate"] .md-header {
+  border-bottom: 1px solid rgb(244 166 42 / 28%);
+}
+
+/* ==========================================================================
+   Landing page
+   ========================================================================== */
+
+.fido-hero {
+  background:
+    radial-gradient(
+      ellipse at 18% 0%,
+      rgb(244 166 42 / 16%) 0%,
+      rgb(244 166 42 / 0%) 58%
+    ),
+    var(--md-default-bg-color);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding: 3.2rem 0.8rem 2.6rem;
+}
+
+.fido-hero__inner {
+  display: grid;
+  gap: 2.4rem;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+  margin: 0 auto;
+  max-width: 61rem;
+}
+
+.fido-hero__mark {
+  display: block;
+  height: 3.4rem;
+  width: auto;
+  margin-bottom: 0.9rem;
+}
+
+.fido-hero__title {
+  font-size: 2.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+  color: var(--md-default-fg-color);
+}
+
+.fido-hero__tagline {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.35rem 0 0;
+  color: var(--fido-amber-text);
+}
+
+[data-md-color-scheme="slate"] .fido-hero__tagline {
+  color: var(--fido-amber);
+}
+
+.fido-hero__lede {
+  font-size: 0.78rem;
+  line-height: 1.65;
+  margin: 0.9rem 0 0;
+  max-width: 32rem;
+  color: var(--md-default-fg-color--light);
+}
+
+.fido-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.fido-hero__actions .md-button {
+  margin: 0;
+}
+
+.fido-hero__actions .md-button--primary {
+  background-color: var(--fido-amber);
+  border-color: var(--fido-amber);
+  color: var(--fido-ink);
+  font-weight: 600;
+}
+
+.fido-hero__actions .md-button--primary:hover,
+.fido-hero__actions .md-button--primary:focus {
+  background-color: var(--fido-amber-hi);
+  border-color: var(--fido-amber-hi);
+  color: var(--fido-ink);
+}
+
+.fido-hero__meta {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  margin: 1.4rem 0 0;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--lighter);
+}
+
+.fido-hero__shot img {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 8%),
+    0 12px 32px -8px rgb(0 0 0 / 22%);
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The hero already names the page, so the generated `<h1>` (and the edit
+   pencil that sits beside it) are noise there. Scoped to pages that actually
+   render a hero, so every other page keeps both. */
+.fido-hero ~ .md-main .md-content__inner > h1,
+.fido-hero ~ .md-main .md-content__button[rel="edit"] {
+  display: none;
+}
+
+/* Section headings on the landing page, which has no sidebar to anchor it. */
+.fido-section-title {
+  margin-top: 2.4rem;
+  text-align: center;
+}
+
+/* The landing page hides the nav, so give the content the full measure. */
+[data-md-component="content"] .fido-section-title + .grid.cards {
+  margin-top: 1.2rem;
+}
+
+@media screen and (max-width: 76.2344em) {
+  .fido-hero__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    max-width: 40rem;
+  }
+
+  .fido-hero__lede {
+    max-width: none;
+  }
+}
+
+@media screen and (max-width: 44.9844em) {
+  .fido-hero {
+    padding: 2.2rem 0.8rem 2rem;
+  }
+
+  .fido-hero__title {
+    font-size: 2.2rem;
+  }
+
+  .fido-hero__tagline {
+    font-size: 1rem;
+  }
+}
+
+/* ==========================================================================
+   Content tweaks
+   ========================================================================== */
+
+/* Screenshots are the point on several pages — let them breathe and centre. */
+.md-typeset img[src*="/screenshots/"] {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  display: block;
+  margin: 1.1rem auto;
+  max-width: 100%;
+}
+
+/* The at-a-glance table is dense; keep it readable rather than letting the
+   Summary column collapse. */
+.md-typeset table:not([class]) td:first-child {
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 44.9844em) {
+  .md-typeset table:not([class]) td:first-child {
+    white-space: normal;
+  }
+}
