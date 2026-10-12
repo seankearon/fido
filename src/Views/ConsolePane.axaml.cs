@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Fido.Models;
 using Fido.Services;
 using Fido.Theme;
 
@@ -104,24 +105,32 @@ public partial class ConsolePane : UserControl
     public bool IsRunning => _started;
 
     /// <summary>
+    /// The Console tool, whose path picks the shell when it names one — <c>pwsh</c> rather than the login
+    /// shell, say (see <see cref="RunnerShell.For"/>). The host sets it from the config at startup and again
+    /// whenever settings are saved; it applies from the next shell started.
+    /// </summary>
+    public Editor? ConsoleTool { get; set; }
+
+    /// <summary>
     /// Starts a plain shell at <paramref name="folder"/> if nothing is running yet. Called when the
     /// Console tab is opened: the tab is what asks for a shell, so merely having the tab present costs
-    /// nothing.
+    /// nothing. Returns the shell it started, or null when it started none.
     /// </summary>
-    public void EnsureStarted(string? folder)
+    public RunnerShellSpec? EnsureStarted(string? folder)
     {
-        if (_started || string.IsNullOrEmpty(folder)) return;
-        Run(folder, null);
+        if (_started || string.IsNullOrEmpty(folder)) return null;
+        return Run(folder, null);
     }
 
     /// <summary>
     /// Runs <paramref name="command"/> at <paramref name="folder"/>, replacing whatever was running. A
     /// fresh shell each time rather than typing into the live one: the folder may have changed with the
     /// selection, and a shell left mid-command — or sitting in a pager — would swallow the input.
+    /// Returns the shell it started (or will start, once the terminal has loaded), or null for no folder.
     /// </summary>
-    public void Run(string folder, string? command)
+    public RunnerShellSpec? Run(string folder, string? command)
     {
-        if (string.IsNullOrEmpty(folder)) return;
+        if (string.IsNullOrEmpty(folder)) return null;
 
         if (_started)
         {
@@ -145,7 +154,7 @@ public partial class ConsolePane : UserControl
         // "Error launching process". The control then launches again by itself when it loads, so the
         // error ended up above a working prompt. The pane starts out hidden, so this was every first
         // trip to the tab.
-        var shell = RunnerShell.For(command);
+        var shell = RunnerShell.For(command, ConsoleTool);
         if (Terminal.IsLoaded)
         {
             _pendingLaunch = null;
@@ -155,6 +164,7 @@ public partial class ConsolePane : UserControl
         {
             _pendingLaunch = (folder, shell);
         }
+        return shell;
     }
 
     /// <summary>

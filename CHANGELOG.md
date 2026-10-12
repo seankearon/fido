@@ -96,6 +96,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   do what `Enter` does; they are now free to be keyboard shortcuts — `Ctrl+Enter` for *Open in the default
   tool* works from the branch box. `Enter` itself rescans as before.
 
+- **The Console tab starts the shell you set for the Console tool.** It used to take no notice of the
+  Console row in **Settings → Editors**: Windows got PowerShell and macOS and Linux got the login shell
+  from `SHELL`, so a Console set to `pwsh` still opened zsh on a Mac. Now a Console path that names a shell
+  (`pwsh` or `powershell` on Windows; `pwsh`, `bash`, `zsh`, `fish`, `sh`, `dash` or `ksh` on macOS and
+  Linux) is the one the tab starts, with the row's arguments ahead of Fido's, so `-Login` gets you a
+  PowerShell login shell. A bare name is looked up on `PATH`, and on macOS and Linux in Homebrew's and the
+  other usual folders too, because a Fido started from the Dock doesn't get your terminal's `PATH`. A
+  terminal app there (Terminal, iTerm, Windows Terminal) still only affects the Console button. A shell
+  that can't be found falls back to the default, and the flight log names it. PowerShell on a Mac or Linux
+  gets its own `-NoExit`, not the `-c … exec` that suits a POSIX shell, and that now holds when `SHELL` is
+  `pwsh` too. The path box's hint now reads *terminal or shell*.
+
 ### Fixed
 
 - **The Console tab no longer opens on "Error launching process".** The first time the tab was opened, the

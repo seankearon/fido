@@ -64,7 +64,9 @@ macOS, and Linux**:
   **The terminal is configurable:** set the Console row's **path** to a specific terminal program — a full
   path *or* just a command name like `wt`, `pwsh`, or `gnome-terminal` (resolved on `PATH`, including Windows
   Terminal's Store alias) — and add arguments if needed. Most terminals open in the folder because Fido sets
-  it as their working directory; Windows Terminal is pointed at it explicitly with `-d`.
+  it as their working directory; Windows Terminal is pointed at it explicitly with `-d`. A path that names a
+  **shell** rather than a terminal app — `pwsh`, `zsh`, `fish` — also picks the
+  [Console tab's](console.md#which-shell-and-what-it-runs) shell, arguments and all.
 - **File Explorer** *(folder-only, slug `files`)* — reveals the folder in the OS file manager: **Windows**
   `explorer.exe`, **macOS** Finder (via `open`), **Linux** `xdg-open` (honouring your default file manager),
   else `nautilus` / `dolphin` / `thunar` / `nemo` / `pcmanfm`. The file manager is configurable via the

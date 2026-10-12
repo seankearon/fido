@@ -54,21 +54,21 @@ public class ConsoleTabTests
 
     // --- PowerShell's current-directory rule -------------------------------------------------
     //
-    // These run everywhere, not just on Windows: WindowsCommand is a pure string composition, and the
+    // These run everywhere, not just on Windows: PowerShellCommand is a pure string composition, and the
     // rule it encodes is the one thing about this path a Linux CI box can still check.
 
     [Test]
     public async Task A_root_script_is_made_relative_because_PowerShell_wont_look_in_the_current_folder()
     {
         // Bare 'build.ps1' is "not recognized …" even standing in the folder that holds it.
-        await Assert.That(RunnerShell.WindowsCommand("build.ps1")).IsEqualTo("& ./build.ps1");
-        await Assert.That(RunnerShell.WindowsCommand("build.cmd")).IsEqualTo("& ./build.cmd");
+        await Assert.That(RunnerShell.PowerShellCommand("build.ps1")).IsEqualTo("& ./build.ps1");
+        await Assert.That(RunnerShell.PowerShellCommand("build.cmd")).IsEqualTo("& ./build.cmd");
     }
 
     [Test]
     public async Task Arguments_ride_along_after_the_relative_script()
     {
-        await Assert.That(RunnerShell.WindowsCommand("build.ps1 --no-restore -c Release"))
+        await Assert.That(RunnerShell.PowerShellCommand("build.ps1 --no-restore -c Release"))
             .IsEqualTo("& ./build.ps1 --no-restore -c Release");
     }
 
@@ -77,7 +77,7 @@ public class ConsoleTabTests
     {
         // The run menu double-quotes such a name; PowerShell wants single quotes, and the call operator
         // is what stops the quoted path being read as a bare string expression.
-        await Assert.That(RunnerShell.WindowsCommand("\"my script.ps1\""))
+        await Assert.That(RunnerShell.PowerShellCommand("\"my script.ps1\""))
             .IsEqualTo("& './my script.ps1'");
     }
 
@@ -85,15 +85,106 @@ public class ConsoleTabTests
     public async Task A_native_command_is_left_alone()
     {
         // 'aspire start' resolves on PATH; ./aspire is a path that doesn't exist.
-        await Assert.That(RunnerShell.WindowsCommand("aspire start")).IsEqualTo("aspire start");
-        await Assert.That(RunnerShell.WindowsCommand("dotnet build")).IsEqualTo("dotnet build");
+        await Assert.That(RunnerShell.PowerShellCommand("aspire start")).IsEqualTo("aspire start");
+        await Assert.That(RunnerShell.PowerShellCommand("dotnet build")).IsEqualTo("dotnet build");
     }
 
     [Test]
     public async Task A_command_that_already_carries_a_path_is_left_alone()
     {
-        await Assert.That(RunnerShell.WindowsCommand("./build.ps1")).IsEqualTo("./build.ps1");
-        await Assert.That(RunnerShell.WindowsCommand(@"C:\tools\build.ps1")).IsEqualTo(@"C:\tools\build.ps1");
+        await Assert.That(RunnerShell.PowerShellCommand("./build.ps1")).IsEqualTo("./build.ps1");
+        await Assert.That(RunnerShell.PowerShellCommand(@"C:\tools\build.ps1")).IsEqualTo(@"C:\tools\build.ps1");
+    }
+
+    // --- The Console tool's shell ------------------------------------------------------------
+    //
+    // The Console row's path picks the tab's shell when it names one. The lookup is injected, so these
+    // say the same thing on every OS whatever happens to be installed; pwsh is the shell used because it
+    // is the one both platforms' tabs can drive.
+
+    private static readonly string FakePwsh = OperatingSystem.IsWindows() ? @"C:\fake\pwsh.exe" : "/fake/bin/pwsh";
+
+    private static Editor ConsoleSetTo(string path, string? arguments = null) =>
+        new() { Name = "Console", Kind = EditorKind.Console, Path = path, Arguments = arguments };
+
+    private static string? OnlyPwsh(string name) => name == "pwsh" ? FakePwsh : null;
+
+    [Test]
+    public async Task A_console_tool_set_to_a_shell_is_the_shell_the_tab_starts()
+    {
+        var plain = RunnerShell.For(null, ConsoleSetTo("pwsh"), OnlyPwsh);
+        await Assert.That(plain.Executable).IsEqualTo(FakePwsh);
+        await Assert.That(plain.Args).IsEquivalentTo(new[] { "-NoLogo" });
+        await Assert.That(plain.NotFound).IsNull();
+
+        // PowerShell's own flags on a Mac too, not the -c / exec pair a POSIX shell gets.
+        var run = RunnerShell.For("build.ps1", ConsoleSetTo("pwsh"), OnlyPwsh);
+        await Assert.That(run.Args).IsEquivalentTo(new[] { "-NoLogo", "-NoExit", "-Command", "& ./build.ps1" });
+    }
+
+    [Test]
+    public async Task The_console_rows_arguments_go_to_its_shell_first()
+    {
+        // First, because PowerShell only takes -Login there.
+        var spec = RunnerShell.For(null, ConsoleSetTo("pwsh", "-Login"), OnlyPwsh);
+        await Assert.That(spec.Args).IsEquivalentTo(new[] { "-Login", "-NoLogo" });
+    }
+
+    [Test]
+    public async Task A_terminal_app_in_the_console_tool_leaves_the_tab_on_its_default()
+    {
+        // Terminal, iTerm, Windows Terminal: something to open a window with, not a shell to host.
+        var fallback = RunnerShell.For(null, null, OnlyPwsh);
+        foreach (var terminal in new[] { "/System/Applications/Utilities/Terminal.app", "wt", "gnome-terminal" })
+        {
+            var spec = RunnerShell.For(null, ConsoleSetTo(terminal, "--some-flag"), OnlyPwsh);
+            await Assert.That(spec.Executable).IsEqualTo(fallback.Executable);
+            await Assert.That(spec.Args).IsEquivalentTo(fallback.Args);   // nor do its arguments ride along
+            await Assert.That(spec.NotFound).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task A_shell_that_cant_be_found_falls_back_and_says_which()
+    {
+        var fallback = RunnerShell.For(null, null, _ => null);
+
+        var byName = RunnerShell.For(null, ConsoleSetTo("pwsh", "-Login"), _ => null);
+        await Assert.That(byName.NotFound).IsEqualTo("pwsh");
+        await Assert.That(byName.Executable).IsEqualTo(fallback.Executable);
+        await Assert.That(byName.Args).IsEquivalentTo(fallback.Args);
+
+        var byPath = RunnerShell.For(null, ConsoleSetTo("/nowhere/pwsh"), _ => null);
+        await Assert.That(byPath.NotFound).IsEqualTo("/nowhere/pwsh");
+    }
+
+    [Test]
+    public async Task A_posix_shell_set_by_path_runs_its_command_and_stays_interactive()
+    {
+        if (OperatingSystem.IsWindows()) return;   // the Windows tab drives PowerShell only
+
+        var spec = RunnerShell.For("echo hello", ConsoleSetTo("/bin/sh"), _ => null);
+        await Assert.That(spec.Executable).IsEqualTo("/bin/sh");
+        await Assert.That(spec.Args[0]).IsEqualTo("-c");
+        await Assert.That(spec.Args[1]).IsEqualTo("echo hello; exec /bin/sh -i");
+    }
+
+    [Test]
+    public async Task A_console_shell_that_cant_be_found_is_named_in_the_flight_log()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+            window.FindControl<ConsolePane>("ConsoleView")!.ConsoleTool = ConsoleSetTo("/nowhere/pwsh");
+
+            await window.RunConsoleOptionAsync(window.Vm().ConsoleTabRuns[0]);   // shell here
+
+            await Assert.That(window.LogText()).Contains("Console is set to '/nowhere/pwsh', which Fido couldn't find");
+        });
     }
 
     private static EditorLaunchOption ConsoleTool(MainWindow window) =>

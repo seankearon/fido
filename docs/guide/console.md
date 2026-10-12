@@ -69,16 +69,25 @@ Fido owns the pseudo-terminal here, so there is no terminal emulator in the way 
 argument to negotiate — the shell simply starts in the right place. All that's left to choose is
 which one:
 
-- **Windows** — **PowerShell 7** (`pwsh`) when it's installed, else the in-box Windows PowerShell.
-  A command runs first and `-NoExit` keeps the prompt afterwards.
-- **macOS and Linux** — your **login shell** from `SHELL` (falling back to `bash`, then `sh`),
-  started **interactive** so your rc file, prompt and aliases are the ones you know. The command
-  runs, then the shell `exec`s itself interactively.
+- **The one you set.** When the **Console** tool's path in **Settings → Editors** names a shell, that
+  is the shell the tab starts, with the row's arguments in front of Fido's own — so `pwsh` with
+  `-Login` gets a PowerShell login shell. A bare name is looked up on `PATH`, and on macOS and Linux
+  in `/opt/homebrew/bin`, `/usr/local/bin` and `/snap/bin` too, because a Fido started from the Dock
+  doesn't get the `PATH` your terminal builds. On Windows that means `pwsh` or `powershell`; on macOS
+  and Linux, `pwsh`, `bash`, `zsh`, `fish`, `sh`, `dash` or `ksh`. A terminal app there — Terminal,
+  iTerm, Windows Terminal — is for the Console *button*, and the tab keeps its default. A shell that
+  can't be found falls back to the default as well, and the flight log says so.
+- Otherwise, on **Windows** — **PowerShell 7** (`pwsh`) when it's installed, else the in-box Windows
+  PowerShell. A command runs first and `-NoExit` keeps the prompt afterwards.
+- Otherwise, on **macOS and Linux** — your **login shell** from `SHELL` (falling back to `bash`, then
+  `sh`), started **interactive** so your rc file, prompt and aliases are the ones you know. The command
+  runs, then the shell `exec`s itself interactively. PowerShell, wherever it comes from, takes its own
+  `-NoExit` instead.
 
 The command conventions are **shared with the launch path** — a `.ps1` goes to PowerShell, a root
 `.sh` is invoked as `./name` — so a command behaves the same whichever console it lands in. One
-wrinkle is Windows-only: PowerShell **does not look in the current directory** for something it's
-asked to run, so a script in the tree root is made explicitly relative (`& ./build.ps1`).
+wrinkle comes with PowerShell, on any platform: it **does not look in the current directory** for
+something it's asked to run, so a script in the tree root is made explicitly relative (`& ./build.ps1`).
 Otherwise `build.ps1` comes back *"not recognized as the name of a cmdlet…"* while you stand in the
 very folder holding it.
 

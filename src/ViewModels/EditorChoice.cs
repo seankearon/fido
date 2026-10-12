@@ -89,7 +89,7 @@ public sealed class EditorChoice : ObservableObject
     public string PathPlaceholder => _kind switch
     {
         EditorKind.Custom => "path to executable (required)",
-        EditorKind.Console => "terminal program (blank = OS default)",
+        EditorKind.Console => "terminal or shell (blank = OS default)",
         EditorKind.FileExplorer => "file manager (blank = OS default)",
         _ => "path (blank = auto-detect)",
     };

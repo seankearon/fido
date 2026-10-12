@@ -306,7 +306,7 @@ public sealed class EditorLauncher : IEditorLauncher
             : new LaunchSpec(executable, [folder]);
 
     /// <summary>Splits the user's extra-arguments string on whitespace; null/blank yields nothing.</summary>
-    private static string[] SplitArguments(string? arguments) =>
+    internal static string[] SplitArguments(string? arguments) =>
         string.IsNullOrWhiteSpace(arguments)
             ? []
             : arguments.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

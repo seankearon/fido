@@ -169,6 +169,7 @@ public partial class MainWindow : Window
         _vm.SetEditors(_config.Editors, _runDefaultToolIndex);
         RebuildDefaultToolChoices();
         ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
+        ConsoleView.ConsoleTool = ConsoleEditor();
 
         // Typing in the branch box debounces into a scan; Enter (below) fires one immediately.
         _scanDebounce = new DispatcherTimer { Interval = ScanDebounce };
@@ -259,7 +260,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.IsConsoleTab) && _vm.IsConsoleTab)
         {
             if (_vm.SelectedTarget is { Target: { Kind: TargetKind.Worktree or TargetKind.MainClone } target })
-                ConsoleView.EnsureStarted(target.Path);
+                ReportShellNotFound(ConsoleView.EnsureStarted(target.Path));
             return;
         }
 
@@ -740,12 +741,24 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The Console tool to attribute a Console-tab run to. Its configured path is irrelevant — the pane
-    /// hosts the shell itself — so a setup with no Console tool still gets a working tab.
+    /// The Console tool to attribute a Console-tab run to. The pane hosts the shell itself, so a setup with
+    /// no Console tool still gets a working tab; when the tool's path names a shell, that is the shell the
+    /// tab starts (see <see cref="RunnerShell.For"/>), and a terminal app there is left to the button.
     /// </summary>
     private Editor ConsoleEditor() =>
         _config.Editors.FirstOrDefault(e => e.Kind == EditorKind.Console)
         ?? new Editor { Name = "Console", Kind = EditorKind.Console };
+
+    /// <summary>
+    /// Says so in the flight log when the Console tool names a shell Fido couldn't find, so a tab that came
+    /// up in a different shell isn't left to explain itself.
+    /// </summary>
+    private void ReportShellNotFound(RunnerShellSpec? shell)
+    {
+        if (shell?.NotFound is not { } missing) return;
+        _vm.AppendLog($"⚠ Console is set to '{missing}', which Fido couldn't find — the Console tab opened " +
+                      $"{Path.GetFileName(shell.Executable)} instead. Set its full path in Settings.");
+    }
 
     /// <summary>
     /// Opens the selected target with <paramref name="editor"/>. Gated on the phase machine: does
@@ -855,7 +868,7 @@ public partial class MainWindow : Window
                 // before any output arrives. The other order costs a shell: revealing the tab is what
                 // asks EnsureStarted for one, and this call would kill that newborn shell a line later,
                 // which the terminal reports in the scrollback the run is about to write to.
-                ConsoleView.Run(folder, consoleCommand);
+                ReportShellNotFound(ConsoleView.Run(folder, consoleCommand));
                 _vm.IsConsoleTab = true;
                 return;
             }
@@ -1514,6 +1527,8 @@ public partial class MainWindow : Window
         // Repaints a shell that is already running — the pane reads its colours through a live options
         // object, so there is nothing to wait for.
         ConsoleView.UseFidoPalette = _config.ConsoleUsesFidoPalette;
+        // The shell, by contrast, is chosen when one starts: this reaches the next one, not the running one.
+        ConsoleView.ConsoleTool = ConsoleEditor();
     }
 
     // --- Keyboard -------------------------------------------------------------------------
