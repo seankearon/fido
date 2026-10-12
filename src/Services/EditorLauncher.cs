@@ -45,6 +45,25 @@ public sealed class EditorLauncher : IEditorLauncher
         };
     }
 
+    /// <summary>
+    /// The path set in Settings for <paramref name="editor"/>, when <see cref="Locate"/> found something else:
+    /// the path didn't resolve, so auto-detection stepped in. Null when no path is set or the path is what was
+    /// found. A full path has to be what was found; a bare name such as <c>pwsh</c> comes back as the full path
+    /// it resolved to, so that is compared by program name.
+    /// </summary>
+    internal static string? UnusedPath(Editor editor, string located)
+    {
+        if (string.IsNullOrWhiteSpace(editor.Path)) return null;
+        var configured = editor.Path.Trim();
+        var used = configured.Contains('/') || configured.Contains('\\')
+            ? string.Equals(Trimmed(configured), Trimmed(located), StringComparison.OrdinalIgnoreCase)
+            : string.Equals(ProgramName(configured), ProgramName(located), StringComparison.OrdinalIgnoreCase);
+        return used ? null : configured;
+
+        static string Trimmed(string path) => path.TrimEnd('/', '\\');
+        static string ProgramName(string path) => Path.GetFileNameWithoutExtension(Trimmed(path));
+    }
+
     /// <summary>Starts <paramref name="editor"/> on <paramref name="targetPath"/> without waiting for it.</summary>
     public void Launch(Editor editor, string executable, string targetPath, string? consoleCommand = null)
         => Run(BuildLaunchSpec(editor, executable, targetPath, consoleCommand));

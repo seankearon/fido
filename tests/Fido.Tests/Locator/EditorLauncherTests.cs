@@ -195,6 +195,25 @@ public class EditorLauncherTests
     }
 
     [Test]
+    public async Task A_path_set_in_settings_that_wasnt_used_is_named()
+    {
+        static Editor Console(string? path) => new() { Name = "Console", Kind = EditorKind.Console, Path = path };
+        const string Terminal = "/System/Applications/Utilities/Terminal.app";
+
+        // Nothing set, or the setting is what was found — by full path, or a bare name resolved on PATH.
+        await Assert.That(EditorLauncher.UnusedPath(Console(null), Terminal)).IsNull();
+        await Assert.That(EditorLauncher.UnusedPath(Console("  "), Terminal)).IsNull();
+        await Assert.That(EditorLauncher.UnusedPath(Console("pwsh"), "/usr/local/bin/pwsh")).IsNull();
+        await Assert.That(EditorLauncher.UnusedPath(Console("/Applications/iTerm.app/"), "/Applications/iTerm.app")).IsNull();
+
+        // Auto-detection stepped in: the setting is named, as typed.
+        await Assert.That(EditorLauncher.UnusedPath(Console("pwsh"), Terminal)).IsEqualTo("pwsh");
+        await Assert.That(EditorLauncher.UnusedPath(Console(" powershell "), Terminal)).IsEqualTo("powershell");
+        await Assert.That(EditorLauncher.UnusedPath(
+            new Editor { Kind = EditorKind.Rider, Path = "/nowhere/rider" }, "/Applications/Rider.app")).IsEqualTo("/nowhere/rider");
+    }
+
+    [Test]
     public async Task FindOnPath_prefers_an_earlier_name_over_an_earlier_directory()
     {
         using var world = new TestRepoWorld();

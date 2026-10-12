@@ -123,6 +123,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so: *Console is set to 'pwsh', which Fido couldn't find — opening Terminal instead.* Windows already
   opened a shell in its own console window and is unchanged.
 
+- **A tool whose path in Settings can't be found says so.** A known tool falls back to auto-detection when
+  the path set for it doesn't resolve, and the flight log used to report only what was found. The open
+  looked like it had ignored the setting. Now the log also names the setting: *Rider is set to
+  '/old/path/rider', which Fido couldn't find — opening Rider instead. Check its path in Settings.*
+
 - **The Console tab no longer opens on "Error launching process".** The first time the tab was opened, the
   shell was started before the terminal had been laid out, when its emulator didn't exist yet. The launch
   failed with *Object reference not set to an instance of an object*, and the terminal then started the

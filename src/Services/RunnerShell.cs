@@ -75,11 +75,7 @@ public static class RunnerShell
     /// platform can drive, or names one that can't be found.
     /// </summary>
     internal static string? Configured(Editor? console, Func<string, string?>? onPath = null) =>
-        Named(console) is { } named ? Locate(named, onPath ?? Which) : null;
-
-    /// <summary>The Console tool's path, trimmed, when it names a shell this platform can drive — found or not.
-    /// Null when it is blank or names a terminal app.</summary>
-    internal static string? Named(Editor? console) => ShellNamedBy(console?.Path);
+        ShellNamedBy(console?.Path) is { } named ? Locate(named, onPath ?? Which) : null;
 
     /// <summary>Whether <paramref name="program"/> is a shell this platform's tab can drive, rather than a
     /// terminal app or anything else.</summary>

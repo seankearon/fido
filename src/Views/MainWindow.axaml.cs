@@ -881,11 +881,12 @@ public partial class MainWindow : Window
             }
 
             _vm.AppendLog($"✓ {editor.Name} located: {editorPath}");
-            // A Console set to a shell that can't be found has fallen back to the OS terminal, on its login
-            // shell — which looks exactly like the setting being ignored, unless something says otherwise.
-            if (editor.Kind == EditorKind.Console && RunnerShell.Named(editor) is { } wanted && !RunnerShell.IsShell(editorPath))
-                _vm.AppendLog($"⚠ {editor.Name} is set to '{wanted}', which Fido couldn't find — opening " +
-                              $"{Path.GetFileNameWithoutExtension(editorPath)} instead. Set its full path in Settings.");
+            // A path set in Settings that couldn't be used has fallen back to auto-detection — for a Console
+            // set to pwsh, the OS terminal on the login shell — which looks exactly like the setting being
+            // ignored, unless something says otherwise.
+            if (EditorLauncher.UnusedPath(editor, editorPath) is { } unused)
+                _vm.AppendLog($"⚠ {editor.Name} is set to '{unused}', which Fido couldn't find — opening " +
+                              $"{Path.GetFileNameWithoutExtension(editorPath.TrimEnd('/', '\\'))} instead. Check its path in Settings.");
             _vm.AppendLog(consoleCommand is null
                 ? $"▸ Opening {(solution is null ? folder : Path.GetFileName(solution))} in {editor.Name}"
                 : $"▸ Running '{consoleCommand}' in {folder} ({editor.Name})");
