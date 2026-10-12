@@ -190,6 +190,51 @@ public class LaunchSpecTests
         }
     }
 
+    // --- A Console set to a shell, on macOS and Linux -----------------------------------------
+    //
+    // A shell has no window of its own, so the button opens one for it, and starts the shell the way the
+    // Console tab does. (Windows is covered above: a shell given its own console window is a terminal.)
+
+    [Test]
+    public async Task A_shell_console_opens_in_the_linux_terminal_with_the_rows_arguments()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+
+        var zsh = new Editor { Kind = EditorKind.Console, Path = "zsh", Arguments = "-l" };
+        var plain = EditorLauncher.BuildLaunchSpec(zsh, "/usr/bin/zsh", Folder, linuxTerminal: () => "/usr/bin/gnome-terminal");
+        await Assert.That(plain.FileName).IsEqualTo("/usr/bin/gnome-terminal");
+        await Assert.That(plain.WorkingDirectory).IsEqualTo(Folder);
+        // The row's arguments belong to the shell, not to the terminal it's opened in.
+        await Assert.That(plain.Arguments)
+            .IsEquivalentTo(new[] { $"--working-directory={Folder}", "--", "/usr/bin/zsh", "-l", "-i" });
+
+        var run = EditorLauncher.BuildLaunchSpec(zsh, "/usr/bin/zsh", Folder, "aspire start", linuxTerminal: () => "/usr/bin/xterm");
+        await Assert.That(run.Arguments)
+            .IsEquivalentTo(new[] { "-e", "/usr/bin/zsh", "-l", "-c", "aspire start; exec /usr/bin/zsh -i" });
+
+        // PowerShell takes its own flags, and a root script is made relative for it.
+        var pwsh = new Editor { Kind = EditorKind.Console, Path = "pwsh" };
+        var script = EditorLauncher.BuildLaunchSpec(pwsh, "/usr/bin/pwsh", Folder, "build.ps1", linuxTerminal: () => "/usr/bin/xterm");
+        await Assert.That(script.Arguments)
+            .IsEquivalentTo(new[] { "-e", "/usr/bin/pwsh", "-NoLogo", "-NoExit", "-Command", "& ./build.ps1" });
+
+        // No emulator found: the Debian alternative's name, rather than a shell started with no window.
+        var bare = EditorLauncher.BuildLaunchSpec(zsh, "/usr/bin/zsh", Folder, linuxTerminal: () => null);
+        await Assert.That(bare.FileName).IsEqualTo("x-terminal-emulator");
+    }
+
+    [Test]
+    public async Task A_shell_console_on_a_mac_has_terminal_change_folder_and_become_the_shell()
+    {
+        // What `do script` is handed. Pure, so it's checked on every leg even though only a Mac runs it.
+        var pwsh = RunnerShell.Start("/usr/local/bin/pwsh", "build.ps1", "-Login");
+        await Assert.That(EditorLauncher.MacShellCommand("/work/my repo", pwsh))
+            .IsEqualTo("cd '/work/my repo' && exec /usr/local/bin/pwsh -Login -NoLogo -NoExit -Command '& ./build.ps1'");
+
+        var zsh = RunnerShell.Start("/bin/zsh", null);
+        await Assert.That(EditorLauncher.MacShellCommand("/work/repo", zsh)).IsEqualTo("cd /work/repo && exec /bin/zsh -i");
+    }
+
     [Test]
     public async Task A_console_with_no_command_still_just_opens_the_folder()
     {

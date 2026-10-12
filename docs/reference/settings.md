@@ -16,8 +16,8 @@ Reach these via ⚙ → **All settings…**.
   required for Custom). For **Console** the path is the **terminal program** and for **File Explorer** the
   **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
   so you can point Fido at the terminal you prefer. A Console path that names a **shell** — `pwsh`, `zsh`,
-  `fish` and the like — is also the shell [the Console tab](../guide/console.md#which-shell-and-what-it-runs)
-  starts. Tick the
+  `fish` and the like — opens that shell (in Terminal on a Mac, the usual emulator on Linux) and is also the
+  shell [the Console tab](../guide/console.md#which-shell-and-what-it-runs) starts. Tick the
   **●** radio to set the default (the hero button) — or use the ⚙ gear popover on the main screen,
   which offers the same choice plus **No default (equal weight)**. The rest are reached by their
   keyboard shortcut — **Ctrl+1 … Ctrl+9** unless you assign others (see [Keyboard shortcuts](#keyboard-shortcuts)

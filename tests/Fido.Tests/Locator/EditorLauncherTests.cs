@@ -170,6 +170,31 @@ public class EditorLauncherTests
     }
 
     [Test]
+    public async Task A_console_set_to_a_shell_is_found_where_the_console_tab_finds_it()
+    {
+        using var world = new TestRepoWorld();
+        var binDir = Path.Combine(world.Root, "bin");
+        Directory.CreateDirectory(binDir);
+        var exe = Path.Combine(binDir, OperatingSystem.IsWindows() ? "pwsh.exe" : "pwsh");
+        File.WriteAllText(exe, "");
+
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        Environment.SetEnvironmentVariable("PATH", binDir + Path.PathSeparator + originalPath);
+        try
+        {
+            // The button and the tab mean the same program by "pwsh".
+            var console = new Editor { Kind = EditorKind.Console, Path = "pwsh" };
+            var found = new EditorLauncher().Locate(console);
+            await Assert.That(found).IsEqualTo(exe);
+            await Assert.That(RunnerShell.For(null, console).Executable).IsEqualTo(exe);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+        }
+    }
+
+    [Test]
     public async Task FindOnPath_prefers_an_earlier_name_over_an_earlier_directory()
     {
         using var world = new TestRepoWorld();

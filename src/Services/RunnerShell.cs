@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using Fido.Models;
 
 namespace Fido.Services;
@@ -32,7 +31,7 @@ public static class RunnerShell
     private static readonly string[] WindowsShells = ["pwsh", "powershell"];
 
     /// <summary>The shells the tab can drive on macOS and Linux: PowerShell, and the ones that take
-    /// <c>-c</c> and <c>-i</c> the way <see cref="Unix"/> hands them over.</summary>
+    /// <c>-c</c> and <c>-i</c> the way <see cref="Posix"/> hands them over.</summary>
     private static readonly string[] UnixShells = ["pwsh", "bash", "zsh", "fish", "sh", "dash", "ksh"];
 
     /// <summary>
@@ -57,28 +56,54 @@ public static class RunnerShell
     /// </summary>
     public static RunnerShellSpec For(string? command, Editor? console = null, Func<string, string?>? onPath = null)
     {
-        var run = string.IsNullOrWhiteSpace(command) ? null : command.Trim();
         var find = onPath ?? Which;
-        var windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
-        var named = ShellNamedBy(console?.Path, windows ? WindowsShells : UnixShells);
+        var named = ShellNamedBy(console?.Path);
         var chosen = named is null ? null : Locate(named, find);
+        if (chosen is not null) return Start(chosen, command, console?.Arguments);
 
-        var spec = windows ? Windows(run, chosen, find) : Unix(run, chosen);
-        if (named is not null && chosen is null) return spec with { NotFound = named };
+        var fallback = Start(OperatingSystem.IsWindows() ? DefaultWindowsShell(find) : DefaultUnixShell(), command);
+        return named is null ? fallback : fallback with { NotFound = named };
+    }
 
-        // First, because some flags only count there: PowerShell takes -Login nowhere else.
-        var extra = chosen is null ? [] : EditorLauncher.SplitArguments(console?.Arguments);
+    /// <summary>
+    /// The shell the Console tool's path names, found where the tab would look for it — <c>PATH</c>, then on
+    /// macOS and Linux the folders a Dock-started Fido can't see. Null when the path names no shell this
+    /// platform can drive, or names one that can't be found.
+    /// </summary>
+    internal static string? Configured(Editor? console, Func<string, string?>? onPath = null) =>
+        ShellNamedBy(console?.Path) is { } named ? Locate(named, onPath ?? Which) : null;
+
+    /// <summary>Whether <paramref name="program"/> is a shell this platform's tab can drive, rather than a
+    /// terminal app or anything else.</summary>
+    internal static bool IsShell(string program) => Array.Exists(PlatformShells, s => IsProgram(program, s));
+
+    /// <summary>
+    /// How <paramref name="shell"/> starts: <paramref name="command"/> first when there is one, then an
+    /// interactive prompt. PowerShell gets its own flags and every other shell the <c>-c</c> / <c>-i</c> pair
+    /// (see <see cref="Posix"/>). <paramref name="arguments"/>, the Console row's own, go in front of them,
+    /// because some flags only count there: PowerShell takes <c>-Login</c> nowhere else. Shared with the
+    /// Console button, so a shell starts the same way in either console.
+    /// </summary>
+    internal static RunnerShellSpec Start(string shell, string? command, string? arguments = null)
+    {
+        var run = string.IsNullOrWhiteSpace(command) ? null : command.Trim();
+        var spec = IsProgram(shell, "pwsh") || IsProgram(shell, "powershell")
+            ? PowerShell(shell, run)
+            : Posix(shell, run);
+
+        var extra = EditorLauncher.SplitArguments(arguments);
         return extra.Length == 0 ? spec : spec with { Args = [.. extra, .. spec.Args] };
     }
 
-    /// <summary>The configured value, trimmed, when its program is one of <paramref name="shells"/>; null for
+    private static string[] PlatformShells => OperatingSystem.IsWindows() ? WindowsShells : UnixShells;
+
+    /// <summary>The configured value, trimmed, when its program is a shell this platform can drive; null for
     /// a blank value or one that names anything else.</summary>
-    private static string? ShellNamedBy(string? preferred, string[] shells)
+    private static string? ShellNamedBy(string? preferred)
     {
         if (string.IsNullOrWhiteSpace(preferred)) return null;
         var value = preferred.Trim();
-        return Array.Exists(shells, s => IsProgram(value, s)) ? value : null;
+        return IsShell(value) ? value : null;
     }
 
     /// <summary>A named shell as a program the PTY can start: a path is taken as it stands if it exists, and a
@@ -89,20 +114,17 @@ public static class RunnerShell
         return find(named);
     }
 
-    /// <summary>
-    /// Windows: the configured PowerShell, else PowerShell 7 when it's installed, else the in-box Windows
-    /// PowerShell. <c>-NoExit</c> is what keeps the prompt after the command finishes; <c>-Command</c> (not
-    /// <c>-File</c>) because the menu's entries are command lines, not necessarily script paths —
-    /// <c>aspire start</c> is a native command and a script may carry arguments.
-    /// </summary>
-    private static RunnerShellSpec Windows(string? command, string? chosen, Func<string, string?> onPath)
-    {
-        var shell = chosen ?? (onPath("pwsh") is not null ? "pwsh" : "powershell");
-        return PowerShell(shell, command);
-    }
+    /// <summary>Windows, when no shell is set: PowerShell 7 when it's installed, else the in-box Windows
+    /// PowerShell.</summary>
+    private static string DefaultWindowsShell(Func<string, string?> onPath) =>
+        onPath("pwsh") is not null ? "pwsh" : "powershell";
 
-    /// <summary>PowerShell on any platform: <c>-NoLogo</c>, and a command run with <c>-NoExit</c> so the
-    /// prompt survives it.</summary>
+    /// <summary>
+    /// PowerShell on any platform: <c>-NoLogo</c>, and a command run with <c>-NoExit</c>, which is what keeps
+    /// the prompt after it finishes. <c>-Command</c> (not <c>-File</c>) because the menu's entries are
+    /// command lines, not necessarily script paths — <c>aspire start</c> is a native command and a script may
+    /// carry arguments.
+    /// </summary>
     private static RunnerShellSpec PowerShell(string shell, string? command) =>
         command is null
             ? new RunnerShellSpec(shell, ["-NoLogo"])
@@ -145,22 +167,20 @@ public static class RunnerShell
             ? token
             : "'" + token.Replace("'", "''") + "'";
 
+    /// <summary>macOS and Linux, when no shell is set: the user's own login shell from <c>SHELL</c> — zsh on a
+    /// stock mac, whatever they've chosen on Linux — falling back to bash, then sh.</summary>
+    private static string DefaultUnixShell() =>
+        Environment.GetEnvironmentVariable("SHELL") is { Length: > 0 } s && File.Exists(s)
+            ? s
+            : File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh";
+
     /// <summary>
-    /// Unix: the configured shell, else the user's own login shell from <c>SHELL</c> — zsh on a stock mac,
-    /// whatever they've chosen on Linux — falling back to bash, then sh. A POSIX-style shell has the run
-    /// command appended with <c>exec &lt;shell&gt; -i</c> so the window survives the script and the user keeps
-    /// a real interactive shell; <c>-i</c> is what makes it source their rc file, so the prompt and aliases are
-    /// the ones they know. PowerShell takes its own flags instead, as it does on Windows.
+    /// A POSIX-style shell (fish too): the run command is appended with <c>exec &lt;shell&gt; -i</c> so the window
+    /// survives the script and the user keeps a real interactive shell; <c>-i</c> is what makes it source their
+    /// rc file, so the prompt and aliases are the ones they know.
     /// </summary>
-    private static RunnerShellSpec Unix(string? command, string? chosen)
+    private static RunnerShellSpec Posix(string shell, string? command)
     {
-        var shell = chosen
-            ?? (Environment.GetEnvironmentVariable("SHELL") is { Length: > 0 } s && File.Exists(s)
-                ? s
-                : File.Exists("/bin/bash") ? "/bin/bash" : "/bin/sh");
-
-        if (IsProgram(shell, "pwsh")) return PowerShell(shell, command);
-
         if (command is null) return new RunnerShellSpec(shell, ["-i"]);
 
         // The same script conventions the launch path uses, so a .ps1 or ./script.sh behaves identically
@@ -180,7 +200,7 @@ public static class RunnerShell
     /// </summary>
     private static string? Which(string name)
     {
-        var windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var windows = OperatingSystem.IsWindows();
         var path = Environment.GetEnvironmentVariable("PATH") ?? "";
         var dirs = path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
         if (!windows) dirs = [.. dirs, .. UnixShellDirs];

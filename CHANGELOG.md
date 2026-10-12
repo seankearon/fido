@@ -110,6 +110,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A Console set to a shell opens that shell on a Mac or Linux.** With the Console row's path set to `pwsh`
+  or `zsh` rather than a terminal app, the Console button started the shell with no window at all, so
+  nothing appeared. If Fido couldn't find the shell, the button opened Terminal running your usual shell
+  instead. Now the shell opens at the folder in a terminal: Terminal on a Mac, and the emulator
+  auto-detection would pick on Linux. It starts the way the Console tab starts it, with the row's arguments
+  and any run-menu command. The shell is looked for in the same places as for the tab, Homebrew's folders
+  included. Windows already opened a shell in its own console window and is unchanged.
+
 - **The Console tab no longer opens on "Error launching process".** The first time the tab was opened, the
   shell was started before the terminal had been laid out, when its emulator didn't exist yet. The launch
   failed with *Object reference not set to an instance of an object*, and the terminal then started the

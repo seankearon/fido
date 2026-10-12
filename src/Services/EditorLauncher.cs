@@ -15,6 +15,12 @@ public sealed class EditorLauncher : IEditorLauncher
     /// <summary>Returns the editor's executable/app-bundle path, or null if none is found.</summary>
     public string? Locate(Editor editor)
     {
+        // A Console set to a shell is looked for where the Console tab looks for it, Homebrew's folders
+        // included, so "pwsh" means the same program to the button as to the tab. Windows needs nothing
+        // extra: a bare name there is resolved below, Store aliases and all.
+        if (editor.Kind == EditorKind.Console && !OperatingSystem.IsWindows() && RunnerShell.Configured(editor) is { } shell)
+            return shell;
+
         if (!string.IsNullOrWhiteSpace(editor.Path))
         {
             // An explicit, existing path always wins — for any kind, including Custom.
@@ -50,12 +56,15 @@ public sealed class EditorLauncher : IEditorLauncher
     /// <paramref name="consoleCommand"/> (one of the commands the branch's <c>.fido/cfg.yaml</c> listed)
     /// makes the terminal <em>run</em> that command at the folder instead of just
     /// opening there; it means nothing to the other kinds and is ignored by them. Pure (no process is
-    /// started) so the per-platform command construction can be unit-tested.
+    /// started) so the per-platform command construction can be unit-tested; <paramref name="linuxTerminal"/>
+    /// stands in for looking up the Linux terminal a shell is opened in.
     /// </summary>
     internal static LaunchSpec BuildLaunchSpec(Editor editor, string executable, string targetPath,
-        string? consoleCommand = null, Func<string, string?>? onPath = null) =>
+        string? consoleCommand = null, Func<string, string?>? onPath = null, Func<string?>? linuxTerminal = null) =>
         editor.Kind switch
         {
+            EditorKind.Console when !OperatingSystem.IsWindows() && RunnerShell.IsShell(executable) =>
+                BuildShellConsoleSpec(editor, executable, targetPath, consoleCommand, linuxTerminal ?? LocateLinuxTerminal),
             EditorKind.Console when !string.IsNullOrWhiteSpace(consoleCommand) =>
                 BuildConsoleRunSpec(editor, executable, targetPath, consoleCommand.Trim(), onPath ?? ResolveCommandName),
             EditorKind.Console => BuildConsoleSpec(editor, executable, targetPath),
@@ -105,6 +114,32 @@ public sealed class EditorLauncher : IEditorLauncher
         // Linux: virtually every terminal emulator opens in the inherited working directory.
         return new LaunchSpec(executable, [.. extra], WorkingDirectory: folder);
     }
+
+    /// <summary>
+    /// A Console set to a shell rather than a terminal, on macOS or Linux. A shell has no window of its own —
+    /// started directly it runs with nothing to show it — so it is opened in a terminal: Terminal on a Mac,
+    /// told through <c>do script</c> to change to the folder and become the shell, and on Linux the usual
+    /// emulator, handed the shell as its program. Either way the shell starts the way the Console tab starts
+    /// it (<see cref="RunnerShell.Start"/>): the row's arguments first, and a run command before the prompt.
+    /// (Windows needs none of this: a shell given its own console window there is a terminal already.)
+    /// </summary>
+    private static LaunchSpec BuildShellConsoleSpec(Editor editor, string shell, string folder, string? command,
+        Func<string?> linuxTerminal)
+    {
+        var start = RunnerShell.Start(shell, command, editor.Arguments);
+        if (OperatingSystem.IsMacOS()) return MacDoScript("Terminal", MacShellCommand(folder, start));
+
+        // The row's arguments were the shell's, so the terminal gets none of its own.
+        return LinuxTerminalSpec(linuxTerminal() ?? "x-terminal-emulator", [], folder, [start.Executable, .. start.Args]);
+    }
+
+    /// <summary>
+    /// What Terminal is told to run to open <paramref name="shell"/> at <paramref name="folder"/>: change to the
+    /// folder, then replace Terminal's own shell with this one, so closing it closes the window. Pure, so it
+    /// can be checked on any OS.
+    /// </summary>
+    internal static string MacShellCommand(string folder, RunnerShellSpec shell) =>
+        $"cd {ShellQuote(folder)} && exec {string.Join(' ', new[] { shell.Executable }.Concat(shell.Args).Select(ShellQuote))}";
 
     /// <summary>
     /// A terminal at <paramref name="folder"/> that <em>runs</em> <paramref name="command"/> and stays open
@@ -195,14 +230,18 @@ public sealed class EditorLauncher : IEditorLauncher
     /// </summary>
     private static LaunchSpec BuildMacRunSpec(string executable, string folder, string command)
     {
-        var app = MacTerminalApp(executable);
         var shellCommand = $"cd {ShellQuote(folder)} && {UnixCommand(command)}";
-        return new LaunchSpec("osascript",
+        return MacDoScript(MacTerminalApp(executable), shellCommand);
+    }
+
+    /// <summary>Asks a mac terminal app to run <paramref name="shellCommand"/> in a new window, and brings it
+    /// to the front.</summary>
+    private static LaunchSpec MacDoScript(string app, string shellCommand) =>
+        new("osascript",
         [
             "-e", $"tell application \"{app}\" to do script \"{AppleScriptEscape(shellCommand)}\"",
             "-e", $"tell application \"{app}\" to activate",
         ]);
-    }
 
     /// <summary>The AppleScript-addressable terminal app: a configured <c>.app</c> bundle's name (iTerm,
     /// Terminal…), or Terminal for anything that isn't one — a bare unix shell can't host a window.</summary>
@@ -219,18 +258,21 @@ public sealed class EditorLauncher : IEditorLauncher
     /// handed that program its own way — <c>gnome-terminal</c> after <c>--</c>, <c>kitty</c> directly, and the
     /// rest via the conventional <c>-e</c>.
     /// </summary>
-    private static LaunchSpec BuildLinuxRunSpec(Editor editor, string executable, string folder, string command)
-    {
-        var extra = SplitArguments(editor.Arguments);
-        string[] shell = ["bash", "-c", $"{UnixCommand(command)}; exec bash"];
+    private static LaunchSpec BuildLinuxRunSpec(Editor editor, string executable, string folder, string command) =>
+        LinuxTerminalSpec(executable, SplitArguments(editor.Arguments), folder,
+            ["bash", "-c", $"{UnixCommand(command)}; exec bash"]);
 
-        string[] args = Path.GetFileNameWithoutExtension(executable) switch
+    /// <summary>A Linux terminal emulator at <paramref name="folder"/> running <paramref name="program"/>, handed
+    /// over its own way: <c>gnome-terminal</c> after <c>--</c>, <c>kitty</c> directly, the rest after <c>-e</c>.</summary>
+    private static LaunchSpec LinuxTerminalSpec(string terminal, string[] extra, string folder, string[] program)
+    {
+        string[] args = Path.GetFileNameWithoutExtension(terminal) switch
         {
-            "gnome-terminal" => [.. extra, $"--working-directory={folder}", "--", .. shell],
-            "kitty" => [.. extra, .. shell],
-            _ => [.. extra, "-e", .. shell],
+            "gnome-terminal" => [.. extra, $"--working-directory={folder}", "--", .. program],
+            "kitty" => [.. extra, .. program],
+            _ => [.. extra, "-e", .. program],
         };
-        return new LaunchSpec(executable, args, folder);
+        return new LaunchSpec(terminal, args, folder);
     }
 
     /// <summary>
@@ -562,11 +604,16 @@ public sealed class EditorLauncher : IEditorLauncher
             return "Terminal";   // resolved by name through `open -a` even if the bundle lives elsewhere
         }
 
-        // Linux: honour the Debian terminal alternative, then the common emulators. Both lookups derive from
-        // the one list so the PATH probe and the /usr/bin fallback can't drift apart.
-        return FindOnPath(LinuxTerminals)
-            ?? FirstExisting([.. LinuxTerminals.Select(t => "/usr/bin/" + t)]);
+        return LocateLinuxTerminal();
     }
+
+    /// <summary>
+    /// Linux: honour the Debian terminal alternative, then the common emulators. Both lookups derive from the
+    /// one list so the PATH probe and the /usr/bin fallback can't drift apart.
+    /// </summary>
+    private static string? LocateLinuxTerminal() =>
+        FindOnPath(LinuxTerminals)
+        ?? FirstExisting([.. LinuxTerminals.Select(t => "/usr/bin/" + t)]);
 
     /// <summary>Linux terminal emulators probed for the Console target, in preference order.</summary>
     private static readonly string[] LinuxTerminals =

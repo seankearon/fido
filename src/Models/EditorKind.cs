@@ -28,7 +28,8 @@ public enum EditorKind
     /// A terminal/console opened at the folder. Not an editor: the located program is a terminal emulator
     /// (Windows Terminal / cmd / PowerShell, macOS Terminal, a Linux terminal) and it's always handed the
     /// folder, never a <c>.sln</c>. The configured <see cref="Editor.Path"/> picks the terminal; blank
-    /// auto-detects the OS default.
+    /// auto-detects the OS default. A path that names a shell instead (<c>pwsh</c>, <c>zsh</c>…) opens that
+    /// shell — in a terminal on macOS and Linux — and is the shell the Console tab starts too.
     /// </summary>
     Console,
 
