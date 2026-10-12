@@ -98,6 +98,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Console tab no longer opens on "Error launching process".** The first time the tab was opened, the
+  shell was started before the terminal had been laid out, when its emulator didn't exist yet. The launch
+  failed with *Object reference not set to an instance of an object*, and the terminal then started the
+  shell again by itself, so the error sat above a prompt that worked. Fido now waits until the terminal is
+  on screen before it starts the shell, and the shell starts once.
+
+- **The Console tab lines its text up on a Mac.** Fido's monospace font list named only JetBrains Mono,
+  Cascadia Code and Consolas, and macOS has no `monospace` alias to fall back on. A Mac without those fonts
+  got a proportional face instead, and the terminal, which sizes its cells from the width of a `W`, spaced
+  every character out to match. The list now goes on to Menlo, which every Mac has, and to DejaVu Sans Mono
+  and Liberation Mono for Linux. The rest of the window uses the same font, so on a Mac it is now monospaced
+  too, as designed.
+
 - **The Console run menu closes once you pick from it.** Clicking a command — or **Edit .fido/cfg.yaml…** —
   left the menu open over the window while the run got going, which could take a while behind a fetch or a
   new worktree and read as if the click hadn't landed. All three copies of the menu (the Console tool's

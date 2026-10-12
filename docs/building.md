@@ -18,7 +18,7 @@ macOS is a bonus. The solution is `Fido.slnx`; the project is
     <https://aka.ms/nativeaot-prerequisites>.
   - **macOS:** Xcode Command Line Tools (`xcode-select --install`).
 - *Optional:* the **JetBrains Mono** font for the intended look (the UI falls back to
-  Cascadia Code / Consolas if it's absent).
+  Cascadia Code / Consolas, then Menlo on a Mac or DejaVu Sans Mono / Liberation Mono on Linux).
 - **For a release only** — the [**Avalonia Parcel**](https://avaloniaui.net/parcel) CLI
   (`parcel`, which packages and signs the installers) and the **GitHub CLI** (`gh`,
   authenticated), plus the code-signing configuration described under
@@ -286,7 +286,7 @@ console shots are a real shell running the demo repo's own build script, which i
 them is real.
 
 What the machine has shows up in the result: the UI wants **JetBrains Mono** (falling back to
-Cascadia Code, then Consolas, then whatever monospace is installed), the console runs the platform's
+Cascadia Code, Consolas, Menlo, DejaVu Sans Mono, then Liberation Mono), the console runs the platform's
 own script — a `.ps1` on Windows, a `.sh` elsewhere — and the paths on the cards are the real temp
 folder, so a gallery generated on Windows shows Windows paths.
 

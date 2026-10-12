@@ -12,12 +12,19 @@
                    Text="Find a branch and pick a location — the console opens there." />
 
         <!-- The terminal is created here but only started when the tab is first opened (see
-             ConsolePane.EnsureStarted): Fido shouldn't spawn a shell on every launch just in case. -->
+             ConsolePane.EnsureStarted): Fido shouldn't spawn a shell on every launch just in case.
+
+             Process is emptied for the same reason. It defaults to bash (cmd.exe on Windows), and the
+             control starts whatever it names, in the current directory, as soon as it loads with nothing
+             running. So it would start a shell of its own the first time the tab is shown, in whatever
+             folder Fido was launched from. Every shell here comes from ConsolePane.Run instead. -->
         <term:TerminalControl x:Name="Terminal"
+                              Process=""
                               IsVisible="False"
                               FontFamily="{DynamicResource FidoMono}"
                               FontSize="12.5"
                               AutoScrollToBottom="True"
+                              Loaded="OnTerminalLoaded"
                               ProcessExited="OnProcessExited"
                               UrlClicked="OnUrlClicked" />
     </Grid>

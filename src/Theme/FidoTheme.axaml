@@ -239,7 +239,12 @@
     </ResourceDictionary.ThemeDictionaries>
 
     <!-- Shared (theme-independent) -->
-    <FontFamily x:Key="FidoMono">JetBrains Mono, Cascadia Code, Consolas, monospace</FontFamily>
+    <!-- Menlo ships with every Mac and DejaVu Sans Mono / Liberation Mono with most Linux desktops; the first
+         three are only there on a machine someone set up. "monospace" alone doesn't save it: macOS has no
+         such alias, so a Mac without them fell through to a proportional face. That costs more than looks
+         in the Console tab, where the terminal sizes its cell grid from one advance width and spaces every
+         character out to fit. -->
+    <FontFamily x:Key="FidoMono">JetBrains Mono, Cascadia Code, Consolas, Menlo, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
 
     <!-- The ascent-curve glyph (mark only), drawn so it picks up the accent brush. -->
     <StreamGeometry x:Key="FidoGlyphCurve">M34 86 C 48 84, 58 74, 68 54 S 82 30, 88 27</StreamGeometry>

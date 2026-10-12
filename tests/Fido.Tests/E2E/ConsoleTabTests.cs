@@ -491,6 +491,83 @@ public class ConsoleTabTests
     }
 
     /// <summary>
+    /// The first run in the Console tab starts its shell cleanly, rather than failing first.
+    ///
+    /// The pane starts out hidden, so the first run used to launch into a terminal that had never been laid
+    /// out. The view inside its template wasn't in the visual tree yet and so wasn't initialised, the launch
+    /// failed on the missing emulator, and the scrollback opened on <c>Error launching process: Object
+    /// reference not set to an instance of an object.</c>. The control then launched again by itself on
+    /// <c>Loaded</c>, so a working shell sat under the error. Opening the tab goes the same way, through
+    /// <see cref="ConsolePane.EnsureStarted"/>. Holding the launch until the terminal has loaded is the fix,
+    /// and it only works because the control has no default process to start by itself in the meantime.
+    ///
+    /// The command waits before it prints so the order is fixed: anything the view writes about a failed
+    /// launch is on screen well before the shell's own output, rather than racing a prompt that can land on
+    /// the same row and overwrite it.
+    ///
+    /// The buffer can only be read when the headless harness built the terminal's template, which is the
+    /// first-window-only artefact <see cref="Capture_the_console_tab_for_review"/> describes. Run it on its
+    /// own (<c>--treenode-filter "/*/*/ConsoleTabTests/The_first_run_in_the_console_starts_cleanly"</c>) to
+    /// have it read the screen.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task The_first_run_in_the_console_starts_cleanly()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var services = world.BuildServices([root], new FakeEditorLauncher(), new FakeDialogService());
+
+        var command = OperatingSystem.IsWindows()
+            ? "Start-Sleep -Seconds 2; Write-Output FIDO-READY"
+            : "sleep 2; echo FIDO-READY";
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+
+            var terminal = window.FindControl<ConsolePane>("ConsoleView")!
+                .FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal")!;
+
+            // Nothing for the control to start by itself when it loads: left at its default (bash, or
+            // cmd.exe), it would open a shell of its own in Fido's working directory ahead of this one.
+            await Assert.That(terminal.Process).IsEqualTo("");
+
+            await window.RunConsoleOptionAsync(
+                window.Vm().ConsoleTabRuns[0] with { Command = command, IsShell = false });
+
+            string? screen = null;
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+            while (DateTime.UtcNow < deadline)
+            {
+                UiTestExtensions.Pump();
+                screen = ScreenText(terminal);
+                if (screen is null || screen.Contains("FIDO-READY")) break;
+                await Task.Delay(100);
+            }
+
+            if (screen is null) return;   // no template in this window: nothing on screen to read
+
+            await Assert.That(screen).Contains("FIDO-READY");
+            await Assert.That(screen).DoesNotContain("launching process");
+        });
+    }
+
+    /// <summary>The terminal's scrollback as text, or null when the harness never built its view.</summary>
+    private static string? ScreenText(Iciclecreek.Terminal.TerminalControl terminal)
+    {
+        if (terminal.GetVisualDescendants().OfType<Iciclecreek.Terminal.TerminalView>().FirstOrDefault()
+            is not { Terminal: { } emulator })
+            return null;
+
+        var lines = emulator.Buffer.Lines;
+        var text = new System.Text.StringBuilder();
+        for (var i = 0; i < lines.Length; i++)
+            text.AppendLine(lines[i]?.TranslateToString(true));
+        return text.ToString();
+    }
+
+    /// <summary>
     /// Captures the Console tab for the docs gallery and for review.
     ///
     /// It asserts little on purpose. The embedded terminal only paints in the <em>first</em> window a
@@ -516,14 +593,6 @@ public class ConsoleTabTests
         await Harness.WithWindow(services, async window =>
         {
             await window.Discover("main");
-
-            // The terminal sizes its cell grid from the typeface's advance width, so it needs a real
-            // monospace face. Fido's FidoMono list (JetBrains Mono / Cascadia Code / Consolas) is a
-            // developer-machine assumption; on a bare CI box none of them exist and the fallback is
-            // proportional, which smears the grid.
-            if (window.FindControl<ConsolePane>("ConsoleView") is { } pane &&
-                pane.FindControl<Iciclecreek.Terminal.TerminalControl>("Terminal") is { } terminal)
-                terminal.FontFamily = new Avalonia.Media.FontFamily("DejaVu Sans Mono, Liberation Mono, monospace");
 
             await window.RunConsoleOptionAsync(
                 window.Vm().ConsoleTabRuns[0] with { Command = command, IsShell = false });

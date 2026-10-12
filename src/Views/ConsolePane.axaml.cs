@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -39,6 +40,12 @@ public partial class ConsolePane : UserControl
 
     private bool _started;
     private bool _useFidoPalette;
+
+    /// <summary>
+    /// A launch <see cref="Run"/> was asked for before the terminal had been loaded, held until it has
+    /// (see <see cref="OnTerminalLoaded"/>). Null when nothing is waiting.
+    /// </summary>
+    private (string Folder, RunnerShellSpec Shell)? _pendingLaunch;
 
     /// <summary>
     /// The emulator's own palette, taken the first time it is there to take and never written to again.
@@ -131,13 +138,49 @@ public partial class ConsolePane : UserControl
         Terminal.IsVisible = true;
         _started = true;
 
+        // Not until the terminal is loaded. A pane that has never been on screen has never been laid out,
+        // so the view inside the terminal's template isn't in the visual tree yet, and Avalonia only
+        // initialises a templated child once it is. Until then the emulator doesn't exist, and
+        // LaunchProcess fails with a NullReferenceException that the control catches and prints as
+        // "Error launching process". The control then launches again by itself when it loads, so the
+        // error ended up above a working prompt. The pane starts out hidden, so this was every first
+        // trip to the tab.
+        var shell = RunnerShell.For(command);
+        if (Terminal.IsLoaded)
+        {
+            _pendingLaunch = null;
+            Launch(folder, shell);
+        }
+        else
+        {
+            _pendingLaunch = (folder, shell);
+        }
+    }
+
+    /// <summary>
+    /// Starts any launch that <see cref="Run"/> held back, now that the terminal is in the visual tree.
+    ///
+    /// Posted at <c>Background</c> rather than run here so the whole <c>Loaded</c> batch goes first. That
+    /// batch includes the inner view's own <c>Loaded</c>, which launches whatever <c>Process</c> holds if
+    /// nothing is running yet. Until Fido launches, <c>Process</c> is the empty string the XAML gives it,
+    /// so the view finds nothing to start and the shell starts exactly once, from here.
+    /// </summary>
+    private void OnTerminalLoaded(object? sender, RoutedEventArgs e) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_pendingLaunch is not { } pending) return;
+            _pendingLaunch = null;
+            Launch(pending.Folder, pending.Shell);
+        }, DispatcherPriority.Background);
+
+    private void Launch(string folder, RunnerShellSpec shell)
+    {
         // Settle the colours *before* the shell starts. The emulator seeds itself from the control's
         // brushes at launch, so doing this after would paint the first frames in whatever it defaulted to
         // and correct them a beat later. Measured, not assumed — see
         // ConsoleTabTests.The_console_takes_Fidos_palette_before_the_shell_starts.
         ApplyPalette();
 
-        var shell = RunnerShell.For(command);
         Terminal.LaunchProcess(folder, shell.Executable, shell.Args);
         Terminal.Focus();
 
@@ -155,6 +198,7 @@ public partial class ConsolePane : UserControl
     {
         if (!_started) return;
         _started = false;
+        _pendingLaunch = null;
         try { Terminal.Kill(); }
         catch (Exception) { /* already gone, or never fully started — nothing left to do */ }
     }
