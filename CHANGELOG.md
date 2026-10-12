@@ -113,10 +113,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A Console set to a shell opens that shell on a Mac or Linux.** With the Console row's path set to `pwsh`
   or `zsh` rather than a terminal app, the Console button started the shell with no window at all, so
   nothing appeared. If Fido couldn't find the shell, the button opened Terminal running your usual shell
-  instead. Now the shell opens at the folder in a terminal: Terminal on a Mac, and the emulator
-  auto-detection would pick on Linux. It starts the way the Console tab starts it, with the row's arguments
-  and any run-menu command. The shell is looked for in the same places as for the tab, Homebrew's folders
-  included. Windows already opened a shell in its own console window and is unchanged.
+  instead, and said nothing about it. Now the shell opens at the folder in a terminal: Terminal on a Mac,
+  and the emulator auto-detection would pick on Linux. It starts the way the Console tab starts it, with the
+  row's arguments and any run-menu command. On a Mac, Terminal opens a small script that removes itself as
+  it runs. That needs no permission to control Terminal, which AppleScript would, and macOS refuses that
+  without a word. The shell is looked for in the same places as for the tab: `PATH`, then Homebrew's,
+  MacPorts' and the PowerShell package's folders, and `~/.dotnet/tools` for PowerShell installed as a .NET
+  tool. If it still can't be found, the button opens the OS terminal as before, and the flight log now says
+  so: *Console is set to 'pwsh', which Fido couldn't find — opening Terminal instead.* Windows already
+  opened a shell in its own console window and is unchanged.
 
 - **The Console tab no longer opens on "Error launching process".** The first time the tab was opened, the
   shell was started before the terminal had been laid out, when its emulator didn't exist yet. The launch

@@ -72,8 +72,8 @@ which one:
 - **The one you set.** When the **Console** tool's path in **Settings → Editors** names a shell, that
   is the shell the tab starts, with the row's arguments in front of Fido's own — so `pwsh` with
   `-Login` gets a PowerShell login shell. A bare name is looked up on `PATH`, and on macOS and Linux
-  in `/opt/homebrew/bin`, `/usr/local/bin` and `/snap/bin` too, because a Fido started from the Dock
-  doesn't get the `PATH` your terminal builds. On Windows that means `pwsh` or `powershell`; on macOS
+  in `/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`, `/snap/bin` and `~/.dotnet/tools` too,
+  because a Fido started from the Dock doesn't get the `PATH` your terminal builds. On Windows that means `pwsh` or `powershell`; on macOS
   and Linux, `pwsh`, `bash`, `zsh`, `fish`, `sh`, `dash` or `ksh`. A terminal app there — Terminal,
   iTerm, Windows Terminal — is for the Console *button*, and the tab keeps its default. A shell that
   can't be found falls back to the default as well, and the flight log says so.

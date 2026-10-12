@@ -187,6 +187,45 @@ public class ConsoleTabTests
         });
     }
 
+    [Test]
+    public async Task A_console_button_whose_shell_cant_be_found_says_what_it_opened_instead()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        // Locate fell back to the OS terminal: what it does when the shell the row names isn't anywhere.
+        var launcher = new FakeEditorLauncher
+        {
+            LocateResult = OperatingSystem.IsWindows() ? @"C:\Windows\System32\wt.exe" : "/System/Applications/Utilities/Terminal.app",
+        };
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+            await window.OpenWithAsync(ConsoleSetTo("pwsh"));
+
+            await Assert.That(window.LogText()).Contains("Console is set to 'pwsh', which Fido couldn't find");
+            await Assert.That(launcher.Launches.Count).IsEqualTo(1);   // and it still opened something
+        });
+    }
+
+    [Test]
+    public async Task A_console_button_that_found_its_shell_says_nothing_more()
+    {
+        var (world, root) = PlainRepo();
+        using var _ = world;
+        var launcher = new FakeEditorLauncher { LocateResult = FakePwsh };
+        var services = world.BuildServices([root], launcher, new FakeDialogService());
+
+        await Harness.WithWindow(services, async window =>
+        {
+            await window.Discover("main");
+            await window.OpenWithAsync(ConsoleSetTo("pwsh"));
+
+            await Assert.That(window.LogText()).DoesNotContain("couldn't find");
+        });
+    }
+
     private static EditorLaunchOption ConsoleTool(MainWindow window) =>
         window.Vm().GridTools.First(t => t.Name == "Console");
 

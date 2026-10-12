@@ -37,10 +37,14 @@ public static class RunnerShell
     /// <summary>
     /// Where a shell installed outside the system folders lives, searched after <c>PATH</c>. A Fido started
     /// from the Dock or Finder doesn't get the <c>PATH</c> a terminal session builds (launchd gives a GUI app
-    /// little more than <c>/usr/bin:/bin</c>), so Homebrew's shells and the PowerShell package's <c>pwsh</c>
-    /// link would otherwise go unfound.
+    /// little more than <c>/usr/bin:/bin</c>), so Homebrew's and MacPorts' shells, the PowerShell package's
+    /// <c>pwsh</c> link, and PowerShell installed as a .NET global tool would otherwise go unfound.
     /// </summary>
-    private static readonly string[] UnixShellDirs = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/snap/bin"];
+    private static readonly string[] UnixShellDirs =
+    [
+        "/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/usr/bin", "/bin", "/snap/bin",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet", "tools"),
+    ];
 
     /// <summary>
     /// The shell to host, and how it starts. <paramref name="command"/> — a pick from a run menu — runs first
@@ -71,7 +75,11 @@ public static class RunnerShell
     /// platform can drive, or names one that can't be found.
     /// </summary>
     internal static string? Configured(Editor? console, Func<string, string?>? onPath = null) =>
-        ShellNamedBy(console?.Path) is { } named ? Locate(named, onPath ?? Which) : null;
+        Named(console) is { } named ? Locate(named, onPath ?? Which) : null;
+
+    /// <summary>The Console tool's path, trimmed, when it names a shell this platform can drive — found or not.
+    /// Null when it is blank or names a terminal app.</summary>
+    internal static string? Named(Editor? console) => ShellNamedBy(console?.Path);
 
     /// <summary>Whether <paramref name="program"/> is a shell this platform's tab can drive, rather than a
     /// terminal app or anything else.</summary>

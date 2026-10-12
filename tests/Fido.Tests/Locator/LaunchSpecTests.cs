@@ -224,15 +224,45 @@ public class LaunchSpecTests
     }
 
     [Test]
-    public async Task A_shell_console_on_a_mac_has_terminal_change_folder_and_become_the_shell()
+    public async Task A_shell_console_on_a_mac_is_a_script_terminal_opens()
     {
-        // What `do script` is handed. Pure, so it's checked on every leg even though only a Mac runs it.
+        // What Terminal is handed. Pure, so it's checked on every leg even though only a Mac runs it.
         var pwsh = RunnerShell.Start("/usr/local/bin/pwsh", "build.ps1", "-Login");
-        await Assert.That(EditorLauncher.MacShellCommand("/work/my repo", pwsh))
-            .IsEqualTo("cd '/work/my repo' && exec /usr/local/bin/pwsh -Login -NoLogo -NoExit -Command '& ./build.ps1'");
+        var lines = EditorLauncher.MacShellScript("/work/my repo", pwsh).Split('\n');
+        await Assert.That(lines[0]).IsEqualTo("#!/bin/sh");
+        await Assert.That(lines).Contains("rm -f \"$0\"");   // gone from the temp folder as soon as it runs
+        await Assert.That(lines).Contains("cd '/work/my repo' && exec /usr/local/bin/pwsh -Login -NoLogo -NoExit -Command '& ./build.ps1'");
 
         var zsh = RunnerShell.Start("/bin/zsh", null);
-        await Assert.That(EditorLauncher.MacShellCommand("/work/repo", zsh)).IsEqualTo("cd /work/repo && exec /bin/zsh -i");
+        await Assert.That(EditorLauncher.MacShellScript("/work/repo", zsh).Split('\n'))
+            .Contains("cd /work/repo && exec /bin/zsh -i");
+    }
+
+    [Test]
+    public async Task The_mac_console_script_runs_the_shell_in_the_folder_and_removes_itself()
+    {
+        if (OperatingSystem.IsWindows()) return;   // a real /bin/sh does what Terminal would do with the file
+
+        using var world = new Infrastructure.TestRepoWorld();
+        var folder = Path.Combine(world.Root, "my repo");
+        Directory.CreateDirectory(folder);
+        var script = Path.Combine(world.Root, "console.command");
+
+        // The command ends the shell, standing in for the user closing the window.
+        var shell = RunnerShell.Start("/bin/sh", "echo \"FIDO-RAN in $(pwd)\"; exit");
+        File.WriteAllText(script, EditorLauncher.MacShellScript(folder, shell));
+        File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var run = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(script)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardInput = true,
+        })!;
+        var output = await run.StandardOutput.ReadToEndAsync();
+        await run.WaitForExitAsync();
+
+        await Assert.That(output.Trim()).IsEqualTo($"FIDO-RAN in {folder}");
+        await Assert.That(File.Exists(script)).IsFalse();
     }
 
     [Test]

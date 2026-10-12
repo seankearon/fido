@@ -117,29 +117,45 @@ public sealed class EditorLauncher : IEditorLauncher
 
     /// <summary>
     /// A Console set to a shell rather than a terminal, on macOS or Linux. A shell has no window of its own —
-    /// started directly it runs with nothing to show it — so it is opened in a terminal: Terminal on a Mac,
-    /// told through <c>do script</c> to change to the folder and become the shell, and on Linux the usual
-    /// emulator, handed the shell as its program. Either way the shell starts the way the Console tab starts
-    /// it (<see cref="RunnerShell.Start"/>): the row's arguments first, and a run command before the prompt.
-    /// (Windows needs none of this: a shell given its own console window there is a terminal already.)
+    /// started directly it runs with nothing to show it — so it is opened in a terminal: on Linux the usual
+    /// emulator, handed the shell as its program, and on a Mac Terminal, opening a <c>.command</c> script
+    /// that changes to the folder and becomes the shell (see <see cref="MacShellScript"/>). Either way the
+    /// shell starts the way the Console tab starts it (<see cref="RunnerShell.Start"/>): the row's arguments
+    /// first, and a run command before the prompt. (Windows needs none of this: a shell given its own console
+    /// window there is a terminal already.)
+    ///
+    /// Not AppleScript's <c>do script</c> on the Mac, though the run-command path uses it. That is an Apple
+    /// Event, which macOS only delivers once whatever started Fido has been allowed to control Terminal; a
+    /// refusal is silent, and since sending it launches Terminal first, what appears is Terminal's own
+    /// startup window on the login shell, which looks exactly like the setting being ignored. Terminal
+    /// launched that way also opens that startup window alongside the script's. Opening a file goes through
+    /// Launch Services, needs no permission, and is the only window that opens.
     /// </summary>
     private static LaunchSpec BuildShellConsoleSpec(Editor editor, string shell, string folder, string? command,
         Func<string?> linuxTerminal)
     {
         var start = RunnerShell.Start(shell, command, editor.Arguments);
-        if (OperatingSystem.IsMacOS()) return MacDoScript("Terminal", MacShellCommand(folder, start));
+        if (OperatingSystem.IsMacOS())
+        {
+            var script = Path.Combine(Path.GetTempPath(), $"fido-console-{Guid.NewGuid():N}.command");
+            return new LaunchSpec("open", ["-a", "Terminal", script], Script: new LaunchScript(script, MacShellScript(folder, start)));
+        }
 
         // The row's arguments were the shell's, so the terminal gets none of its own.
         return LinuxTerminalSpec(linuxTerminal() ?? "x-terminal-emulator", [], folder, [start.Executable, .. start.Args]);
     }
 
     /// <summary>
-    /// What Terminal is told to run to open <paramref name="shell"/> at <paramref name="folder"/>: change to the
-    /// folder, then replace Terminal's own shell with this one, so closing it closes the window. Pure, so it
-    /// can be checked on any OS.
+    /// The <c>.command</c> script Terminal runs to open <paramref name="shell"/> at <paramref name="folder"/>. It
+    /// deletes itself first, so nothing is left behind in the temp folder, then changes to the folder and
+    /// replaces itself with the shell, so closing the shell closes the window. Pure, so it can be checked on
+    /// any OS.
     /// </summary>
-    internal static string MacShellCommand(string folder, RunnerShellSpec shell) =>
-        $"cd {ShellQuote(folder)} && exec {string.Join(' ', new[] { shell.Executable }.Concat(shell.Args).Select(ShellQuote))}";
+    internal static string MacShellScript(string folder, RunnerShellSpec shell) =>
+        "#!/bin/sh\n" +
+        $"# Written by Fido to open {Path.GetFileName(shell.Executable)} at the selected location.\n" +
+        "rm -f \"$0\"\n" +
+        $"cd {ShellQuote(folder)} && exec {string.Join(' ', new[] { shell.Executable }.Concat(shell.Args).Select(ShellQuote))}\n";
 
     /// <summary>
     /// A terminal at <paramref name="folder"/> that <em>runs</em> <paramref name="command"/> and stays open
@@ -366,7 +382,17 @@ public sealed class EditorLauncher : IEditorLauncher
         if (!string.IsNullOrEmpty(spec.WorkingDirectory))
             psi.WorkingDirectory = spec.WorkingDirectory;
         foreach (var arg in spec.Arguments) psi.ArgumentList.Add(arg);
+        if (spec.Script is { } script) WriteScript(script);
         _ = Process.Start(psi);
+    }
+
+    /// <summary>Puts a <see cref="LaunchScript"/> on disk, executable by its owner only, as Terminal requires
+    /// of a <c>.command</c> file it is asked to run.</summary>
+    private static void WriteScript(LaunchScript script)
+    {
+        File.WriteAllText(script.Path, script.Content);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(script.Path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
     }
 
     // --- Rider --------------------------------------------------------------------------
@@ -757,12 +783,18 @@ public sealed class EditorLauncher : IEditorLauncher
 }
 
 /// <summary>
-/// A planned process launch: the program to run, its arguments, an optional working directory, and whether
-/// to shell-execute (used to give a terminal its own console window). Produced by
-/// <see cref="EditorLauncher.BuildLaunchSpec"/> so the per-platform command construction is unit-testable.
+/// A planned process launch: the program to run, its arguments, an optional working directory, whether
+/// to shell-execute (used to give a terminal its own console window), and a script to write first when the
+/// launch opens one. Produced by <see cref="EditorLauncher.BuildLaunchSpec"/> so the per-platform command
+/// construction is unit-testable.
 /// </summary>
 internal readonly record struct LaunchSpec(
     string FileName,
     IReadOnlyList<string> Arguments,
     string? WorkingDirectory = null,
-    bool UseShellExecute = false);
+    bool UseShellExecute = false,
+    LaunchScript? Script = null);
+
+/// <summary>A script a launch writes to <paramref name="Path"/> before starting, holding
+/// <paramref name="Content"/>.</summary>
+internal sealed record LaunchScript(string Path, string Content);
