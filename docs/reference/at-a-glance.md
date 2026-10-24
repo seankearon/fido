@@ -8,6 +8,7 @@ description: Every capability in one table.
 | Capability | Summary |
 | --- | --- |
 | Input | Branch name (required); the solution box **filters** the detected solution chips |
+| Recently used | Both boxes remember the last ten names you opened with, newest first: `Ctrl+Space` offers them, and the **✕** on a suggestion — or `Delete` on the highlighted one — forgets it |
 | Worktree folders | Listed under the branch box: the worktree folders the branch **already has on disk**, with **copy** and **open in File Explorer / Finder** buttons per row. Found the way a worktree would be created (worktree root, else beside each scanned clone); a folder counts even when no repo has the branch, and nothing shows when there is no folder |
 | Discovery | Debounced scan of the search roots for working trees **currently on the branch**; results inline as cards, worktrees before main clones |
 | Multiple locations | Every checkout shown, labelled **worktree** / **main clone** — you choose which to act on |

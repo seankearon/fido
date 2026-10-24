@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under `Shortcuts` in `config.json`, holding only what differs from the defaults. A config from before
   this has neither, and keeps every default.
 
+- **`Delete` forgets a recently-used suggestion.** In the Branch and Solution drop-downs, `Delete` on the
+  suggestion the arrow keys have highlighted forgets it, just as its **✕** does, and the highlight moves to
+  the next one, so a run of presses clears a run of entries. Forget the last one and the drop-down closes on
+  what you had typed. With nothing highlighted, `Delete` edits the box as before.
+
 - **`fido <branch>` switches to the window that already has the branch.** Running Fido from the command line
   for a branch an open Fido window is already on used to open a second window on it. Now that window comes to
   the front — restored if it was minimised — and the command returns without opening another; the flight log
