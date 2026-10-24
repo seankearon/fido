@@ -127,6 +127,9 @@ public partial class MainWindow : Window
     /// <summary>Clears the chord pill's "isn't a shortcut" after <see cref="ChordMissNotice"/>.</summary>
     private readonly DispatcherTimer _chordMissTimer;
 
+    /// <summary>Each input box's drop-down list, whose highlighted row is the suggestion Delete forgets.</summary>
+    private readonly Dictionary<AutoCompleteBox, SelectingItemsControl> _suggestionLists = new();
+
     /// <summary>
     /// The discovery scan a command line kicks off: this launch's own, on open, or one a later
     /// <c>fido &lt;branch&gt;</c> handed to this window (see <see cref="TakeHandoff"/>). Tests await this instead
@@ -183,6 +186,18 @@ public partial class MainWindow : Window
         // just to dismiss its MRU drop-down — handledEventsToo lets us still act on it.
         BranchBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
         SolutionBox.AddHandler(InputElement.KeyDownEvent, OnInputBoxKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // Delete on a highlighted suggestion forgets it. Heard on the way down, before the inner text box can
+        // take the press to delete the character after its caret.
+        foreach (var box in new[] { BranchBox, SolutionBox })
+        {
+            box.AddHandler(InputElement.KeyDownEvent, OnInputBoxPreviewKeyDown, RoutingStrategies.Tunnel);
+            box.TemplateApplied += (_, e) =>
+            {
+                if (e.NameScope.Find<SelectingItemsControl>("PART_SelectingItemsControl") is { } list)
+                    _suggestionLists[box] = list;
+            };
+        }
 
         // Window-level keys: the keyboard shortcuts (see OnWindowKeyDown) and Esc backing out of a pending
         // confirm. handledEventsToo so a focused child can't swallow an Esc; a shortcut's first press still
@@ -1795,6 +1810,24 @@ public partial class MainWindow : Window
             Dispatcher.UIThread.Post(() => _ = RunDiscoveryAsync(), DispatcherPriority.Input);
     }
 
+    // Delete on the suggestion the arrows have highlighted forgets it, as its ✕ does, and the highlight moves to
+    // the entry that takes its place — so a run of presses clears a run of entries. Once the last one goes the
+    // drop-down closes on what was typed. With nothing highlighted, Delete is the text box's as ever.
+    private void OnInputBoxPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete || e.KeyModifiers != KeyModifiers.None) return;
+        if (sender is not AutoCompleteBox { IsDropDownOpen: true } box) return;
+        if (!_suggestionLists.TryGetValue(box, out var list) || list.SelectedItem is not string value) return;
+
+        e.Handled = true;
+        var at = list.SelectedIndex;
+        if (!ForgetMru(box, value)) return;
+
+        // Taking the entry out of the list took the highlight with it, and put back what was typed.
+        if (list.ItemCount > 0) list.SelectedIndex = Math.Min(at, list.ItemCount - 1);
+        else box.IsDropDownOpen = false;
+    }
+
     // --- MRU ------------------------------------------------------------------------------
 
     /// <summary>Promotes the entered branch/solution to the front of the MRU lists and persists them.</summary>
@@ -1814,18 +1847,28 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: string field, DataContext: string value }) return;
         e.Handled = true;   // a click on ✕ removes the entry — it must not also select / fill the box
 
-        var (stored, shown, box) = field == "solution"
-            ? (_config.RecentSolutions, _vm.RecentSolutions, SolutionBox)
-            : (_config.RecentBranches, _vm.RecentBranches, BranchBox);
+        ForgetMru(field == "solution" ? SolutionBox : BranchBox, value);
+    }
+
+    /// <summary>
+    /// Drops <paramref name="value"/> from the MRU list behind <paramref name="box"/> and persists it.
+    /// </summary>
+    /// <returns><c>true</c> when the entry was there to drop.</returns>
+    private bool ForgetMru(AutoCompleteBox box, string value)
+    {
+        var (stored, shown) = ReferenceEquals(box, SolutionBox)
+            ? (_config.RecentSolutions, _vm.RecentSolutions)
+            : (_config.RecentBranches, _vm.RecentBranches);
 
         var removed = stored.RemoveAll(x => string.Equals(x, value, StringComparison.OrdinalIgnoreCase)) > 0;
         for (var i = shown.Count - 1; i >= 0; i--)
             if (string.Equals(shown[i], value, StringComparison.OrdinalIgnoreCase))
                 shown.RemoveAt(i);
 
-        if (!removed) return;
+        if (!removed) return false;
         TrySaveConfig();
         if (shown.Count == 0) box.IsDropDownOpen = false;   // nothing left to suggest
+        return true;
     }
 
     /// <summary>Best-effort persist of the config; the MRU is a convenience, not worth surfacing a save failure.</summary>

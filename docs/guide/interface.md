@@ -109,8 +109,10 @@ sixteen](console.md#its-colours) — because the ground follows the theme either
 
 - The **branch** field is focused on launch. Typing debounces into a scan; **Enter**
   fires one immediately.
-- **Ctrl+Space** in either input opens its **recently-used** suggestions (the **✕** on
-  a suggestion forgets it).
+- **Ctrl+Space** in either input opens its **recently-used** suggestions. The **✕** on
+  a suggestion forgets it, and so does **Delete** on the one the arrow keys have
+  highlighted — the highlight then moves to the next, so a run of presses clears a run of
+  entries. With nothing highlighted, Delete edits the box as usual.
 - **Ctrl+1 … Ctrl+9** open the selected target with the corresponding configured tool
   (the same tools shown as buttons), gated — like the buttons — on discovery having
   **found** the branch. Those are the defaults: every tool, and every other action on the
