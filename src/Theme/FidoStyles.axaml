@@ -248,6 +248,63 @@
         <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
     </Style>
 
+    <!-- Dialog sections (TabControl.fido): the headers sit in a track like the segmented control's, so the
+         tabs read as Fido's rather than Fluent's underlined strip, and the selected section's content fills
+         the rest. A real TabControl rather than radio buttons, for Ctrl+Tab and the arrow keys. -->
+    <Style Selector="TabControl.fido">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="0,0,0,20"
+                            Background="{DynamicResource FidoSegmentTrackBg}"
+                            BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
+                            BorderThickness="1" CornerRadius="8" Padding="3">
+                        <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    </Border>
+                    <ContentPresenter Name="PART_SelectedContentHost"
+                                      Content="{TemplateBinding SelectedContent}"
+                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.fido TabItem">
+        <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextMuted}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="tab" Background="Transparent" CornerRadius="6" Padding="18,7">
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.fido TabItem:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource FidoTextSecondary}" />
+    </Style>
+    <Style Selector="TabControl.fido TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource FidoAccentStrong}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TabControl.fido TabItem:selected /template/ Border#tab">
+        <Setter Property="Background" Value="{DynamicResource FidoAccentTintSeg}" />
+    </Style>
+    <Style Selector="TabControl.fido TabItem:focus-visible /template/ Border#tab">
+        <Setter Property="BorderBrush" Value="{DynamicResource FidoFocusBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
     <!-- Flight-log lines (level-coded via conditional classes; muted is the default) -->
     <Style Selector="TextBlock.logline">
         <Setter Property="FontFamily" Value="{DynamicResource FidoMono}" />
