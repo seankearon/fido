@@ -4,157 +4,185 @@
         x:Class="Fido.Views.SettingsDialog"
         x:DataType="vm:SettingsViewModel"
         Title="Settings"
-        Width="600" SizeToContent="Height"
-        MinWidth="520" CanResize="False"
+        Width="680" Height="640"
+        MinWidth="560" MinHeight="480"
         WindowDecorations="Full"
         WindowStartupLocation="CenterOwner"
         Icon="/Assets/fido-icon-256.png"
         FontFamily="{DynamicResource FidoMono}"
         Background="{DynamicResource FidoWindowBg}">
 
-    <StackPanel Margin="22,20" Spacing="18">
+    <!-- Four sections, one at a time, so each gets the dialog's whole height — the editor list most of all,
+         which used to be a 248px window onto a list three rows to an editor. Save and Cancel sit below the
+         tabs and cover every section: switching tabs loses nothing. -->
+    <Grid Margin="22,20" RowDefinitions="*,Auto">
 
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label">
-                <Run Text="Search roots " /><Run Text="· one per line" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <TextBox x:Name="SearchRootsBox" Classes="fido" Text="{Binding SearchRootsText, Mode=TwoWay}"
-                     AcceptsReturn="True" Height="96" TextWrapping="NoWrap"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto" />
-        </StackPanel>
+        <TabControl x:Name="SettingsTabs" Grid.Row="0" Classes="fido">
 
-        <StackPanel Spacing="9">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0">
-                    <Run Text="Editors " /><Run Text="· ● = default; every tool by its shortcut or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
-                </TextBlock>
-                <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
-            </Grid>
-            <Border BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
-                    Background="{DynamicResource FidoLogBg}">
-                <ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="EditorsList" ItemsSource="{Binding Editors}" Margin="12,10">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:EditorChoice">
-                                <!-- Row 0: default · name · slug · kind · remove.  Row 1: explicit path.  Row 2: extra arguments. -->
-                                <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,10"
-                                      ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-                                    <RadioButton Grid.Row="0" Grid.Column="0" GroupName="DefaultEditor"
-                                                 IsChecked="{Binding IsDefault, Mode=TwoWay}" VerticalAlignment="Center"
-                                                 Margin="0,0,8,0" ToolTip.Tip="Set as default editor" />
-                                    <TextBox Grid.Row="0" Grid.Column="1" Classes="fido" Text="{Binding Name, Mode=TwoWay}"
-                                             PlaceholderText="name" VerticalAlignment="Center" />
-                                    <TextBox Grid.Row="0" Grid.Column="2" Classes="fido" Width="92" Margin="8,0,0,0"
-                                             Text="{Binding Slug, Mode=TwoWay}" PlaceholderText="slug" VerticalAlignment="Center"
-                                             ToolTip.Tip="Command-line slug to open with this editor (fido &lt;branch&gt; &lt;slug&gt;). Blank = not selectable." />
-                                    <ComboBox Grid.Row="0" Grid.Column="3" Margin="8,0,0,0" Width="152"
-                                              ItemsSource="{Binding KindOptions}" SelectedItem="{Binding Kind, Mode=TwoWay}"
-                                              VerticalAlignment="Center" />
-                                    <Button Grid.Row="0" Grid.Column="4" Classes="secondary" Margin="8,0,0,0"
-                                            Content="✕" Click="OnRemoveEditorClick" ToolTip.Tip="Remove this editor" />
-                                    <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
-                                             Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}"
-                                             ToolTip.Tip="Path to this editor's executable or app bundle. Blank = auto-detect (known kinds); required for a Custom editor." />
-                                    <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
-                                             Text="{Binding Arguments, Mode=TwoWay}" PlaceholderText="arguments (optional)"
-                                             ToolTip.Tip="Extra command-line arguments, space-separated, passed ahead of any folder or file the tool is given — e.g. -w 0 nt -d . for a Windows Terminal tab. Blank = none." />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+            <!-- ============================== General ============================== -->
+            <TabItem x:Name="GeneralTab" Header="General">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="label">
+                            <Run Text="Search roots " /><Run Text="· one per line" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <TextBox x:Name="SearchRootsBox" Classes="fido" Text="{Binding SearchRootsText, Mode=TwoWay}"
+                                 AcceptsReturn="True" Height="160" TextWrapping="NoWrap"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="label">
+                            <Run Text="Worktree root " /><Run Text="· blank = sibling &quot;.worktrees&quot;" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <TextBox x:Name="WorktreeRootBox" Classes="fido" Text="{Binding WorktreeRoot, Mode=TwoWay}"
+                                 PlaceholderText="sibling .worktrees folder" />
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ============================== Editors ============================== -->
+            <TabItem x:Name="EditorsTab" Header="Editors">
+                <Grid RowDefinitions="Auto,*" RowSpacing="9">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0">
+                            <Run Text="Editors " /><Run Text="· ● = default; every tool by its shortcut or CLI slug" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <Button Grid.Column="1" x:Name="AddEditorButton" Classes="secondary" Content="Add" Click="OnAddEditorClick" />
+                    </Grid>
+                    <!-- The list takes whatever height the dialog has, and scrolls past that. -->
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource FidoCardBorder}" BorderThickness="1" CornerRadius="8"
+                            Background="{DynamicResource FidoLogBg}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="EditorsList" ItemsSource="{Binding Editors}" Margin="12,12,12,2">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EditorChoice">
+                                        <!-- Row 0: default · name · slug · kind · remove.  Row 1: explicit path.  Row 2: extra arguments. -->
+                                        <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,14"
+                                              ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                            <RadioButton Grid.Row="0" Grid.Column="0" GroupName="DefaultEditor"
+                                                         IsChecked="{Binding IsDefault, Mode=TwoWay}" VerticalAlignment="Center"
+                                                         Margin="0,0,8,0" ToolTip.Tip="Set as default editor" />
+                                            <TextBox Grid.Row="0" Grid.Column="1" Classes="fido" Text="{Binding Name, Mode=TwoWay}"
+                                                     PlaceholderText="name" VerticalAlignment="Center" />
+                                            <TextBox Grid.Row="0" Grid.Column="2" Classes="fido" Width="92" Margin="8,0,0,0"
+                                                     Text="{Binding Slug, Mode=TwoWay}" PlaceholderText="slug" VerticalAlignment="Center"
+                                                     ToolTip.Tip="Command-line slug to open with this editor (fido &lt;branch&gt; &lt;slug&gt;). Blank = not selectable." />
+                                            <ComboBox Grid.Row="0" Grid.Column="3" Margin="8,0,0,0" Width="152"
+                                                      ItemsSource="{Binding KindOptions}" SelectedItem="{Binding Kind, Mode=TwoWay}"
+                                                      VerticalAlignment="Center" />
+                                            <Button Grid.Row="0" Grid.Column="4" Classes="secondary" Margin="8,0,0,0"
+                                                    Content="✕" Click="OnRemoveEditorClick" ToolTip.Tip="Remove this editor" />
+                                            <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
+                                                     Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}"
+                                                     ToolTip.Tip="Path to this editor's executable or app bundle. Blank = auto-detect (known kinds); required for a Custom editor." />
+                                            <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
+                                                     Text="{Binding Arguments, Mode=TwoWay}" PlaceholderText="arguments (optional)"
+                                                     ToolTip.Tip="Extra command-line arguments, space-separated, passed ahead of any folder or file the tool is given — e.g. -w 0 nt -d . for a Windows Terminal tab. Blank = none." />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ============================ Appearance ============================ -->
+            <TabItem x:Name="AppearanceTab" Header="Appearance">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="label" Text="Theme" />
+                        <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
+                                BorderThickness="1" CornerRadius="8" Padding="3" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Classes="segment" GroupName="Theme" Content="System"
+                                             IsChecked="{Binding IsThemeSystem, Mode=TwoWay}" />
+                                <RadioButton Classes="segment" GroupName="Theme" Content="Light"
+                                             IsChecked="{Binding IsThemeLight, Mode=TwoWay}" />
+                                <RadioButton Classes="segment" GroupName="Theme" Content="Dark"
+                                             IsChecked="{Binding IsThemeDark, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Border>
+                        <CheckBox x:Name="ConsolePaletteCheck" Classes="fido"
+                                  IsChecked="{Binding ConsoleUsesFidoPalette, Mode=TwoWay}"
+                                  Content="Colour the Console tab to match"
+                                  ToolTip.Tip="On: the console's ground and its sixteen ANSI colours come from Fido's own palette, following the theme, with a contrast floor so 256-colour output stays readable. Off: the terminal's own scheme — plain, and high-contrast by construction. A shell already running keeps the colours it started with." />
+                    </StackPanel>
+
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="label" TextWrapping="Wrap">
+                            <Run Text="Window title " /><Run Text="· what the title bar and taskbar read" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <CheckBox x:Name="TitleShowsTargetCheck" Classes="fido"
+                                  IsChecked="{Binding ShowTargetInWindowTitle, Mode=TwoWay}"
+                                  Content="Show the repo and branch once discovery resolves them"
+                                  ToolTip.Tip="On: the title becomes &quot;&lt;repo&gt; · &lt;branch&gt;&quot; — no &quot;Fido&quot; in front. Off: it stays &quot;Fido&quot;." />
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ============================= Behaviour ============================= -->
+            <TabItem x:Name="BehaviourTab" Header="Behaviour">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="18">
+                        <StackPanel Spacing="9">
+                            <TextBlock Classes="label" TextWrapping="Wrap">
+                                <Run Text="Before running " /><Run Text="· what the Console run menu does first" Foreground="{DynamicResource FidoTextDim}" />
+                            </TextBlock>
+                            <CheckBox x:Name="PullBeforeRunCheck" Classes="fido"
+                                      IsChecked="{Binding PullBeforeRun, Mode=TwoWay}"
+                                      Content="Fast-forward the target onto origin first"
+                                      ToolTip.Tip="On: a script or `aspire start` runs against what origin has. Only ever fast-forwards — a diverged branch or an unreachable origin is reported and the console still opens." />
+                            <CheckBox x:Name="RunInFidoCheck" Classes="fido"
+                                      IsChecked="{Binding RunInFido, Mode=TwoWay}"
+                                      Content="Run it in Fido's Console tab"
+                                      ToolTip.Tip="On: a pick from the Console button's run menu runs in Fido's own Console tab, over a real terminal — colour, Ctrl+C, and the output still on screen after it finishes. Off: it goes to your configured terminal, as it always has. The Console tab's own Run menu always runs there, whichever way this is set." />
+                        </StackPanel>
+
+                        <StackPanel Spacing="9">
+                            <TextBlock Classes="label" TextWrapping="Wrap">
+                                <Run Text="Command line " /><Run Text="· when fido &lt;branch&gt; runs" Foreground="{DynamicResource FidoTextDim}" />
+                            </TextBlock>
+                            <CheckBox x:Name="SwitchToOpenWindowCheck" Classes="fido"
+                                      IsChecked="{Binding SwitchToOpenWindow, Mode=TwoWay}"
+                                      Content="Switch to a window that already has the branch"
+                                      ToolTip.Tip="On: a Fido window already open on the branch comes to the front instead of a second one opening — and runs whatever else the command line asked for, such as a tool. Off: every launch opens its own window. --new-window always does." />
+                        </StackPanel>
+
+                        <StackPanel Spacing="9">
+                            <TextBlock Classes="label" TextWrapping="Wrap">
+                                <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
+                            </TextBlock>
+                            <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
+                                    BorderThickness="1" CornerRadius="8" Padding="3" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Command line"
+                                                 IsChecked="{Binding IsCloseCommandLine, Mode=TwoWay}" />
+                                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Always"
+                                                 IsChecked="{Binding IsCloseAlways, Mode=TwoWay}" />
+                                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Never"
+                                                 IsChecked="{Binding IsCloseNever, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Spacing="11" IsEnabled="{Binding IsAutoCloseEnabled}">
+                                <TextBlock Classes="label" VerticalAlignment="Center">
+                                    <Run Text="Close delay " /><Run Text="· seconds, 0 = immediately" Foreground="{DynamicResource FidoTextDim}" />
+                                </TextBlock>
+                                <TextBox x:Name="CloseDelayBox" Classes="fido" Width="84"
+                                         Text="{Binding CloseAfterOpenDelayText, Mode=TwoWay}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
                 </ScrollViewer>
-            </Border>
-        </StackPanel>
+            </TabItem>
+        </TabControl>
 
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label">
-                <Run Text="Worktree root " /><Run Text="· blank = sibling &quot;.worktrees&quot;" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <TextBox Classes="fido" Text="{Binding WorktreeRoot, Mode=TwoWay}" PlaceholderText="sibling .worktrees folder" />
-        </StackPanel>
-
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label" Text="Theme" />
-            <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="3" HorizontalAlignment="Left">
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Classes="segment" GroupName="Theme" Content="System"
-                                 IsChecked="{Binding IsThemeSystem, Mode=TwoWay}" />
-                    <RadioButton Classes="segment" GroupName="Theme" Content="Light"
-                                 IsChecked="{Binding IsThemeLight, Mode=TwoWay}" />
-                    <RadioButton Classes="segment" GroupName="Theme" Content="Dark"
-                                 IsChecked="{Binding IsThemeDark, Mode=TwoWay}" />
-                </StackPanel>
-            </Border>
-            <CheckBox x:Name="ConsolePaletteCheck" Classes="fido"
-                      IsChecked="{Binding ConsoleUsesFidoPalette, Mode=TwoWay}"
-                      Content="Colour the Console tab to match"
-                      ToolTip.Tip="On: the console's ground and its sixteen ANSI colours come from Fido's own palette, following the theme, with a contrast floor so 256-colour output stays readable. Off: the terminal's own scheme — plain, and high-contrast by construction. A shell already running keeps the colours it started with." />
-        </StackPanel>
-
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label" TextWrapping="Wrap">
-                <Run Text="Window title " /><Run Text="· what the title bar and taskbar read" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <CheckBox x:Name="TitleShowsTargetCheck" Classes="fido"
-                      IsChecked="{Binding ShowTargetInWindowTitle, Mode=TwoWay}"
-                      Content="Show the repo and branch once discovery resolves them"
-                      ToolTip.Tip="On: the title becomes &quot;&lt;repo&gt; · &lt;branch&gt;&quot; — no &quot;Fido&quot; in front. Off: it stays &quot;Fido&quot;." />
-        </StackPanel>
-
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label" TextWrapping="Wrap">
-                <Run Text="Before running " /><Run Text="· what the Console run menu does first" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <CheckBox x:Name="PullBeforeRunCheck" Classes="fido"
-                      IsChecked="{Binding PullBeforeRun, Mode=TwoWay}"
-                      Content="Fast-forward the target onto origin first"
-                      ToolTip.Tip="On: a script or `aspire start` runs against what origin has. Only ever fast-forwards — a diverged branch or an unreachable origin is reported and the console still opens." />
-            <CheckBox x:Name="RunInFidoCheck" Classes="fido"
-                      IsChecked="{Binding RunInFido, Mode=TwoWay}"
-                      Content="Run it in Fido's Console tab"
-                      ToolTip.Tip="On: a pick from the Console button's run menu runs in Fido's own Console tab, over a real terminal — colour, Ctrl+C, and the output still on screen after it finishes. Off: it goes to your configured terminal, as it always has. The Console tab's own Run menu always runs there, whichever way this is set." />
-        </StackPanel>
-
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label" TextWrapping="Wrap">
-                <Run Text="Command line " /><Run Text="· when fido &lt;branch&gt; runs" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <CheckBox x:Name="SwitchToOpenWindowCheck" Classes="fido"
-                      IsChecked="{Binding SwitchToOpenWindow, Mode=TwoWay}"
-                      Content="Switch to a window that already has the branch"
-                      ToolTip.Tip="On: a Fido window already open on the branch comes to the front instead of a second one opening — and runs whatever else the command line asked for, such as a tool. Off: every launch opens its own window. --new-window always does." />
-        </StackPanel>
-
-        <StackPanel Spacing="9">
-            <TextBlock Classes="label" TextWrapping="Wrap">
-                <Run Text="Close after opening " /><Run Text="· when Fido quits after launching Rider" Foreground="{DynamicResource FidoTextDim}" />
-            </TextBlock>
-            <Border Background="{DynamicResource FidoSegmentTrackBg}" BorderBrush="{DynamicResource FidoSegmentTrackBorder}"
-                    BorderThickness="1" CornerRadius="8" Padding="3" HorizontalAlignment="Left">
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Command line"
-                                 IsChecked="{Binding IsCloseCommandLine, Mode=TwoWay}" />
-                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Always"
-                                 IsChecked="{Binding IsCloseAlways, Mode=TwoWay}" />
-                    <RadioButton Classes="segment" GroupName="CloseAfterOpen" Content="Never"
-                                 IsChecked="{Binding IsCloseNever, Mode=TwoWay}" />
-                </StackPanel>
-            </Border>
-            <StackPanel Orientation="Horizontal" Spacing="11" IsEnabled="{Binding IsAutoCloseEnabled}">
-                <TextBlock Classes="label" VerticalAlignment="Center">
-                    <Run Text="Close delay " /><Run Text="· seconds, 0 = immediately" Foreground="{DynamicResource FidoTextDim}" />
-                </TextBlock>
-                <TextBox x:Name="CloseDelayBox" Classes="fido" Width="84"
-                         Text="{Binding CloseAfterOpenDelayText, Mode=TwoWay}" />
-            </StackPanel>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,18,0,0">
             <Button x:Name="CancelButton" Classes="secondary" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
             <Button x:Name="SaveButton" Classes="primary" Content="Save" Click="OnSaveClick" IsDefault="True" FontSize="13" Padding="24,9" />
         </StackPanel>
 
-    </StackPanel>
+    </Grid>
 </Window>

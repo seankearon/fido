@@ -108,15 +108,32 @@ following the theme.
 ## Settings
 
 The ⚙ gear popover picks the **default tool** (or **No default** for the equal-weight grid);
-**All settings…** opens the full dialog to configure **search roots**, your **editors** (each with
-a CLI slug, with the default marked **●**), the **worktree root**, **theme**, what the **window
-title** reads, what happens **before running** a command — fast-forward the target, and whether a
-run-menu pick lands in [Fido's Console tab](guide/console.md) or your own terminal — whether
-`fido <branch>` **switches to a window already open on the branch** — and the **close-after-opening**
+**All settings…** opens the full dialog, in four tabs.
+
+**General** — the **search roots** and the **worktree root**.
+
+![Settings: General](assets/screenshots/settings-dialog-general-light.png#only-light)
+![Settings: General](assets/screenshots/settings-dialog-general-dark.png#only-dark)
+
+**Editors** — your tools, each with a CLI slug, a kind, an optional path and optional arguments, with
+the default marked **●**. The list fills the dialog, and grows if you make the dialog bigger.
+
+![Settings: Editors](assets/screenshots/settings-dialog-editors-light.png#only-light)
+![Settings: Editors](assets/screenshots/settings-dialog-editors-dark.png#only-dark)
+
+**Appearance** — the **theme**, whether the Console tab wears Fido's palette, and what the **window
+title** reads.
+
+![Settings: Appearance](assets/screenshots/settings-dialog-appearance-light.png#only-light)
+![Settings: Appearance](assets/screenshots/settings-dialog-appearance-dark.png#only-dark)
+
+**Behaviour** — what happens **before running** a command (fast-forward the target, and whether a
+run-menu pick lands in [Fido's Console tab](guide/console.md) or your own terminal), whether
+`fido <branch>` **switches to a window already open on the branch**, and the **close-after-opening**
 behaviour and delay.
 
-![Fido settings dialog](assets/screenshots/settings-dialog-light.png#only-light)
-![Fido settings dialog](assets/screenshots/settings-dialog-dark.png#only-dark)
+![Settings: Behaviour](assets/screenshots/settings-dialog-behaviour-light.png#only-light)
+![Settings: Behaviour](assets/screenshots/settings-dialog-behaviour-dark.png#only-dark)
 
 ---
 

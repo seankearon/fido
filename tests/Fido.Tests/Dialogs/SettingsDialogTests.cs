@@ -1,4 +1,6 @@
 using System.IO;
+using Avalonia.Controls;
+using Avalonia.VisualTree;
 using Fido;
 using Fido.Models;
 using Fido.Services;
@@ -123,6 +125,41 @@ public class SettingsDialogTests
 
         var reloaded = new ConfigService(dir).Load();
         await Assert.That(reloaded.SwitchToOpenWindow).IsFalse();
+    }
+
+    [Test]
+    public async Task Save_persists_a_tools_arguments_typed_on_the_editors_tab()
+    {
+        using var world = new TestRepoWorld();
+        var (service, config, dir) = NewConfig(world);
+        var console = config.Editors.FindIndex(e => e.Kind == EditorKind.Console);
+
+        await Harness.OnUi(async owner =>
+        {
+            var dialog = new SettingsDialog(config, service);
+            var resultTask = dialog.ShowDialog(owner);
+            UiTestExtensions.Pump();
+
+            // The list is on a tab of its own: only once that tab is showing are its rows built.
+            dialog.FindControl<TabControl>("SettingsTabs")!.SelectedItem = dialog.FindControl<TabItem>("EditorsTab");
+            UiTestExtensions.Pump();
+            Screenshots.Save(dialog, "settings-dialog-editors");
+
+            var argumentBoxes = dialog.FindControl<ItemsControl>("EditorsList")!
+                .GetVisualDescendants().OfType<TextBox>()
+                .Where(b => b.PlaceholderText == "arguments (optional)")
+                .ToList();
+            await Assert.That(argumentBoxes.Count).IsEqualTo(config.Editors.Count);
+            argumentBoxes[console].Text = "-w 0 nt -d .";
+            UiTestExtensions.Pump();
+
+            dialog.ClickButton("SaveButton");
+            await resultTask;
+            App.ApplyTheme(AppTheme.System);
+        });
+
+        var reloaded = new ConfigService(dir).Load();
+        await Assert.That(reloaded.Editors[console].Arguments).IsEqualTo("-w 0 nt -d .");
     }
 
     [Test]

@@ -33,5 +33,16 @@ internal sealed class FidoServices
     /// </summary>
     public InstanceHandoff? Instances { get; init; }
 
-    public static FidoServices CreateDefault() => new() { Instances = InstanceHandoff.ForCurrentUser() };
+    /// <summary>
+    /// Where the window remembers its place between runs (see <see cref="WindowPlacement"/>). Null unless asked
+    /// for — so a window a test builds neither moves to where the developer last left Fido nor writes over it —
+    /// and the window then opens centred, as it always did.
+    /// </summary>
+    public WindowPlacementStore? Placement { get; init; }
+
+    public static FidoServices CreateDefault() => new()
+    {
+        Instances = InstanceHandoff.ForCurrentUser(),
+        Placement = WindowPlacementStore.ForCurrentUser(),
+    };
 }

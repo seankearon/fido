@@ -7,7 +7,10 @@ description: Every setting, its default, and where settings live.
 
 ## In the app
 
-Reach these via ⚙ → **All settings…**.
+Reach these via ⚙ → **All settings…**. The dialog has four tabs — **General** (search roots and the
+worktree root), **Editors**, **Appearance** (theme and window title) and **Behaviour** (before running,
+the command line, and closing after opening). **Save** and **Cancel** sit below the tabs and cover all
+four, so switching tabs loses nothing. The dialog can be resized, and the editor list grows with it.
 
 - **Search roots** — directories to scan for working trees (one per line).
 - **Editors** — the tools Fido can open into. Each row has a name, an optional **slug** (the
@@ -142,3 +145,8 @@ Each open window also leaves an empty marker file in **`%LOCALAPPDATA%\Fido\inst
 (`~/.local/share/Fido/instances` on Linux, `~/Library/Application Support/Fido/instances` on macOS), which
 is how `fido <branch>` finds [a window that already has the branch](../guide/command-line.md#a-window-that-already-has-the-branch).
 A window removes its marker when it closes, and the next launch clears away any left by a Fido that didn't.
+
+Beside them, **`window.json`** in the same `Fido` folder holds where the window was last closed and how big
+(see [Where the window opens](../guide/interface.md#where-the-window-opens)). It's written each time a window
+closes — kept out of `config.json` so a hand edit there is never overwritten — and kept local rather than
+roaming, because it describes this machine's screens. Delete it and the next window opens centred.

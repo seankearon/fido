@@ -207,7 +207,8 @@ public class GalleryScreenshotTests
             App.ApplyTheme(AppTheme.System);
         });
 
-        // 8. The full settings dialog, both themes.
+        // 8. The settings dialog, a shot per tab, both themes. At the dialog's own size rather than fitted to
+        //    its content: the tabs share one window, and the editor list fills whatever height it is given.
         var config = configService.Load();
         await Harness.OnUi(async owner =>
         {
@@ -217,8 +218,17 @@ public class GalleryScreenshotTests
                 var dialog = new SettingsDialog(config, configService);
                 var shown = dialog.ShowDialog(owner);
                 UiTestExtensions.Pump();
-                FitDialogToContent(dialog);
-                Screenshots.Save(dialog, $"settings-dialog-{suffix}");
+                var tabs = dialog.FindControl<TabControl>("SettingsTabs")!;
+                foreach (var (tab, name) in new[]
+                         {
+                             ("GeneralTab", "general"), ("EditorsTab", "editors"),
+                             ("AppearanceTab", "appearance"), ("BehaviourTab", "behaviour"),
+                         })
+                {
+                    tabs.SelectedItem = dialog.FindControl<TabItem>(tab);
+                    UiTestExtensions.Pump();
+                    Screenshots.Save(dialog, $"settings-dialog-{name}-{suffix}");
+                }
                 dialog.Close(false);
                 await shown;
             }

@@ -52,6 +52,12 @@ public partial class MainWindow : Window
     /// <summary>How the window stood before it was last minimised — what a handoff restores it to.</summary>
     private WindowState _restoreState = WindowState.Normal;
 
+    /// <summary>Where the window remembers its place between runs; null leaves it opening centred.</summary>
+    private readonly WindowPlacementStore? _placement;
+
+    /// <summary>The placement as last read or written, so closing a window nobody moved writes nothing.</summary>
+    private WindowPlacement? _rememberedPlacement;
+
     /// <summary>Hands a URL to the OS default browser — injected, so a test never opens one.</summary>
     private readonly Func<string, bool> _openUrl;
 
@@ -157,12 +163,14 @@ public partial class MainWindow : Window
         _launcher = services.Launcher;
         _openUrl = services.OpenUrl;
         _instances = services.Instances;
+        _placement = services.Placement;
 
         // Load config and apply the theme variant before the XAML resolves its DynamicResources.
         _config = _configService.Load();
         App.ApplyTheme(_config.Theme);
 
         InitializeComponent();
+        RestorePlacement();
         DataContext = _vm;
         _vm.LoadMru(_config.RecentBranches, _config.RecentSolutions);
         _vm.ShowTargetInTitle = _config.ShowTargetInWindowTitle;
@@ -1995,6 +2003,87 @@ public partial class MainWindow : Window
     {
         if (WindowState == WindowState.Minimized) WindowState = _restoreState;
         Activate();
+    }
+
+    // --- Remembered placement -------------------------------------------------------------
+
+    /// <summary>
+    /// Puts the window back where it was last closed, at the width it was left — and the height too, if that
+    /// was dragged rather than sized to the content — fitted to the screens there are now. Before the window is
+    /// shown, so it opens in place: Screens and Width are already good by then. Nothing remembered (a first run,
+    /// or a test) leaves it centred, as it always was; so does a place that is on no screen any more.
+    /// </summary>
+    private void RestorePlacement()
+    {
+        if (_placement?.Load() is not { } saved) return;
+        _rememberedPlacement = saved;
+
+        var minimum = new Size(MinWidth, MinHeight);
+        RestoredPlacement restored;
+        try
+        {
+            var all = Screens.All;
+            if ((Screens.Primary ?? (all.Count > 0 ? all[0] : null)) is not { } primary) return;
+            restored = WindowPlacementPolicy.Restore(saved, minimum,
+                [.. all.Select(s => new ScreenArea(s.WorkingArea, s.Scaling))],
+                new ScreenArea(primary.WorkingArea, primary.Scaling));
+        }
+        catch (Exception)
+        {
+            return;   // nothing will say where the screens are: leave it to the OS, as before
+        }
+
+        Width = restored.Width;
+        if (restored.Height is { } height)
+        {
+            SizeToContent = SizeToContent.Manual;
+            Height = height;
+        }
+        if (restored.Position is not { } at) return;
+
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Position = at;
+        // And again once it is up: a window that opens on a monitor of different scaling from the one it was
+        // created on is answered with a rect of the OS's choosing. The same point twice costs nothing where
+        // the first held.
+        EventHandler? again = null;
+        again = (_, _) =>
+        {
+            Opened -= again;
+            Position = at;
+        };
+        Opened += again;
+    }
+
+    /// <summary>
+    /// Writes down where the window is and how big, for <see cref="RestorePlacement"/> to find next launch. Only
+    /// a window that is up and neither minimised nor maximised: a minimised one sits where the OS parks it —
+    /// -32000 on Windows — and a maximised one is the size of its screen, and neither is where anybody left it.
+    /// The height only once it has been dragged: until then Avalonia is sizing the window to its content, and
+    /// that height belongs to whatever the last scan found.
+    /// </summary>
+    private void RememberPlacement()
+    {
+        if (_placement is null || !IsVisible || WindowState != WindowState.Normal) return;
+
+        var placement = new WindowPlacement
+        {
+            X = Position.X,
+            Y = Position.Y,
+            Width = ClientSize.Width,
+            Height = SizeToContent is SizeToContent.Height or SizeToContent.WidthAndHeight ? null : ClientSize.Height,
+        };
+        if (!placement.IsUsable || placement == _rememberedPlacement) return;
+
+        _placement.Save(placement);
+        _rememberedPlacement = placement;
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+        // While it is still on screen to ask — by OnClosed it is not.
+        if (!e.Cancel) RememberPlacement();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

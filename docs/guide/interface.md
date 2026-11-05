@@ -71,6 +71,20 @@ again.
 Prefer the title to stay put? Untick **Window title · _Show the repo and branch once
 discovery resolves them_** in Settings and it reads `Fido` throughout.
 
+## Where the window opens
+
+Fido opens **where you last closed it**, at the width you left it. Its height follows what the
+scan finds, as it always has — unless you dragged an edge, in which case that height is kept too.
+A window closed minimised or maximised leaves the last place it stood normally.
+
+If that place isn't on a screen any more — the monitor it was on has been unplugged, or too
+little of the title bar would be showing to drag it back — Fido opens centred instead, and a
+window too big for the screen it lands on is shrunk to fit. With several Fido windows open, the
+one closed last decides where the next one opens.
+
+The place is kept in **`%LOCALAPPDATA%\Fido\window.json`** (see
+[Where settings live](../reference/settings.md#where-settings-live)); delete it to go back to centred.
+
 ## The version badge
 
 The running build's version sits beside the **fido** wordmark in the header, in small muted

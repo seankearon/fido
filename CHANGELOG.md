@@ -83,6 +83,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nobody could. Neither shows a row — but only one of them is a statement about your branch. The check
   stays advisory throughout: with no `gh` on the machine, everything on the screen works exactly as before.
 
+- **Fido opens where you left it.** The window comes back at the position and width it was closed at, rather
+  than centred every time — and at the height too, if you dragged an edge; otherwise it keeps sizing itself
+  to what the scan finds. A place on a monitor that has since been unplugged, or with too little of the title
+  bar on screen to grab, opens centred instead, and a window too big for its screen is shrunk to fit. Kept in
+  `%LOCALAPPDATA%\Fido\window.json`, apart from `config.json`, because it describes this machine's screens.
+
+- **Each tool's arguments can be set in Settings.** The editor rows gained an **arguments** box under the
+  path — `-w 0 nt -d .` opens a Windows Terminal console as a tab in the current window, for instance. The
+  arguments were always saved and passed on, but setting them meant editing `config.json`, and typing them
+  into the path box instead left the program unfindable.
+
 - **The release build can sign the macOS disk image with a Developer ID and notarize it.** Until now the
   `.dmg` was only ad-hoc signed, so a Mac that downloaded it said Apple *could not verify "Fido" is free of
   malware*, and since macOS 15 right-click → Open no longer gets past that. Put five `MacSigning__*` keys
@@ -96,6 +107,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build that isn't notarized.
 
 ### Changed
+
+- **Settings is in tabs.** **General**, **Editors**, **Appearance** and **Behaviour**, one at a time, with
+  **Save** and **Cancel** below covering all four. The editor list, which used to be a short scrolling
+  window, now fills the dialog's height, and the dialog can be resized to give it more.
 
 - **`Ctrl+Enter`, `Alt+Enter` and the like no longer rescan from the branch and solution boxes.** They used to
   do what `Enter` does; they are now free to be keyboard shortcuts — `Ctrl+Enter` for *Open in the default
