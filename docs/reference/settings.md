@@ -15,7 +15,9 @@ Reach these via ⚙ → **All settings…**.
   Zed, **Console**, **File Explorer**, or Custom), and an optional path (blank = auto-detect for known kinds;
   required for Custom). For **Console** the path is the **terminal program** and for **File Explorer** the
   **file manager** (blank = the OS default; a full path or a bare command name like `wt` / `pwsh` both work),
-  so you can point Fido at the terminal you prefer. Tick the
+  so you can point Fido at the terminal you prefer. Below the path, optional **arguments** are passed
+  before the target — e.g. `-w 0 nt -d .` to open a Windows Terminal console as a tab in the current window.
+  The path holds the program alone; arguments typed into it make it unfindable. Tick the
   **●** radio to set the default (the hero button) — or use the ⚙ gear popover on the main screen,
   which offers the same choice plus **No default (equal weight)**. The rest are reached by their
   keyboard shortcut — **Ctrl+1 … Ctrl+9** unless you assign others (see [Keyboard shortcuts](#keyboard-shortcuts)

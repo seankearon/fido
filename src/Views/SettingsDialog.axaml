@@ -37,8 +37,8 @@
                     <ItemsControl x:Name="EditorsList" ItemsSource="{Binding Editors}" Margin="12,10">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:EditorChoice">
-                                <!-- Row 0: default · name · slug · kind · remove.  Row 1: explicit path (full width). -->
-                                <Grid RowDefinitions="Auto,Auto" Margin="0,0,0,10"
+                                <!-- Row 0: default · name · slug · kind · remove.  Row 1: explicit path.  Row 2: extra arguments. -->
+                                <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,10"
                                       ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                                     <RadioButton Grid.Row="0" Grid.Column="0" GroupName="DefaultEditor"
                                                  IsChecked="{Binding IsDefault, Mode=TwoWay}" VerticalAlignment="Center"
@@ -56,6 +56,9 @@
                                     <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
                                              Text="{Binding Path, Mode=TwoWay}" PlaceholderText="{Binding PathPlaceholder}"
                                              ToolTip.Tip="Path to this editor's executable or app bundle. Blank = auto-detect (known kinds); required for a Custom editor." />
+                                    <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Classes="fido" Margin="0,6,0,0"
+                                             Text="{Binding Arguments, Mode=TwoWay}" PlaceholderText="arguments (optional)"
+                                             ToolTip.Tip="Extra command-line arguments, space-separated, passed ahead of any folder or file the tool is given — e.g. -w 0 nt -d . for a Windows Terminal tab. Blank = none." />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
