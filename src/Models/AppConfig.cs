@@ -3,7 +3,8 @@ using System;
 namespace Fido.Models;
 
 /// <summary>
-/// Persisted user settings (JSON under <c>%APPDATA%/Fido/config.json</c>).
+/// Persisted user settings (JSON under <c>%APPDATA%/Fido/config.json</c>, with the portable part also in
+/// <see cref="SharedDirectory"/> when one is set).
 /// Use <see cref="CreateDefault"/> when no file exists so default search roots are
 /// expanded against the current user profile rather than baked into the type.
 /// </summary>
@@ -46,6 +47,14 @@ public sealed class AppConfig
     /// migrated forward into the Rider editor's path on load (see <c>ConfigService.Normalize</c>).
     /// </summary>
     public string? RiderPath { get; set; }
+
+    /// <summary>
+    /// A folder — typically one a sync client keeps in step, such as a Proton Drive or OneDrive folder —
+    /// holding a <c>config.json</c> with the settings that mean the same on every machine (see
+    /// <see cref="SharedConfig"/>). Null/empty keeps everything in the local file. Environment variables and a
+    /// leading <c>~</c> are expanded. This pointer itself is always local: it is what says where the rest went.
+    /// </summary>
+    public string? SharedDirectory { get; set; }
 
     /// <summary>Override for where new worktrees are created; sibling convention when null/empty.</summary>
     public string? WorktreeRoot { get; set; }

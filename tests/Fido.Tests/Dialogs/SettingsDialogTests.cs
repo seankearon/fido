@@ -214,4 +214,32 @@ public class SettingsDialogTests
         await Assert.That(reloaded.NewBranchRepos.Count).IsEqualTo(1);
         await Assert.That(reloaded.NewBranchRepos.Contains(@"C:\src\widget")).IsTrue();
     }
+
+    [Test]
+    public async Task Save_persists_the_shared_folder_and_writes_the_shared_settings_there()
+    {
+        using var world = new TestRepoWorld();
+        var (service, config, dir) = NewConfig(world);
+        var shared = Path.Combine(world.Root, "shared");
+
+        await Harness.OnUi(async owner =>
+        {
+            var dialog = new SettingsDialog(config, service);
+            var resultTask = dialog.ShowDialog(owner);
+            UiTestExtensions.Pump();
+
+            dialog.SetText("SharedDirectoryBox", shared);
+            UiTestExtensions.Pump();
+            await Assert.That(((SettingsViewModel)dialog.DataContext!).SharedDirectoryStatus).Contains("folder not found");
+            Screenshots.Save(dialog, "settings-dialog-shared-folder");
+
+            dialog.ClickButton("SaveButton");
+            await resultTask;
+            App.ApplyTheme(AppTheme.System);
+        });
+
+        await Assert.That(new ConfigService(dir).Load().SharedDirectory).IsEqualTo(shared);
+        await Assert.That(File.Exists(Path.Combine(shared, ConfigService.FileName))).IsTrue();
+    }
 }
+

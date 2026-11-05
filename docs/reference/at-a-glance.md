@@ -26,4 +26,4 @@ description: Every capability in one table.
 | CLI | `fido <branch> [tool]` — auto-opens only for an explicitly named tool with exactly one location; switches to a window **already open on the branch** instead of opening another (`--new-window` for one launch, or a setting to turn it off) |
 | Window title | Once a branch resolves, the title reads `<repo> · <branch>` — no "Fido" in front, following the selected card; switchable off in Settings |
 | Theme | **System / Light / Dark** in Settings, plus a **sun/moon toggle** left of the gear that flips light ↔ dark **for this run only** — the saved default, and the next launch, are untouched |
-| Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder), plus the repo's own `.fido/cfg.yaml` on the branch |
+| Config | `%APPDATA%\Fido\config.json` (migrates the legacy folder), optionally sharing its portable part through a synced **shared folder**, plus the repo's own `.fido/cfg.yaml` on the branch |

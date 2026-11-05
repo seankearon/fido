@@ -245,4 +245,131 @@ public class ConfigServiceTests
         await Assert.That(loaded.Shortcuts.Count).IsEqualTo(0);
         await Assert.That(loaded.Editors[0].Shortcut).IsNull();
     }
+
+    // --- Shared folder ----------------------------------------------------------------------
+
+    private static string SharedDir(TestRepoWorld world) =>
+        Path.Combine(world.Root, "shared", Guid.NewGuid().ToString("N"));
+
+    [Test]
+    public async Task The_shared_folder_gets_the_portable_settings_and_none_of_this_machines()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var shared = SharedDir(world);
+        var config = AppConfig.CreateDefault();
+        config.SharedDirectory = shared;
+        config.Theme = AppTheme.Dark;
+        config.SearchRoots = new() { @"D:\work" };
+        config.RecentBranches = new() { "feat/x" };
+        svc.Save(config);
+
+        var text = File.ReadAllText(Path.Combine(shared, ConfigService.FileName));
+
+        await Assert.That(text).Contains("\"Theme\": \"Dark\"");
+        await Assert.That(text).Contains("\"Editors\"");
+        await Assert.That(text).DoesNotContain("SearchRoots");
+        await Assert.That(text).DoesNotContain("RecentBranches");
+        await Assert.That(text).DoesNotContain("SharedDirectory");
+    }
+
+    [Test]
+    public async Task The_shared_file_wins_over_the_local_copy_on_load()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var shared = SharedDir(world);
+        svc.Save(new AppConfig { SharedDirectory = shared, Theme = AppTheme.Light, SearchRoots = { @"D:\work" } });
+        // Another machine changes a shared setting.
+        File.WriteAllText(Path.Combine(shared, ConfigService.FileName), """{ "Theme": "Dark", "PullBeforeRun": false }""");
+
+        var loaded = new ConfigService(svc.ConfigDirectory).Load();
+
+        await Assert.That(loaded.Theme).IsEqualTo(AppTheme.Dark);
+        await Assert.That(loaded.PullBeforeRun).IsFalse();
+        await Assert.That(loaded.SearchRoots.Single()).IsEqualTo(@"D:\work");   // local-only setting untouched
+        await Assert.That(loaded.Editors.Count).IsGreaterThan(0);                 // missing list keeps the local one
+    }
+
+    [Test]
+    public async Task A_save_that_changes_nothing_shared_leaves_the_shared_file_alone()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var shared = SharedDir(world);
+        svc.Save(new AppConfig { SharedDirectory = shared });
+        var loaded = svc.Load();
+        var file = Path.Combine(shared, ConfigService.FileName);
+        // Another machine changes the shared file while this one is running.
+        File.WriteAllText(file, """{ "Theme": "Dark" }""");
+
+        loaded.RecentBranches.Insert(0, "feat/y");   // an MRU save, as the main window makes
+        svc.Save(loaded);
+
+        await Assert.That(File.ReadAllText(file)).IsEqualTo("""{ "Theme": "Dark" }""");
+    }
+
+    [Test]
+    public async Task Changing_a_shared_setting_writes_the_shared_file()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var shared = SharedDir(world);
+        svc.Save(new AppConfig { SharedDirectory = shared });
+        var loaded = svc.Load();
+
+        loaded.Theme = AppTheme.Dark;
+        svc.Save(loaded);
+
+        await Assert.That(File.ReadAllText(Path.Combine(shared, ConfigService.FileName))).Contains("\"Theme\": \"Dark\"");
+    }
+
+    [Test]
+    public async Task Pointing_at_a_folder_that_already_has_settings_joins_them_rather_than_overwriting()
+    {
+        using var world = new TestRepoWorld();
+        var shared = SharedDir(world);
+        Directory.CreateDirectory(shared);
+        var file = Path.Combine(shared, ConfigService.FileName);
+        File.WriteAllText(file, """{ "Theme": "Dark", "Editors": [ { "Name": "Zed", "Kind": "Zed" } ], "DefaultEditorIndex": 0 }""");
+
+        // A second machine, with settings of its own, is pointed at the folder.
+        var svc = InTempDir(world);
+        svc.Save(AppConfig.CreateDefault());
+        var config = svc.Load();
+        config.SharedDirectory = shared;
+        svc.Save(config);
+
+        await Assert.That(config.Theme).IsEqualTo(AppTheme.Dark);
+        await Assert.That(config.Editors.Single().Kind).IsEqualTo(EditorKind.Zed);
+        await Assert.That(File.ReadAllText(file)).Contains("Zed");
+        await Assert.That(new ConfigService(svc.ConfigDirectory).Load().Editors.Single().Kind).IsEqualTo(EditorKind.Zed);
+    }
+
+    [Test]
+    public async Task An_unreachable_shared_folder_falls_back_to_the_local_copy()
+    {
+        using var world = new TestRepoWorld();
+        var svc = InTempDir(world);
+        var shared = SharedDir(world);
+        svc.Save(new AppConfig { SharedDirectory = shared, Theme = AppTheme.Dark });
+        Directory.Delete(shared, recursive: true);   // the synced drive isn't there today
+
+        var loaded = new ConfigService(svc.ConfigDirectory).Load();
+
+        await Assert.That(loaded.Theme).IsEqualTo(AppTheme.Dark);
+        await Assert.That(loaded.SharedDirectory).IsEqualTo(shared);
+    }
+
+    [Test]
+    public async Task A_shared_folder_expands_environment_variables_and_a_leading_tilde()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Environment.SetEnvironmentVariable("FIDO_TEST_SHARED", home);
+
+        await Assert.That(ConfigService.ResolveSharedDirectory("~/fido")).IsEqualTo(Path.Combine(home, "fido"));
+        await Assert.That(ConfigService.ResolveSharedDirectory("%FIDO_TEST_SHARED%" + Path.DirectorySeparatorChar + "fido"))
+            .IsEqualTo(Path.Combine(home, "fido"));
+        await Assert.That(ConfigService.ResolveSharedDirectory("  ")).IsNull();
+    }
 }

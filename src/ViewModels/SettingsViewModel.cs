@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using Fido.Models;
 using Fido.Mvvm;
+using Fido.Services;
 
 namespace Fido.ViewModels;
 
@@ -13,6 +15,8 @@ public sealed class SettingsViewModel : ObservableObject
 {
     private string _searchRootsText = "";
     private string _worktreeRoot = "";
+    private string _sharedDirectory = "";
+    private string? _loadedSharedFile;
     private AppTheme _selectedTheme = AppTheme.System;
     private bool _showTargetInWindowTitle = true;
     private bool _pullBeforeRun = true;
@@ -66,6 +70,55 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _worktreeRoot;
         set => SetField(ref _worktreeRoot, value);
+    }
+
+    /// <summary>The shared folder as typed; blank keeps every setting on this machine.</summary>
+    public string SharedDirectory
+    {
+        get => _sharedDirectory;
+        set
+        {
+            if (SetField(ref _sharedDirectory, value))
+                OnPropertyChanged(nameof(SharedDirectoryStatus));
+        }
+    }
+
+    /// <summary>
+    /// What Save will do with the folder as typed — read from the disk each time it's asked, so it follows
+    /// the typing. The resolved path is shown whenever it isn't simply what was typed.
+    /// </summary>
+    public string SharedDirectoryStatus
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_sharedDirectory))
+                return "every setting stays on this machine";
+            var file = ConfigService.SharedFilePathFor(_sharedDirectory);
+            if (file is null) return "not a path Fido can use";
+
+            var dir = Path.GetDirectoryName(file)!;
+            var where = string.Equals(dir, _sharedDirectory.Trim().TrimEnd('/', '\\'),StringComparison.OrdinalIgnoreCase)
+                ? ""
+                : $"{file} · ";
+            string status;
+            try
+            {
+                var inUse = _loadedSharedFile is not null
+                            && string.Equals(file, _loadedSharedFile, StringComparison.OrdinalIgnoreCase);
+                status = File.Exists(file)
+                    ? inUse
+                        ? "in use"
+                        : "has a config.json — on Save, its tools, shortcuts and preferences replace these"
+                    : Directory.Exists(dir)
+                        ? "no config.json yet — Save writes this machine's there"
+                        : "folder not found — Save creates it and writes this machine's there";
+            }
+            catch
+            {
+                status = "can't be read";
+            }
+            return where + status;
+        }
     }
 
     public AppTheme SelectedTheme
@@ -191,6 +244,8 @@ public sealed class SettingsViewModel : ObservableObject
     {
         SearchRootsText = string.Join(Environment.NewLine, config.SearchRoots);
         WorktreeRoot = config.WorktreeRoot ?? "";
+        _loadedSharedFile = ConfigService.SharedFilePathFor(config.SharedDirectory);
+        SharedDirectory = config.SharedDirectory ?? "";
 
         foreach (var existing in Editors) existing.PropertyChanged -= OnEditorChoiceChanged;
         Editors.Clear();
@@ -219,6 +274,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         config.SearchRoots = SplitRoots(SearchRootsText);
         config.WorktreeRoot = string.IsNullOrWhiteSpace(WorktreeRoot) ? null : WorktreeRoot.Trim();
+        config.SharedDirectory = string.IsNullOrWhiteSpace(SharedDirectory) ? null : SharedDirectory.Trim();
 
         config.Editors = Editors.Select(e => e.ToEditor()).ToList();
         // No ticked row round-trips as NoDefaultEditor: the user may deliberately run with no hero
