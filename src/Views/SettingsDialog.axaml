@@ -39,6 +39,17 @@
                         <TextBox x:Name="WorktreeRootBox" Classes="fido" Text="{Binding WorktreeRoot, Mode=TwoWay}"
                                  PlaceholderText="sibling .worktrees folder" />
                     </StackPanel>
+
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="label" TextWrapping="Wrap">
+                            <Run Text="Shared folder " /><Run Text="· tools, shortcuts and preferences, kept in step across machines" Foreground="{DynamicResource FidoTextDim}" />
+                        </TextBlock>
+                        <TextBox x:Name="SharedDirectoryBox" Classes="fido" Text="{Binding SharedDirectory, Mode=TwoWay}"
+                                 PlaceholderText="blank = this machine only"
+                                 ToolTip.Tip="A synced folder (Proton Drive, OneDrive…) to keep a config.json of the settings that mean the same everywhere. Search roots, the worktree root and recent branches always stay on this machine. Environment variables and a leading ~ are expanded." />
+                        <TextBlock x:Name="SharedDirectoryStatus" Text="{Binding SharedDirectoryStatus}" TextWrapping="Wrap"
+                                   FontSize="11" Foreground="{DynamicResource FidoTextDim}" />
+                    </StackPanel>
                 </StackPanel>
             </TabItem>
 

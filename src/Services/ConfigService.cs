@@ -12,11 +12,24 @@ namespace Fido.Services;
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(AppConfig))]
+[JsonSerializable(typeof(SharedConfig))]
 internal partial class FidoJsonContext : JsonSerializerContext;
 
-/// <summary>Loads/saves <see cref="AppConfig"/> as JSON under %APPDATA%/Fido (migrating a legacy folder).</summary>
+/// <summary>
+/// Loads/saves <see cref="AppConfig"/> as JSON under %APPDATA%/Fido (migrating a legacy folder), and — when
+/// <see cref="AppConfig.SharedDirectory"/> is set — the portable part (<see cref="SharedConfig"/>) as
+/// <c>config.json</c> in that folder too.
+///
+/// The local file always holds everything, so it doubles as the last-known copy of the shared settings for
+/// when the shared folder can't be read. On load the shared file, if readable, wins for its part. On save the
+/// shared file is written only when its part has changed since it was last read or written here: a recent
+/// branch saved on one machine must not put back the tools another machine has since changed.
+/// </summary>
 public sealed class ConfigService
 {
+    /// <summary>The file name used in the shared folder as well as the local one.</summary>
+    public const string FileName = "config.json";
+
     public string ConfigDirectory { get; }
     public string ConfigFilePath { get; }
 
@@ -32,11 +45,40 @@ public sealed class ConfigService
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         ConfigDirectory = configDirectory ?? Path.Combine(appData, "Fido");
-        ConfigFilePath = Path.Combine(ConfigDirectory, "config.json");
+        ConfigFilePath = Path.Combine(ConfigDirectory, FileName);
         _legacyConfigFilePath = configDirectory is null
-            ? Path.Combine(appData, "atlantic-opener", "config.json")
+            ? Path.Combine(appData, "atlantic-opener", FileName)
             : null;
     }
+
+    // The shared file this instance last read or wrote, and its shared part as serialized then — what a save
+    // compares against to decide whether the shared file needs writing at all.
+    private string? _sharedPath;
+    private string? _sharedJson;
+
+    /// <summary>
+    /// <paramref name="sharedDirectory"/> as a full path — environment variables and a leading <c>~</c>
+    /// expanded — or null when it's blank or can't be made into a path.
+    /// </summary>
+    public static string? ResolveSharedDirectory(string? sharedDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(sharedDirectory)) return null;
+        var path = Environment.ExpandEnvironmentVariables(sharedDirectory.Trim());
+        if (path == "~" || path.StartsWith("~/") || path.StartsWith("~\\"))
+            path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), path[1..].TrimStart('/', '\\'));
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The shared <c>config.json</c> <paramref name="sharedDirectory"/> names, or null for none.</summary>
+    public static string? SharedFilePathFor(string? sharedDirectory) =>
+        ResolveSharedDirectory(sharedDirectory) is { } dir ? Path.Combine(dir, FileName) : null;
 
     /// <summary>Reads the saved config, or returns sensible defaults if absent/corrupt.</summary>
     public AppConfig Load()
@@ -50,7 +92,11 @@ public sealed class ConfigService
                 if (File.Exists(path))
                 {
                     var cfg = JsonSerializer.Deserialize(File.ReadAllText(path), FidoJsonContext.Default.AppConfig);
-                    if (cfg is not null) return Normalize(cfg);
+                    if (cfg is not null)
+                    {
+                        ReadShared(cfg);
+                        return Normalize(cfg);
+                    }
                 }
             }
             catch
@@ -61,11 +107,67 @@ public sealed class ConfigService
         return AppConfig.CreateDefault();
     }
 
+    /// <summary>
+    /// Writes the local file, then the shared one if there is one and its part has changed. When
+    /// <see cref="AppConfig.SharedDirectory"/> now names a different folder from the one last read, and that
+    /// folder already has a <c>config.json</c>, its settings are taken into <paramref name="config"/> first
+    /// rather than overwritten — pointing a second machine at the folder joins it instead of replacing it.
+    /// The local file is written before the shared one, so a shared folder that can't be written (a drive
+    /// not mounted) still leaves this machine's settings saved; the failure then propagates.
+    /// </summary>
     public void Save(AppConfig config)
     {
+        var sharedPath = SharedFilePathFor(config.SharedDirectory);
+        if (sharedPath is not null && !PathsEqual(sharedPath, _sharedPath))
+            ReadShared(config);
+
         Directory.CreateDirectory(ConfigDirectory);
         File.WriteAllText(ConfigFilePath, JsonSerializer.Serialize(config, FidoJsonContext.Default.AppConfig));
+
+        if (sharedPath is null)
+        {
+            _sharedPath = _sharedJson = null;
+            return;
+        }
+        var json = JsonSerializer.Serialize(SharedConfig.From(config), FidoJsonContext.Default.SharedConfig);
+        if (json == _sharedJson && PathsEqual(sharedPath, _sharedPath)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(sharedPath)!);
+        File.WriteAllText(sharedPath, json);
+        _sharedPath = sharedPath;
+        _sharedJson = json;
     }
+
+    /// <summary>
+    /// Puts the shared file's settings over <paramref name="config"/>'s when it names one that can be read,
+    /// and remembers what was read. A missing file leaves the config as it is and remembers nothing, so the
+    /// next save writes it; an unreadable or corrupt one leaves it as it is too, but is remembered as read, so
+    /// a save that changes nothing shared doesn't replace a file someone may be part-way through editing.
+    /// </summary>
+    private void ReadShared(AppConfig config)
+    {
+        var path = SharedFilePathFor(config.SharedDirectory);
+        _sharedPath = path;
+        _sharedJson = null;
+        if (path is null) return;
+        try
+        {
+            if (!File.Exists(path)) return;
+            var shared = JsonSerializer.Deserialize(File.ReadAllText(path), FidoJsonContext.Default.SharedConfig);
+            if (shared is null) return;
+            shared.ApplyTo(config);
+            Normalize(config);
+            _sharedJson = JsonSerializer.Serialize(SharedConfig.From(config), FidoJsonContext.Default.SharedConfig);
+        }
+        catch
+        {
+            // Unreadable or corrupt: keep the local copy of the shared settings, and leave the file alone
+            // until a shared setting actually changes.
+            _sharedJson = JsonSerializer.Serialize(SharedConfig.From(config), FidoJsonContext.Default.SharedConfig);
+        }
+    }
+
+    private static bool PathsEqual(string? a, string? b) =>
+        string.Equals(a, b, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static AppConfig Normalize(AppConfig cfg)
     {

@@ -293,7 +293,7 @@ folder, so a gallery generated on Windows shows Windows paths.
 ## Notes
 
 - Settings persist to `%APPDATA%\Fido\config.json` (a legacy `atlantic-opener` folder is
-  read once and migrated forward).
+  read once and migrated forward), with the portable part also in the **shared folder** when one is set.
 - Theme — **System** (default) / Light / Dark — via the cog in the app header. The sun/moon
   button beside the cog flips light ↔ dark for the running app only; it saves nothing.
 - A native AOT `win-x64` build has been verified to compile cleanly; producing the final

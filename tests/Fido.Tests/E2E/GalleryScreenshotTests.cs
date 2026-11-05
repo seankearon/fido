@@ -209,7 +209,10 @@ public class GalleryScreenshotTests
 
         // 8. The settings dialog, a shot per tab, both themes. At the dialog's own size rather than fitted to
         //    its content: the tabs share one window, and the editor list fills whatever height it is given.
+        //    A shared folder already in use, so the General tab shows the box filled and its "in use" line.
         var config = configService.Load();
+        config.SharedDirectory = Path.Combine(demo, "sync", "fido");
+        configService.Save(config);
         await Harness.OnUi(async owner =>
         {
             foreach (var (theme, suffix) in Themes)

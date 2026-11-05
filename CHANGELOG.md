@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Settings that follow you between machines.** A new **Shared folder** box in **⚙ → All settings… →
+  General** takes a synced folder (Proton Drive, OneDrive, Dropbox…). Fido keeps a `config.json` there with
+  the settings that mean the same everywhere: the tools and their shortcuts, the default tool, the theme
+  and the switches. Search roots, the worktree root and recent branches stay on each machine, since they
+  name that machine's disks. Pointing a second machine at a folder that already has a `config.json` adopts
+  those settings instead of overwriting them. The shared file is rewritten only when a shared setting
+  changes, so an open Fido saving a recent branch never undoes a change made on another machine.
+
 - **Keyboard shortcuts you choose — chords included.** Every action on the main screen can now have a
   shortcut: a single press such as `F5`, or a **two-press chord** such as `Ctrl+K, Ctrl+S`, as Visual Studio
   and VS Code have them. That covers each tool (`Ctrl+1` … `Ctrl+9` stay the defaults) and the rest of the

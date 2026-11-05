@@ -7,8 +7,8 @@ description: Every setting, its default, and where settings live.
 
 ## In the app
 
-Reach these via ⚙ → **All settings…**. The dialog has four tabs — **General** (search roots and the
-worktree root), **Editors**, **Appearance** (theme and window title) and **Behaviour** (before running,
+Reach these via ⚙ → **All settings…**. The dialog has four tabs — **General** (search roots, the
+worktree root and the shared folder), **Editors**, **Appearance** (theme and window title) and **Behaviour** (before running,
 the command line, and closing after opening). **Save** and **Cancel** sit below the tabs and cover all
 four, so switching tabs loses nothing. The dialog can be resized, and the editor list grows with it.
 
@@ -29,6 +29,9 @@ four, so switching tabs loses nothing. The dialog can be resized, and the editor
 - **Worktree root** — leave blank for the sibling `<repo>.worktrees` convention. Setting one also collapses
   the **worktree folders line** under the branch box to a single row, answered from the branch name alone
   with no scan needed (see **[The branch's worktree folders](../guide/discovery.md#the-branchs-worktree-folders)**).
+- **Shared folder** — a synced folder that keeps the settings that are the same on every machine; see
+  **[Sharing settings between machines](#sharing-settings-between-machines)**. Blank keeps everything on
+  this machine.
 - **Theme** — **System**, **Light**, or **Dark**, plus **Colour the Console tab to match**
   *(default off)*. Off, [the Console tab](../guide/console.md#its-colours) keeps the terminal emulator's
   own sixteen ANSI colours, on a plain ground the right way up for the theme; on, the ground and all
@@ -140,6 +143,38 @@ setting to enable; see **[In-repo config](../guide/in-repo-config.md#in-repo-con
 JSON at **`%APPDATA%\Fido\config.json`**. If that doesn't exist, Fido reads a legacy
 `%APPDATA%\atlantic-opener\config.json` (from before the rename) so existing settings survive;
 the next save writes to the new location.
+
+### Sharing settings between machines
+
+Set **Shared folder** to a folder your sync client keeps in step — say
+`E:\ProtonDrive\My files\.fido\shared` — and Fido keeps a second **`config.json`** there, holding the
+settings that mean the same on every machine:
+
+| Shared | Kept on this machine |
+|---|---|
+| The tools — names, slugs, kinds, paths, arguments, shortcuts — and the default | Search roots and search depth |
+| The keyboard shortcuts | The worktree root |
+| Theme and Console colours | Recent branches and solutions |
+| Window title, before running, command line, close after opening | The shared folder itself |
+| The default branch names | |
+
+The local file still holds everything. It's the copy Fido reads when the shared folder can't be (a drive
+not mounted), and on load the shared file, when it can be read, wins for its part. A tool's path is shared
+too, so leave it blank where auto-detect finds the tool on both machines.
+
+The status line under the box says what **Save** will do:
+
+- **in use** — the folder this Fido is already reading.
+- **has a config.json** — another machine got there first. Save takes its settings in place of this
+  machine's, which is how a second machine joins rather than overwriting the first.
+- **no config.json yet** / **folder not found** — Save writes this machine's settings there, creating the
+  folder if need be.
+
+Fido rewrites the shared file only when a shared setting has changed since it last read it. A window that
+has been open all day can save a recent branch without putting back the tools another machine changed in
+the meantime. When two machines both change shared settings, the later save wins. Environment variables
+and a leading `~` are expanded. Nothing is copied or moved when you change the folder, and the old one is
+left as it was.
 
 Each open window also leaves an empty marker file in **`%LOCALAPPDATA%\Fido\instances`**
 (`~/.local/share/Fido/instances` on Linux, `~/Library/Application Support/Fido/instances` on macOS), which

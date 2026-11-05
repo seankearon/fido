@@ -110,7 +110,7 @@ following the theme.
 The ⚙ gear popover picks the **default tool** (or **No default** for the equal-weight grid);
 **All settings…** opens the full dialog, in four tabs.
 
-**General** — the **search roots** and the **worktree root**.
+**General** — the **search roots**, the **worktree root**, and the **shared folder** that keeps the portable settings in step across machines.
 
 ![Settings: General](assets/screenshots/settings-dialog-general-light.png#only-light)
 ![Settings: General](assets/screenshots/settings-dialog-general-dark.png#only-dark)
