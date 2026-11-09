@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using Fido.Models;
 
 namespace Fido.Services;
@@ -98,8 +99,8 @@ public sealed class EditorLauncher : IEditorLauncher
         // Windows Terminal ignores the inherited directory, so it gets an explicit -d <folder>; cmd /
         // PowerShell (or a custom shell) start in the folder via the working directory.
         if (OperatingSystem.IsWindows())
-            return string.Equals(Path.GetFileNameWithoutExtension(executable), "wt", StringComparison.OrdinalIgnoreCase)
-                ? new LaunchSpec(executable, [.. extra, "-d", folder], WorkingDirectory: folder, UseShellExecute: true)
+            return IsWindowsTerminal(executable)
+                ? new LaunchSpec(executable, [.. WithoutStartingDirectory(extra), "-d", folder], WorkingDirectory: folder, UseShellExecute: true)
                 : new LaunchSpec(executable, [.. extra], WorkingDirectory: folder, UseShellExecute: true);
 
         // Linux: virtually every terminal emulator opens in the inherited working directory.
@@ -133,8 +134,8 @@ public sealed class EditorLauncher : IEditorLauncher
         var extra = SplitArguments(editor.Arguments);
         var shell = WindowsShellFor(executable, command, onPath);
 
-        if (IsProgram(executable, "wt"))
-            return new LaunchSpec(executable, [.. extra, "-d", folder, .. shell], folder, UseShellExecute: true);
+        if (IsWindowsTerminal(executable))
+            return new LaunchSpec(executable, [.. WithoutStartingDirectory(extra), "-d", folder, .. shell], folder, UseShellExecute: true);
 
         string[] leading = string.Equals(shell[0], executable, StringComparison.OrdinalIgnoreCase) ? extra : [];
         return new LaunchSpec(shell[0], [.. leading, .. shell[1..]], folder, UseShellExecute: true);
@@ -254,6 +255,30 @@ public sealed class EditorLauncher : IEditorLauncher
         return command;
     }
 
+    /// <summary>
+    /// True for Windows Terminal and its forks that share its command line — <c>wt</c>, and <c>wtai</c>
+    /// (Microsoft Intelligent Terminal) — so a run is handed to them as a tab rather than bypassing them
+    /// for a bare shell window, and a plain open gets the explicit <c>-d</c> they need.
+    /// </summary>
+    private static bool IsWindowsTerminal(string executable) =>
+        IsProgram(executable, "wt") || IsProgram(executable, "wtai");
+
+    /// <summary>
+    /// The console row's arguments minus any starting directory (<c>-d</c> / <c>--startingDirectory</c> and
+    /// its value). Windows Terminal rejects a second one outright, and Fido always appends the target folder
+    /// itself — so a row written as <c>-w 0 nt -d .</c> keeps working rather than failing the launch.
+    /// </summary>
+    private static string[] WithoutStartingDirectory(string[] args)
+    {
+        var kept = new List<string>(args.Length);
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] is "-d" or "--startingDirectory") { i++; continue; }   // skip the flag and its value
+            kept.Add(args[i]);
+        }
+        return [.. kept];
+    }
+
     /// <summary>True when <paramref name="executable"/> is the program called <paramref name="name"/>,
     /// whatever directory it came from and whatever extension it carries.</summary>
     private static bool IsProgram(string executable, string name) =>
@@ -324,8 +349,19 @@ public sealed class EditorLauncher : IEditorLauncher
         if (!string.IsNullOrEmpty(spec.WorkingDirectory))
             psi.WorkingDirectory = spec.WorkingDirectory;
         foreach (var arg in spec.Arguments) psi.ArgumentList.Add(arg);
+
+        // Windows only lets a process take the foreground if the foreground process allowed it. A direct
+        // child inherits that, but a Store-alias launch (wt, wtai) or a .cmd shim hands off to a process
+        // that isn't ours, so its window — or an error dialog it raises — would otherwise open behind
+        // Fido. Fido is in the foreground at the click, so it can pass that right on to whoever comes next.
+        if (OperatingSystem.IsWindows()) AllowSetForegroundWindow(AsfwAny);
         _ = Process.Start(psi);
     }
+
+    private const int AsfwAny = -1;
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern bool AllowSetForegroundWindow(int dwProcessId);
 
     // --- Rider --------------------------------------------------------------------------
 

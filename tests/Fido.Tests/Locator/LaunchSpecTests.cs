@@ -164,6 +164,21 @@ public class LaunchSpecTests
             var wt = EditorLauncher.BuildLaunchSpec(editor, @"C:\…\WindowsApps\wt.exe", Folder, "aspire start", WithPwsh);
             await Assert.That(string.Join(' ', wt.Arguments)).IsEqualTo($"-d {Folder} {Pwsh} -NoExit -Command aspire start");
 
+            // Intelligent Terminal (wtai) shares wt's command line, so it hosts the run as a tab too —
+            // with the console row's own arguments (e.g. `-w 0 nt`) leading, so it lands in the open window.
+            var wtai = EditorLauncher.BuildLaunchSpec(new Editor { Kind = EditorKind.Console, Arguments = "-w 0 nt" },
+                @"C:\…\WindowsApps\wtai.exe", Folder, "aspire start", WithPwsh);
+            await Assert.That(Path.GetFileName(wtai.FileName)).IsEqualTo("wtai.exe");
+            await Assert.That(string.Join(' ', wtai.Arguments)).IsEqualTo($"-w 0 nt -d {Folder} {Pwsh} -NoExit -Command aspire start");
+
+            // A row that already names a starting directory (`-d .`) has it replaced by the target folder:
+            // Windows Terminal refuses a second -d with "--startingDirectory: At most 1 required".
+            var withDir = new Editor { Kind = EditorKind.Console, Arguments = "-w 0 nt -d ." };
+            var run = EditorLauncher.BuildLaunchSpec(withDir, @"C:\…\WindowsApps\wtai.exe", Folder, "aspire start", WithPwsh);
+            await Assert.That(string.Join(' ', run.Arguments)).IsEqualTo($"-w 0 nt -d {Folder} {Pwsh} -NoExit -Command aspire start");
+            var open = EditorLauncher.BuildLaunchSpec(withDir, @"C:\…\WindowsApps\wtai.exe", Folder);
+            await Assert.That(string.Join(' ', open.Arguments)).IsEqualTo($"-w 0 nt -d {Folder}");
+
             // The configured PowerShell is the host for anything else it's given.
             var pwsh = EditorLauncher.BuildLaunchSpec(editor, @"C:\Program Files\PowerShell\7\pwsh.exe", Folder, "aspire start", NoPwsh);
             await Assert.That(Path.GetFileName(pwsh.FileName)).IsEqualTo("pwsh.exe");
