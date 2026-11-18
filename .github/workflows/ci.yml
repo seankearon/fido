@@ -19,7 +19,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       # SkiaSharp (headless rendering / screenshot capture) needs fontconfig on Linux.
       - name: Install Skia native deps (Linux)
@@ -48,5 +48,5 @@ jobs:
           name: test-artifacts-${{ matrix.os }}
           path: |
             artifacts/screenshots
-            tests/Fido.Tests/bin/Release/net10.0/TestResults
+            tests/Fido.Tests/bin/Release/net11.0/TestResults
           if-no-files-found: ignore

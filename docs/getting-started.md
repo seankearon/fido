@@ -15,7 +15,7 @@ track the spacecraft and compute its trajectory. Fido does the same for your cod
 a branch name in, its exact path on disk out.
 
 - **Platform:** Windows (primary). macOS support is included but experimental.
-- **Stack:** .NET 10, Avalonia 12.
+- **Stack:** .NET 11, Avalonia 12.
 
 !!! note "Opening Fido on a Mac"
     If macOS says it *could not verify "Fido" is free of malware*, that download was not

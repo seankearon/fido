@@ -307,7 +307,7 @@ public class ConsoleTabTests
     /// </summary>
     [Test]
     [Timeout(120_000)]
-    public async Task The_console_takes_Fidos_palette_before_the_shell_starts()
+    public async Task The_console_takes_Fidos_palette_before_the_shell_starts(CancellationToken cancellationToken)
     {
         var (world, root) = PlainRepo();
         using var _ = world;
@@ -352,7 +352,7 @@ public class ConsoleTabTests
     /// </summary>
     [Test]
     [Timeout(120_000)]
-    public async Task By_default_the_console_keeps_the_terminals_own_colours_the_right_way_up()
+    public async Task By_default_the_console_keeps_the_terminals_own_colours_the_right_way_up(CancellationToken cancellationToken)
     {
         var (world, root) = PlainRepo();
         using var _ = world;
@@ -394,7 +394,7 @@ public class ConsoleTabTests
     /// </summary>
     [Test]
     [Timeout(120_000)]
-    public async Task The_plain_console_turns_over_with_the_theme_under_a_running_shell()
+    public async Task The_plain_console_turns_over_with_the_theme_under_a_running_shell(CancellationToken cancellationToken)
     {
         var (world, root) = PlainRepo();
         using var _ = world;
@@ -503,7 +503,7 @@ public class ConsoleTabTests
     /// </summary>
     [Test]
     [Timeout(120_000)]
-    public async Task Capture_the_console_tab_for_review()
+    public async Task Capture_the_console_tab_for_review(CancellationToken cancellationToken)
     {
         var (world, root) = PlainRepo();
         using var _ = world;

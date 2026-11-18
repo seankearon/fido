@@ -211,7 +211,7 @@ else {
     # An ordinary build wants nothing but the SDK. The C++ toolchain, Parcel and gh belong to the
     # publish and the release, and release.ps1 checks for those there.
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        throw 'The .NET SDK is not on PATH. Install .NET 10 from https://dotnet.microsoft.com/download'
+        throw 'The .NET SDK is not on PATH. Install .NET 11 from https://dotnet.microsoft.com/download'
     }
 
     # A Fido already running out of this folder holds its own exe open, and the copy into bin\ then

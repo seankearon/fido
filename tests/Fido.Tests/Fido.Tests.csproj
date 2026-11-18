@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <!-- TUnit runs on Microsoft.Testing.Platform, which produces a test executable. -->
         <OutputType>Exe</OutputType>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <IsPackable>false</IsPackable>
-        <!-- TUnit runs on Microsoft.Testing.Platform. On the .NET 10 SDK the legacy `dotnet test`
+        <!-- TUnit runs on Microsoft.Testing.Platform. From the .NET 10 SDK on, the legacy `dotnet test`
              (VSTest) path is unsupported, so run the suite by executing the test app with
              `dotnet run` (see README / the CI workflow). -->
         <!-- The referenced app enables PublishAot; the tests themselves are never AOT-published,
@@ -16,9 +16,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="TUnit" Version="1.56.0" />
-        <PackageReference Include="Avalonia.Headless" Version="12.0.4" />
-        <PackageReference Include="Avalonia.Skia" Version="12.0.4" />
+        <PackageReference Include="TUnit" Version="1.86.6" />
+        <PackageReference Include="Avalonia.Headless" Version="12.1.6" />
+        <PackageReference Include="Avalonia.Skia" Version="12.1.6" />
     </ItemGroup>
 
     <ItemGroup>
