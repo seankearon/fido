@@ -6,7 +6,7 @@ two things CI can't run for real: Rider launch and the modal dialogs.
 
 ## Running
 
-On the .NET 10 SDK the legacy `dotnet test` (VSTest) path is unsupported. TUnit runs on
+From the .NET 10 SDK on, the legacy `dotnet test` (VSTest) path is unsupported. TUnit runs on
 Microsoft.Testing.Platform, so execute the test app directly:
 
 ```sh
@@ -19,8 +19,8 @@ Filter to a subset with Microsoft.Testing.Platform's tree filter:
 dotnet run -c Release --project tests/Fido.Tests -- --treenode-filter "/*/*/TwoClonesTests/*"
 ```
 
-Captured UI screenshots are written to `bin/<config>/net10.0/screenshots/` (or `FIDO_SCREENSHOT_DIR`
-if set) and an HTML report to `bin/<config>/net10.0/TestResults/`. CI uploads both as artifacts.
+Captured UI screenshots are written to `bin/<config>/net11.0/screenshots/` (or `FIDO_SCREENSHOT_DIR`
+if set) and an HTML report to `bin/<config>/net11.0/TestResults/`. CI uploads both as artifacts.
 
 ## Layout
 

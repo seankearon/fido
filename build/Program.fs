@@ -522,9 +522,9 @@ let buildFido () =
         // runtime and without PublishAot, which overwrites src/obj/project.assets.json and
         // throws away everything the Restore stage below puts there. Run these two the other
         // way round and the publish fails with NETSDK1047, "assets file doesn't have a target
-        // for net10.0/win-x64".
+        // for net11.0/win-x64".
         stage "Test" (fun () ->
-            // Fido's suite is TUnit on Microsoft.Testing.Platform, and the .NET 10 SDK has
+            // Fido's suite is TUnit on Microsoft.Testing.Platform, and the .NET SDK (from 10 on) has
             // dropped the VSTest path that `dotnet test` took - so the tests are an ordinary
             // executable that is built and then run, exactly as the CI workflow does it. The
             // process exit code is the result, and `dotnet` here fails the build on any

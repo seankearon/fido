@@ -116,6 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Fido runs on .NET 11.** Building it from source now needs the .NET 11 SDK. Avalonia goes to 12.1.6,
+  the terminal control behind the Console tab to 4.1.4, and Polly.Core to 8.9.1.
+
 - **Settings is in tabs.** **General**, **Editors**, **Appearance** and **Behaviour**, one at a time, with
   **Save** and **Cancel** below covering all four. The editor list, which used to be a short scrolling
   window, now fills the dialog's height, and the dialog can be resized to give it more.

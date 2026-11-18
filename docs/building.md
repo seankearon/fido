@@ -5,13 +5,13 @@ description: Prerequisites, running from source, publishing and the release pipe
 
 # Building Fido
 
-Fido is a **.NET 10 / Avalonia 12** desktop app. Windows is the primary target;
+Fido is a **.NET 11 / Avalonia 12** desktop app. Windows is the primary target;
 macOS is a bonus. The solution is `Fido.slnx`; the project is
 `src/Fido.csproj` (assembly / executable name: `Fido`).
 
 ## Prerequisites
 
-- **.NET 10 SDK** (10.0.301 or newer).
+- **.NET 11 SDK** (11.0.100 or newer).
 - **For a Native AOT publish only** — the platform C/C++ toolchain (for the native linker):
   - **Windows:** Visual Studio with the **“Desktop development with C++”** workload, or the
     standalone **Build Tools for Visual Studio** with that workload. See
@@ -52,7 +52,7 @@ faster cold start. Requires the C++ toolchain listed above.
 dotnet publish -r win-x64 -c Release
 ```
 
-Output: `src/bin/Release/net10.0/win-x64/publish/Fido.exe`
+Output: `src/bin/Release/net11.0/win-x64/publish/Fido.exe`
 
 Other runtimes (publish on a machine of that OS): `-r osx-arm64`, `-r osx-x64`, `-r linux-x64`.
 

@@ -295,7 +295,7 @@ public sealed class TestRepoWorld : IDisposable
         Directory.CreateDirectory(projDir);
         File.WriteAllText(
             Path.Combine(projDir, solutionName + ".csproj"),
-            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net11.0</TargetFramework></PropertyGroup></Project>");
     }
 
     private static string Sanitize(string s)

@@ -27,7 +27,7 @@ public static class Screenshots
             if (frame is null) return null;
 
             System.IO.Directory.CreateDirectory(Directory);
-            frame.Save(Path.Combine(Directory, Sanitize(name) + ".png"));
+            frame.Save(Path.Combine(Directory, Sanitize(name) + ".png"), PngBitmapEncoderOptions.Default);
             return frame;
         }
         catch
